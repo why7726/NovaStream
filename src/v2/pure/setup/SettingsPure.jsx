@@ -83,7 +83,7 @@ export default function SettingsPure() {
   const { reglages, features } = etat;
   const etapes = [
     { fait: true, texte: 'Compte administrateur créé' },
-    { fait: features.serveur, texte: 'Relier ton serveur Plex' },
+    { fait: features.serveur, texte: 'Relier ton serveur Plex ou Jellyfin' },
     { fait: features.tmdb, texte: 'Ajouter la clé TMDB (conseillé)' },
   ];
 
@@ -119,7 +119,7 @@ export default function SettingsPure() {
       )}
 
       <div className="space-y-4">
-        <ServeurSection reglages={reglages} onChange={charger} />
+        <ServeurSection reglages={reglages} features={features} onChange={charger} />
         <BibliothequesSection serveurRelie={features.serveur} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 pt-6 pb-1 px-1">Services optionnels</h2>
         <AssistantSection reglages={reglages} features={features} onChange={charger} />

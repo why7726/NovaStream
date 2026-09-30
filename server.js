@@ -25,6 +25,7 @@ import * as plexLink from './plexLink.js';
 import * as vibe from './vibe.js';
 import * as setup from './setup.js';
 import { creerFiltrePrive } from './prive.js';
+import { creerJellyfin } from './jellyfin.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -50,10 +51,16 @@ config.onChange(lireConfig);
 /* Bibliothèques privées (décochées dans les réglages) : filtrées de toutes
    les réponses Plex et inaccessibles, même par lien direct. Voir prive.js. */
 const prive = creerFiltrePrive({
-  plexUrl: () => PLEX_URL,
-  token: () => PLEX_TOKEN,
+  lister: async (chemin) => (await plexJsonBrut(chemin))?.MediaContainer?.Metadata || [],
+  actif: () => config.features().serveur,
   exclues: () => config.bibliotheques().exclues,
 });
+
+/* Serveur Jellyfin : Nova parle « Plex », jellyfin.js traduit (voir ce fichier).
+   Créé plus bas, une fois la base ouverte (il y range ses correspondances
+   d'identifiants). */
+let jelly = null;
+const estJellyfin = () => !!jelly && config.serveurType() === 'jellyfin';
 setTimeout(() => prive.rafraichir(), 5000);
 setInterval(() => prive.rafraichir(), 10 * 60 * 1000);
 config.onChange(() => {
@@ -61,7 +68,7 @@ config.onChange(() => {
   try { apiCache.clear(); } catch { /* pas encore initialisé au démarrage */ }
   libraryCache = { at: 0, items: [] };
 });
-if (!PLEX_URL || !PLEX_TOKEN) {
+if (!config.serveurType()) {
   console.warn('[Config] Aucun serveur multimédia relié — ouvrez le site pour lancer l\'assistant de configuration.');
 }
 
@@ -198,6 +205,14 @@ console.log(`[Boot] NovaStream démarre — données dans ${config.DATA_DIR}`);
 // ═══════════════════════════════════════════════════════════
 const db = new Database(config.dataPath('novastream.db'));
 db.pragma('journal_mode = WAL');
+
+jelly = creerJellyfin({
+  db,
+  url: () => config.get('JELLYFIN_URL'),
+  token: () => config.get('JELLYFIN_TOKEN'),
+  userId: () => config.get('JELLYFIN_USER_ID'),
+});
+config.onChange(() => jelly.oublier());
 db.pragma('wal_autocheckpoint = 1000'); // keep the -wal file from growing unbounded
 
 // Flush WAL & close cleanly on shutdown (prevents a multi-MB stale -wal file)
@@ -498,7 +513,7 @@ app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date() }))
 
 // Assistant de premier démarrage, réglages, bibliothèques, fonctions actives.
 setup.installer(app, {
-  db, bcrypt, authMiddleware, adminMiddleware, logActivity, prive,
+  db, bcrypt, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut,
   signerJeton: (u) => jwt.sign({ id: u.id, username: u.username, email: u.email, isAdmin: u.isAdmin, tv: u.tokenVersion || 0 }, JWT_SECRET, { expiresIn: '30d' }),
 });
 
@@ -578,10 +593,14 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
 app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
   try {
     if (prive.cheminInterdit(`/library/metadata/${req.params.id}`)) return res.status(404).json({ error: 'Introuvable' });
-    // Avec le jeton du compte relié, la fiche porte SA progression (viewOffset).
-    const url = `${PLEX_URL}/library/metadata/${req.params.id}?includeMarkers=1&includeChapters=1&X-Plex-Token=${tokenPour(req)}`;
-    const response = await fetch(url, { headers: { 'Accept': 'application/json' } });
-    const data = prive.filtrerJson(await response.json());
+    let brut;
+    if (estJellyfin()) brut = await jelly.plexJson(`/library/metadata/${req.params.id}`);
+    else {
+      // Avec le jeton du compte relié, la fiche porte SA progression (viewOffset).
+      const url = `${PLEX_URL}/library/metadata/${req.params.id}?includeMarkers=1&includeChapters=1&X-Plex-Token=${tokenPour(req)}`;
+      brut = await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
+    }
+    const data = prive.filtrerJson(brut);
     if (data?.MediaContainer?.Metadata?.[0]) {
       const item = data.MediaContainer.Metadata[0];
       const guids = item.Guid || [];
@@ -1194,6 +1213,7 @@ function tokenPour(req) {
 const pinsEnCours = new Map();
 
 app.post('/api/connect/plex/start', authMiddleware, async (req, res) => {
+  if (estJellyfin()) return res.status(400).json({ error: 'Ce serveur utilise Jellyfin : le connecteur Plex ne s\'applique pas.' });
   try {
     const pin = await plexLink.demarrerPin();
     pinsEnCours.set(req.user.id, { id: pin.id, at: Date.now() });
@@ -1264,6 +1284,8 @@ app.post('/api/connect/plex/sync', authMiddleware, async (req, res) => {
    `/:/scrobble` est l'API officielle de Plex pour ça — `identifier` est
    obligatoire, sinon Plex ignore silencieusement la demande. */
 async function marquerSurPlex(userId, ratingKey, vu = true) {
+  // Jellyfin : un seul compte partagé, on y recopie directement.
+  if (estJellyfin()) return jelly.marquerVu(ratingKey, vu);
   const lien = lienDe(userId);
   if (!lien?.token) return false;
   const action = vu ? 'scrobble' : 'unscrobble';
@@ -2399,13 +2421,20 @@ async function fetchOrigLang({ ratingKey, tmdbId, isShow, title, year }) {
 
 // (mapLimit — le pool de concurrence — est défini plus bas dans ce fichier.)
 
-async function plexJson(pathname) {
+/* Lecture brute du serveur multimédia, au format Plex — y compris quand c'est
+   un Jellyfin (traduit). Sans filtre : réservé à prive.js et à plexJson. */
+async function plexJsonBrut(pathname) {
+  if (estJellyfin()) return jelly.plexJson(pathname);
   const sep = pathname.includes('?') ? '&' : '?';
-  if (prive.cheminInterdit(pathname)) throw new Error('Plex 404');
   const r = await fetch(`${PLEX_URL}${pathname}${sep}X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' } });
   if (!r.ok) throw new Error(`Plex ${r.status}`);
-  // Tout ce que le serveur lit de Plex passe par ici : on y retire le privé.
-  return prive.filtrerJson(await r.json(), pathname);
+  return r.json();
+}
+
+async function plexJson(pathname) {
+  if (prive.cheminInterdit(pathname)) throw new Error('Plex 404');
+  // Tout ce que le serveur lit du serveur multimédia passe par ici : on y retire le privé.
+  return prive.filtrerJson(await plexJsonBrut(pathname), pathname);
 }
 
 // Sur une bibliothèque de séries, les filtres de flux ne s'appliquent qu'aux
@@ -2606,9 +2635,7 @@ app.get('/api/subtitles/search/:ratingKey', authMiddleware, async (req, res) => 
     // On récupère titre / année / IMDb depuis Plex pour une recherche précise.
     let meta = {};
     try {
-      const r = await fetch(`${PLEX_URL}/library/metadata/${encodeURIComponent(req.params.ratingKey)}?X-Plex-Token=${PLEX_TOKEN}`,
-        { headers: { Accept: 'application/json' } });
-      const d = await r.json();
+      const d = await plexJson(`/library/metadata/${encodeURIComponent(req.params.ratingKey)}`);
       const m = d?.MediaContainer?.Metadata?.[0] || {};
       const guids = [m.guid, ...((m.Guid || []).map((g) => g.id))].filter(Boolean).join(' ');
       const imdb = (guids.match(/tt(\d+)/) || [])[0];
@@ -2877,7 +2904,7 @@ app.get('/api/admin/overview', authMiddleware, async (req, res) => {
 
   let sessions = [];
   try {
-    const s = await fetch(`${PLEX_URL}/status/sessions?X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' } }).then((r) => r.json());
+    const s = await plexJsonBrut('/status/sessions');
     sessions = (s?.MediaContainer?.Metadata || []).map((x) => ({
       titre: x.grandparentTitle ? `${x.grandparentTitle} — ${x.title}` : x.title,
       utilisateur: x.User?.title || '',
@@ -2897,7 +2924,10 @@ app.get('/api/admin/overview', authMiddleware, async (req, res) => {
    téléchargements échouent, et le site tombe sans message clair. On prévient
    AVANT. Un seul rappel par disque et par jour — une alerte qu'on voit dix
    fois par jour n'est plus une alerte. */
-const DISQUES = ['C:\\', 'D:\\', 'P:\\'];
+/* Disques surveillés : NOVA_DISQUES (séparés par des virgules, ex. « C:\\,D:\\ »
+   ou « /,/mnt/films »). Sans réglage : celui qui porte les données de Nova. */
+const DISQUES = (process.env.NOVA_DISQUES || '').split(',').map((d) => d.trim()).filter(Boolean);
+if (!DISQUES.length) DISQUES.push(path.parse(config.DATA_DIR).root || '/');
 const SEUIL_GO = 20;          // en dessous : on alerte
 const SEUIL_PCT = 5;
 const derniereAlerte = new Map();
@@ -2989,6 +3019,15 @@ app.get('/api/subtitles/embedded/:ratingKey/:streamId', authMiddleware, async (r
   };
   try {
     if (fs.existsSync(cache)) return envoyer(fs.readFileSync(cache, 'utf8'));
+
+    // Jellyfin convertit lui-même la piste en WebVTT : pas besoin de ffmpeg.
+    if (estJellyfin()) {
+      if (prive.cheminInterdit(`/library/metadata/${ratingKey}`)) return res.status(404).send('');
+      const vtt = await jelly.sousTitreVtt(streamId);
+      if (!vtt) return res.status(404).send('');
+      try { fs.writeFileSync(cache, vtt, 'utf8'); } catch {}
+      return envoyer(vtt);
+    }
 
     const d = await plexJson(`/library/metadata/${ratingKey}`);
     const part = d?.MediaContainer?.Metadata?.[0]?.Media?.[0]?.Part?.[0];
@@ -3193,6 +3232,15 @@ app.get('/plex-transcode/start', proxyAuth, async (req, res) => {
     // Build the query params from the client request
     const clientParams = new URLSearchParams(req.query);
     if (prive.cheminInterdit(clientParams.get('path') || '')) return res.status(404).json({ error: 'Introuvable' });
+
+    // Jellyfin : même demande, transcodeur HLS de Jellyfin (via /jfhls).
+    if (estJellyfin()) {
+      const playlist = await jelly.demarrerTranscodage(req.query, (u) => avecJeton(u, req.query.nova));
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache, no-store');
+      return res.send(playlist);
+    }
+
     clientParams.delete('nova'); // our auth param — never forward to Plex
     // Always add the Plex token server-side
     clientParams.set('X-Plex-Token', tokenPour(req));   // compte relié, sinon compte partagé
@@ -3298,13 +3346,11 @@ async function mapLimit(items, limit, fn) {
 let libraryCache = { at: 0, items: [] };
 async function loadAllLibraryItems() {
   if (Date.now() - libraryCache.at < 600000 && libraryCache.items.length) return libraryCache.items;
-  const secRes = await fetch(`${PLEX_URL}/library/sections?X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' } });
-  const secData = prive.filtrerJson(await secRes.json(), '/library/sections');
+  const secData = await plexJson('/library/sections');
   const sections = (secData.MediaContainer?.Directory || []).filter((d) => ['movie', 'show'].includes(d.type));
   let all = [];
   for (const s of sections) {
-    const r = await fetch(`${PLEX_URL}/library/sections/${s.key}/all?includeGuids=1&X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' } });
-    const d = await r.json();
+    const d = await plexJson(`/library/sections/${s.key}/all?includeGuids=1`);
     all = all.concat(d.MediaContainer?.Metadata || []);
   }
   const withTmdb = all.map((item) => {
@@ -3943,9 +3989,10 @@ function saveWrappedMetaSoon() {
 async function getWatchMeta(mediaId) {
   if (mediaId in wrappedMetaCache) return wrappedMetaCache[mediaId];
   try {
-    const r = await fetch(`${PLEX_URL}/library/metadata/${mediaId}?X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(6000) });
-    if (!r.ok) { wrappedMetaCache[mediaId] = null; saveWrappedMetaSoon(); return null; }
-    const item = (await r.json())?.MediaContainer?.Metadata?.[0];
+    let d;
+    try { d = await plexJson(`/library/metadata/${mediaId}`); }
+    catch { wrappedMetaCache[mediaId] = null; saveWrappedMetaSoon(); return null; }
+    const item = d?.MediaContainer?.Metadata?.[0];
     if (!item) { wrappedMetaCache[mediaId] = null; saveWrappedMetaSoon(); return null; }
     let meta;
     if (item.type === 'episode') {
@@ -4111,6 +4158,19 @@ app.get('/api/me/match-scores', authMiddleware, async (req, res) => {
   }
 });
 
+/* Vidéo HLS de Jellyfin : playlists et segments, jeton Jellyfin ajouté ici —
+   le navigateur ne le voit jamais. Voir jellyfin.js (servirHls). */
+app.use('/jfhls', proxyAuth, async (req, res) => {
+  try {
+    if (!estJellyfin()) return res.status(404).end();
+    const [chemin, qs = ''] = req.url.split('?');
+    await jelly.servirHls(req, res, chemin, qs, (u) => avecJeton(u, req.query.nova), (n) => prive.estTitrePrive(n));
+  } catch (e) {
+    console.warn('[Jellyfin HLS]', e.message);
+    if (!res.headersSent) res.status(502).end();
+  }
+});
+
 app.use('/plex', proxyAuth, async (req, res) => {
   try {
     // Strip our own `nova` auth param so it is never forwarded to Plex.
@@ -4127,6 +4187,9 @@ app.use('/plex', proxyAuth, async (req, res) => {
     }
     // Contenu d'une bibliothèque privée : il n'existe pas (fiche, image, fichier).
     if (prive.cheminInterdit(plexPath)) return res.status(404).json({ error: 'Introuvable' });
+
+    // Serveur Jellyfin : la requête « Plex » est traduite (voir jellyfin.js).
+    if (estJellyfin()) return await jelly.servirProxy(req, res, plexPath, (j, c) => prive.filtrerJson(j, c));
 
     const separator = plexPath.includes('?') ? '&' : '?';
     // Compte Plex relié → on parle à Plex EN SON NOM : la séance s'affiche à son
@@ -4261,7 +4324,9 @@ app.use('/plex', proxyAuth, async (req, res) => {
     if (contentType.startsWith('image/')) res.setHeader('Cache-Control', 'public, max-age=86400');
     res.send(buffer);
   } catch (err) {
-    console.error(`[Plex Proxy ERROR] Target: ${PLEX_URL}${req.url} - Error: ${err.message}`);
+    // Chemin que la traduction Jellyfin ne connaît pas, ou titre introuvable.
+    if (err.statut === 404) { if (!res.headersSent) res.status(404).json({ error: 'Introuvable' }); return; }
+    console.error(`[Proxy média] ${req.url} - Error: ${err.message}`);
     // Don't leak internal infra (Plex URL/IP) or raw exception text to clients.
     if (!res.headersSent) res.status(502).json({ error: 'Serveur média injoignable' });
   }
@@ -4335,12 +4400,10 @@ server.listen(PORT, '0.0.0.0', () => {
   setTimeout(() => {
     setInterval(async () => {
       try {
-        const res = await fetch(`${PLEX_URL}/identity?X-Plex-Token=${PLEX_TOKEN}`, {
-          signal: AbortSignal.timeout(10000)
-        });
-        if (!res.ok) console.warn(`[Plex Heartbeat WARN] Plex responded with ${res.status} - Check Token!`);
+        if (!config.serveurType()) return;
+        await plexJsonBrut('/identity');
       } catch (e) {
-        console.error(`[Plex Heartbeat ERROR] Cannot reach Plex at ${PLEX_URL}: ${e.message}`);
+        console.error(`[Heartbeat] Serveur multimédia injoignable : ${e.message}`);
       }
     }, 300000); // Check every 5 minutes
   }, 60000); // Wait 60s before first check

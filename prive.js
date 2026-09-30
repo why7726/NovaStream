@@ -14,27 +14,23 @@
        identifiants de leurs titres, saisons, séries et fichiers.
    ══════════════════════════════════════════════════════════════════ */
 
-export function creerFiltrePrive({ plexUrl, token, exclues }) {
+/**
+ * @param lister  (cheminPlex) => Promise<Metadata[]> — lecture NON filtrée du
+ *                serveur (Plex ou Jellyfin traduit), pour relever ce qu'il faut bloquer
+ * @param actif   () => boolean — un serveur est-il relié ?
+ * @param exclues () => string[] — clés des bibliothèques décochées
+ */
+export function creerFiltrePrive({ lister, actif, exclues }) {
   let titres = new Set();     // ratingKey (films, épisodes, saisons, séries)
   let fichiers = new Set();   // id des « parts » (fichiers vidéo)
   let pret = true;
 
   const sections = () => new Set((exclues() || []).map(String));
 
-  async function lister(chemin) {
-    const sep = chemin.includes('?') ? '&' : '?';
-    const r = await fetch(`${plexUrl()}${chemin}${sep}X-Plex-Token=${token()}`, {
-      headers: { Accept: 'application/json' },
-      signal: AbortSignal.timeout(60000),
-    });
-    if (!r.ok) throw new Error(`Plex ${r.status}`);
-    return (await r.json())?.MediaContainer?.Metadata || [];
-  }
-
   /** Relève les identifiants à bloquer. À appeler après un changement de réglage. */
   async function rafraichir() {
     const secs = [...sections()];
-    if (!secs.length || !plexUrl() || !token()) { titres = new Set(); fichiers = new Set(); pret = true; return; }
+    if (!secs.length || !actif()) { titres = new Set(); fichiers = new Set(); pret = true; return; }
     pret = false;
     const t = new Set();
     const f = new Set();

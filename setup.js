@@ -14,6 +14,7 @@ import http from 'node:http';
 import * as config from './config.js';
 import * as plexLink from './plexLink.js';
 import * as ia from './ia.js';
+import { connecter as connecterJellyfin } from './jellyfin.js';
 
 /* ── Adresse réelle du visiteur ──────────────────────────────────────
    X-Forwarded-For n'est cru que s'il a été posé par un relais du réseau
@@ -55,6 +56,14 @@ function httpGet(url, headers = {}, method = 'GET', body = null) {
 
 const TESTS = {
   async serveur(v) {
+    if ((v.SERVEUR_TYPE || config.serveurType()) === 'jellyfin') {
+      if (!v.JELLYFIN_URL || !v.JELLYFIN_TOKEN) throw new Error('Jellyfin non relié');
+      const r = await fetch(`${v.JELLYFIN_URL.replace(/\/$/, '')}/System/Info`, { headers: { Authorization: `MediaBrowser Token="${v.JELLYFIN_TOKEN}"` }, signal: attente(8000) });
+      if (r.status === 401) throw new Error('Jeton Jellyfin refusé — reconnecte-toi');
+      if (!r.ok) throw new Error(`Jellyfin répond ${r.status}`);
+      const d = await r.json();
+      return `Jellyfin ${d.Version} joignable (${d.ServerName})`;
+    }
     if (!v.PLEX_URL || !v.PLEX_TOKEN) throw new Error('Adresse ou jeton manquant');
     const r = await fetch(`${v.PLEX_URL.replace(/\/$/, '')}/identity?X-Plex-Token=${v.PLEX_TOKEN}`, { headers: { Accept: 'application/json' }, signal: attente(8000) });
     if (!r.ok) throw new Error(`Le serveur répond ${r.status}`);
@@ -110,7 +119,7 @@ const TESTS = {
  * @param {import('express').Express} app
  * @param {{ db, bcrypt, signerJeton: (user) => string, authMiddleware, adminMiddleware, logActivity }} deps
  */
-export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminMiddleware, logActivity, prive }) {
+export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut }) {
   const adminExiste = () => !!db.prepare('SELECT 1 FROM users WHERE isAdmin = 1 LIMIT 1').get();
 
   // Ce que la page d'accueil doit savoir AVANT toute connexion.
@@ -221,7 +230,7 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
     for (const a of adresses) {
       try {
         await TESTS.serveur({ PLEX_URL: a.uri, PLEX_TOKEN: s.jeton });
-        config.setReglages({ PLEX_URL: a.uri, PLEX_TOKEN: s.jeton });
+        config.setReglages({ SERVEUR_TYPE: 'plex', PLEX_URL: a.uri, PLEX_TOKEN: s.jeton });
         console.log(`[Setup] Serveur Plex relié : ${s.nom} (${a.uri})`);
         return res.json({ ok: true, nom: s.nom, uri: a.uri });
       } catch { /* adresse suivante */ }
@@ -229,14 +238,28 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
     res.status(502).json({ error: `${s.nom} ne répond sur aucune de ses adresses depuis cette machine. Saisis l'adresse à la main (ex. http://192.168.1.10:32400).` });
   });
 
+  /* ── Connexion d'un serveur Jellyfin (adresse + compte) ──
+     Le compte sert à TOUT le trafic de Nova : prends-en un qui voit toutes
+     les bibliothèques que tu veux proposer (le choix fin se fait ensuite
+     dans « Bibliothèques »). Le mot de passe n'est pas conservé : seul le
+     jeton renvoyé par Jellyfin l'est. */
+  app.post('/api/setup/jellyfin', authMiddleware, adminMiddleware, async (req, res) => {
+    try {
+      const { url, identifiant, motDePasse } = req.body || {};
+      if (!identifiant) return res.status(400).json({ error: 'Identifiant manquant' });
+      const c = await connecterJellyfin(url, identifiant, motDePasse);
+      config.setReglages({ SERVEUR_TYPE: 'jellyfin', JELLYFIN_URL: c.url, JELLYFIN_TOKEN: c.token, JELLYFIN_USER_ID: c.userId });
+      console.log(`[Setup] Serveur Jellyfin relié : ${c.nom} ${c.version} (${c.url})`);
+      res.json({ ok: true, nom: c.nom, version: c.version, uri: c.url });
+    } catch (e) {
+      res.status(400).json({ error: e.message });
+    }
+  });
+
   /* ── Bibliothèques ── */
   async function sectionsPlex() {
-    const url = config.get('PLEX_URL').replace(/\/$/, '');
-    const token = config.get('PLEX_TOKEN');
-    if (!url || !token) return [];
-    const r = await fetch(`${url}/library/sections?X-Plex-Token=${token}`, { headers: { Accept: 'application/json' }, signal: attente(10000) });
-    if (!r.ok) throw new Error(`Plex ${r.status}`);
-    const d = await r.json();
+    if (!config.serveurType()) return [];
+    const d = await plexJsonBrut('/library/sections');
     return (d?.MediaContainer?.Directory || [])
       .filter((x) => x.type === 'movie' || x.type === 'show')
       .map((x) => ({ key: String(x.key), title: x.title, type: x.type }));

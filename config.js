@@ -64,6 +64,10 @@ const CONFIG_FILE = dataPath('config.json');
    `secret` : jamais renvoyé au navigateur, seulement « défini / non défini ».
    `feature` : la fonction que ce réglage active (voir features()). */
 export const REGLAGES = {
+  SERVEUR_TYPE:           { groupe: 'serveur' },   // 'plex' | 'jellyfin'
+  JELLYFIN_URL:           { groupe: 'serveur' },
+  JELLYFIN_TOKEN:         { groupe: 'serveur', secret: true },
+  JELLYFIN_USER_ID:       { groupe: 'serveur' },
   PLEX_URL:               { groupe: 'serveur' },
   PLEX_TOKEN:             { groupe: 'serveur', secret: true },
   PLEX_NOVA_TOKEN:        { groupe: 'serveur', secret: true },
@@ -177,10 +181,21 @@ export function setBibliotheques({ exclues, masquees, ordre }) {
   for (const fn of abonnes) { try { fn(); } catch (e) { console.error('[Config]', e.message); } }
 }
 
+/** Le serveur multimédia relié : celui choisi, sinon celui qui est configuré. */
+export function serveurType() {
+  const t = get('SERVEUR_TYPE');
+  if (t === 'jellyfin' && get('JELLYFIN_URL') && get('JELLYFIN_TOKEN')) return 'jellyfin';
+  if (t === 'plex' && get('PLEX_URL') && get('PLEX_TOKEN')) return 'plex';
+  if (get('PLEX_URL') && get('PLEX_TOKEN')) return 'plex';
+  if (get('JELLYFIN_URL') && get('JELLYFIN_TOKEN') && get('JELLYFIN_USER_ID')) return 'jellyfin';
+  return null;
+}
+
 /* ── Les fonctions optionnelles et ce qui les active ── */
 export function features() {
   return {
-    serveur: !!(get('PLEX_URL') && get('PLEX_TOKEN')),
+    serveur: !!serveurType(),
+    serveurType: serveurType(),
     tmdb: !!get('TMDB_TOKEN'),
     soustitres: !!get('OPENSUBTITLES_API_KEY'),
     soustitresTelechargement: !!(get('OPENSUBTITLES_API_KEY') && get('OPENSUBTITLES_USER') && get('OPENSUBTITLES_PASSWORD')),

@@ -1,6 +1,6 @@
 # NovaStream
 
-Interface de streaming privée posée sur un serveur Plex (Jellyfin prévu).
+Interface de streaming privée posée sur un serveur Plex ou Jellyfin.
 
 ## Ce que c'est, techniquement
 
@@ -30,6 +30,22 @@ styles, Framer Motion 10 pour les animations.
   `useFeatures()`. Une fonction sans clé affiche `<Indisponible feature="…" />`
   (admin : lien vers les réglages ; utilisateurs : « l'administrateur n'a pas
   activé cette fonction »).
+
+## Jellyfin — traduit en « dialecte Plex »
+
+- Tout Nova (front ET serveur) parle le format Plex. Quand le serveur est
+  Jellyfin (`config.serveurType()`), `jellyfin.js` traduit : `/plex/*` (proxy),
+  `plexJsonBrut()` (lectures internes), `/plex-transcode/start` (HLS Jellyfin),
+  `/jfhls/*` (playlists/segments, jeton Jellyfin ajouté côté serveur).
+- Identifiants : GUID Jellyfin → numéro stable (table `jf_ids`, décalage
+  50 000 000). Préfixes de clé : `i:` élément, `p:` fichier, `s:<guid>:<index>`
+  piste, `g:` genre.
+- Seuls les chemins Plex effectivement utilisés sont traduits ; tout autre
+  chemin répond 404. Nouveau besoin côté front = l'ajouter dans `plexJson()`
+  de jellyfin.js, et le vérifier contre `/api-docs/openapi.json` de Jellyfin
+  (en v12, `?api_key=` est refusé : en-tête `Authorization: MediaBrowser Token=…`).
+- Ne jamais lire le serveur multimédia avec `fetch(PLEX_URL…)` : passer par
+  `plexJson` (filtré) ou `plexJsonBrut` (réservé à prive.js).
 
 ## Bibliothèques
 

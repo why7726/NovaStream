@@ -5,6 +5,7 @@ import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, Plus
 import authService from '../../services/authService';
 import SearchPure from './SearchPure';
 import { useLibraries, libraryKind } from '../lib/libraries';
+import { useFeatures } from '../lib/features';
 
 import { pushStatus, subscribePush, unsubscribePush } from '../lib/pushService';
 
@@ -70,6 +71,9 @@ export default function NavPure() {
   }, []);
 
   const { libraries } = useLibraries();
+  // Le connecteur « Mon compte Plex » n'a de sens qu'avec un serveur Plex.
+  const features = useFeatures();
+  const connecteurs = features?.serveurType !== 'jellyfin';
   const libItems = libraries.map((l) => ({
     id: `lib-${l.key}`, label: l.title, path: `/bibliotheque/${l.key}`, icon: ICONES[libraryKind(l)] || Film,
   }));
@@ -191,7 +195,9 @@ export default function NavPure() {
                 <MenuRow icon={Heart} onClick={() => { setMenu(false); navigate('/favorites'); }}>Favoris</MenuRow>
                 <MenuRow icon={Sparkles} onClick={() => { setMenu(false); navigate('/wrapped'); }}>Mon Wrapped</MenuRow>
                 <MenuRow icon={PlusCircle} onClick={() => { setMenu(false); navigate('/requests'); }}>Demander un film</MenuRow>
-                <MenuRow icon={Link2} onClick={() => { setMenu(false); navigate('/connect'); }}>Connecteurs</MenuRow>
+                {connecteurs && (
+                  <MenuRow icon={Link2} onClick={() => { setMenu(false); navigate('/connect'); }}>Connecteurs</MenuRow>
+                )}
                 {user?.isAdmin && (
                   <>
                     <MenuRow icon={ShieldCheck} onClick={() => { setMenu(false); navigate('/admin'); }}>Espace admin</MenuRow>

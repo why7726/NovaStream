@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, Check, Loader2, ExternalLink, RefreshCw, Unlink } from 'lucide-react';
 import authService from '../../services/authService';
 import useRetour from './useRetour';
+import { useFeatures } from '../lib/features';
 
 /* Connecteurs — relier un compte extérieur à Nova.
 
@@ -110,6 +111,18 @@ export default function ConnectPure() {
   };
 
   const plex = etat?.plex;
+  const features = useFeatures();
+
+  if (features?.serveurType === 'jellyfin') {
+    return (
+      <div className="min-h-screen pt-24 md:pt-28 pb-16 max-w-[720px] mx-auto px-5 md:px-8">
+        <h1 className="p-display text-[26px] md:text-[38px] mb-3">Connecteurs</h1>
+        <p className="text-[14px] p-dim leading-relaxed">
+          Ce serveur utilise Jellyfin : ta progression est déjà enregistrée directement sur le serveur, il n'y a rien à relier.
+        </p>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen pt-16 md:pt-20 pb-16 max-w-[720px] mx-auto">

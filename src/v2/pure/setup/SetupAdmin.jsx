@@ -48,7 +48,7 @@ export default function SetupAdmin({ local, onDone }) {
 
         <h1 className="text-[24px] font-semibold tracking-[-0.03em] text-center">Bienvenue</h1>
         <p className="text-[14px] text-white/50 text-center mt-2 mb-8 leading-relaxed">
-          Crée le compte administrateur. Tu relieras ensuite ton serveur Plex et, si tu le souhaites, les services optionnels.
+          Crée le compte administrateur. Tu relieras ensuite ton serveur Plex ou Jellyfin et, si tu le souhaites, les services optionnels.
         </p>
 
         {!local && (

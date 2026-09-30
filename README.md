@@ -1,12 +1,13 @@
 # NovaStream
 
-Une interface de streaming épurée, façon Apple TV+, posée sur **ton propre serveur Plex**.
+Une interface de streaming épurée, façon Apple TV+, posée sur **ton propre serveur Plex ou Jellyfin**.
 Tes films et séries, tes amis, ta maison — sans abonnement.
 
 - Accueil, pages par bibliothèque (sous le nom qu'elles portent sur ton serveur), recherche tolérante aux fautes, filtres
 - Lecteur web complet : reprise, épisode suivant, saut de générique, pistes audio/sous-titres, synchro des sous-titres
 - Comptes sur invitation, favoris, historique, « Reprendre », notifications
-- Connexion du compte Plex de chaque utilisateur (progression synchronisée dans les deux sens)
+- **Plex ou Jellyfin**, au choix, en un clic dans l'assistant
+- Avec Plex : connexion du compte Plex de chaque utilisateur (progression synchronisée dans les deux sens)
 - Bibliothèques **privées** : décoche une bibliothèque et elle n'existe plus pour Nova (menu, recherche, recommandations, lien direct — tout est bloqué côté serveur)
 - Assistant « Dis-moi ta soirée » avec **l'IA de ton choix** : Gemini, ChatGPT, Claude, Grok, ou en local avec Ollama / LM Studio
 - Services optionnels : TMDB, OpenSubtitles, Radarr/Sonarr (demandes de films), qBittorrent (lecture seule)
@@ -14,7 +15,6 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 
 ## Feuille de route
 
-- **Jellyfin** — connexion par bouton, comme Plex
 - Calendrier de sorties : programmer la recherche d'un titre à l'heure exacte de sa sortie
 - Traductions de l'interface (anglais d'abord)
 - Image Docker publiée, pour installer sans compiler
@@ -23,7 +23,7 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 
 ## Installation (Docker — recommandé)
 
-Prérequis : [Docker](https://docs.docker.com/get-docker/) et un serveur Plex.
+Prérequis : [Docker](https://docs.docker.com/get-docker/) et un serveur Plex ou Jellyfin.
 
 ```bash
 git clone <adresse-du-dépôt> novastream
@@ -34,7 +34,9 @@ docker compose up -d
 Ouvre ensuite **http://localhost:5174** sur la machine du serveur. L'assistant de premier démarrage :
 
 1. **crée le compte administrateur** — uniquement depuis le réseau local, par sécurité ;
-2. **relie ton serveur Plex** : bouton « Se connecter avec Plex », tu valides sur plex.tv, c'est tout ;
+2. **relie ton serveur** :
+   - **Plex** : bouton « Se connecter avec Plex », tu valides sur plex.tv, c'est tout ;
+   - **Jellyfin** : bouton « Se connecter avec Jellyfin », puis l'adresse du serveur et un compte (Nova garde le jeton, jamais le mot de passe) ;
 3. te laisse **cocher les bibliothèques** à montrer (et celles à garder privées) ;
 4. propose les **clés API optionnelles**, chacune avec un bouton « Tester ».
 
@@ -113,7 +115,9 @@ npm start          # API sur :5174
 npm run dev        # interface avec rechargement à chaud sur :5173
 ```
 
-Architecture : Vite + React 18 + React Router 7 (interface), Express 5 (API, proxy Plex/TMDB, authentification JWT), SQLite.
+Architecture : Vite + React 18 + React Router 7 (interface), Express 5 (API, proxy Plex/Jellyfin/TMDB, authentification JWT), SQLite.
+Jellyfin est pris en charge par une couche de traduction côté serveur (`jellyfin.js`) : l'interface parle un seul format.
+Testé avec Plex Media Server et Jellyfin 12.
 Voir `CLAUDE.md` pour les conventions du projet.
 
 ---
