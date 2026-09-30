@@ -230,6 +230,27 @@
 .nova-pure .overflow-x-auto { touch-action: pan-x; overscroll-behavior-x: contain; }
 .nova-pure .p-rail > * { scroll-snap-align: start; }
 
+/* Rails alignés sur la marge de la page (px-5 / md:px-8) — classe p-marge.
+   · L'« aimant » du défilement s'arrête sur la MARGE, pas sur le bord de
+     l'écran : sinon la première affiche venait se coller contre le bord.
+   · La marge de gauche devient un bord net, comme sur Apple TV : une
+     affiche qui la dépasse s'efface en fondu au lieu d'être tranchée par
+     le bord de l'écran. Au repos, la marge est vide : le fondu ne touche rien.
+   · Au doigt, l'aimant est strict : un glissé s'arrête toujours aligné. */
+.nova-pure .p-rail.p-marge {
+  scroll-padding-inline: 1.25rem;
+  -webkit-mask-image: linear-gradient(to right, transparent 0, transparent 0.35rem, #000 1.25rem);
+          mask-image: linear-gradient(to right, transparent 0, transparent 0.35rem, #000 1.25rem);
+}
+@media (min-width: 768px) {
+  .nova-pure .p-rail.p-marge {
+    scroll-padding-inline: 2rem;
+    -webkit-mask-image: linear-gradient(to right, transparent 0, transparent 0.6rem, #000 2rem);
+            mask-image: linear-gradient(to right, transparent 0, transparent 0.6rem, #000 2rem);
+  }
+}
+@media (pointer: coarse) { .nova-pure .p-rail.p-marge { scroll-snap-type: x mandatory; } }
+
 /* Entrée : une seule idée — un fondu vers le haut, court */
 .nova-pure .p-in { animation: pIn 520ms var(--p-ease) both; }
 @keyframes pIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }

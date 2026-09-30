@@ -34,7 +34,7 @@ export default function SagaRow({ ratingKey }) {
         <span className="text-[12.5px] p-faint">{saga.onNova} sur {saga.total}</span>
       </div>
 
-      <div className="p-rail gap-3 md:gap-4 px-5 md:px-8 pb-1">
+      <div className="p-rail p-marge gap-3 md:gap-4 px-5 md:px-8 pb-1">
         {saga.parts.map((x) => (
           <button key={x.tmdbId}
             onClick={() => (x.inNova ? navigate(`/title/${x.ratingKey}`) : setModal(x))}

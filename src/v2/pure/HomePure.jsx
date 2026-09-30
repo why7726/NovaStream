@@ -236,7 +236,7 @@ export default function HomePure({ section }) {
         {data.cw.length > 0 && (
           <section data-row className="mb-10 md:mb-14">
             <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">Reprendre</h2>
-            <div className="p-rail gap-3 md:gap-4 px-5 md:px-8 pb-1">
+            <div className="p-rail p-marge gap-3 md:gap-4 px-5 md:px-8 pb-1">
               {data.cw.map((it) => {
                 const pct = it.duration > 0 ? Math.min(100, (it.currentTime / it.duration) * 100) : 0;
                 const left = it.duration > 0 ? Math.max(0, Math.round((it.duration - it.currentTime) / 60)) : null;
@@ -296,7 +296,7 @@ export default function HomePure({ section }) {
         {data.top10.length > 0 && (
           <section data-row className="mb-10 md:mb-14">
             <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">Les 10 du moment</h2>
-            <div className="p-rail gap-4 md:gap-7 px-5 md:px-8 pt-5 pb-14 items-end">
+            <div className="p-rail p-marge gap-4 md:gap-7 px-5 md:px-8 pt-5 pb-14 items-end">
               {data.top10.map((it, k) => (
                 <div key={it.id} className="flex items-end shrink-0">
                   <span className="top10-num-glass select-none pr-1 md:pr-2 -mb-3">{k + 1}</span>

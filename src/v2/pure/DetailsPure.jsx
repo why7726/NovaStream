@@ -480,7 +480,7 @@ export default function DetailsPure() {
       {movie.cast?.length > 0 && (
         <section className="pt-10 md:pt-14">
           <h2 className="p-title text-[19px] md:text-[24px] px-5 md:px-8 mb-4">Distribution</h2>
-          <div className="p-rail gap-5 px-5 md:px-8">
+          <div className="p-rail p-marge gap-5 px-5 md:px-8">
             {movie.cast.map((a) => (
               <button key={a.id} onClick={() => navigate(`/actor/${encodeURIComponent(a.name)}`)} className="shrink-0 w-[76px] md:w-[88px] group/a">
                 <div className="relative w-[76px] h-[76px] md:w-[88px] md:h-[88px] rounded-full overflow-hidden bg-white/[0.07]">

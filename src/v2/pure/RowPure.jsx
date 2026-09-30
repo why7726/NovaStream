@@ -21,7 +21,25 @@ export default function RowPure({
   const navigate = useNavigate();
   if (!items.length) return null;
 
-  const by = (dir) => rail.current?.scrollBy({ left: dir * (rail.current.clientWidth * 0.8), behavior: 'smooth' });
+  /* Les flèches tournent la « page » du rail et s'arrêtent TOUJOURS sur une
+     carte, alignée sur la marge — jamais au milieu d'une affiche. */
+  const by = (dir) => {
+    const el = rail.current;
+    if (!el) return;
+    const marge = parseFloat(getComputedStyle(el).scrollPaddingLeft) || 0;
+    const cartes = [...el.children];
+    let carte;
+    if (dir > 0) {
+      // la première carte qui ne tient pas entièrement à l'écran devient la première
+      const bordDroit = el.scrollLeft + el.clientWidth - marge;
+      carte = cartes.find((c) => c.offsetLeft + c.offsetWidth > bordDroit + 1) || cartes[cartes.length - 1];
+      if (carte.offsetLeft - marge <= el.scrollLeft + 1) carte = cartes[cartes.indexOf(carte) + 1] || carte;
+    } else {
+      const cible = el.scrollLeft - (el.clientWidth - 2 * marge);
+      carte = cartes.find((c) => c.offsetLeft - marge >= cible - 1) || cartes[0];
+    }
+    el.scrollTo({ left: Math.max(0, carte.offsetLeft - marge), behavior: 'smooth' });
+  };
   const openAll = () => navigate(`/collection/${slugify(title)}`, { state: { title, items } });
 
   return (
@@ -37,7 +55,7 @@ export default function RowPure({
         )}
       </div>
 
-      <div ref={rail} className="p-rail gap-3 md:gap-4 px-5 md:px-8 pb-1">
+      <div ref={rail} className="p-rail p-marge gap-3 md:gap-4 px-5 md:px-8 pb-1">
         {items.map((it, k) => (
           renderCard
             ? renderCard(it, k)
