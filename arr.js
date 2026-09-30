@@ -379,3 +379,116 @@ export async function airTimes(seriesId, season, maxMs = 12000) {
   return {};
 }
 
+
+/* ══ Calendrier des sorties programmées ═════════════════════════════
+   L'administrateur programme un épisode ou un film à une heure précise,
+   par version (VO, VF, VA). À l'heure dite, Nova demande à Sonarr ou
+   Radarr de chercher ; ce sont LEURS profils (langue, qualité) qui
+   choisissent le fichier. Voir calendrier.js pour la planification. */
+
+const arrDe = (kind) => (kind === 'movie' ? radarr : sonarr);
+
+/** Dossiers racine déjà connus de Radarr (films) ou Sonarr (séries), tels
+ *  qu'ILS les voient — souvent un chemin de conteneur (/data/…). */
+export async function dossiers(kind) {
+  const liste = await arrDe(kind)('/rootfolder');
+  return (liste || []).map((d) => ({
+    path: d.path,
+    libreGo: d.freeSpace != null ? Math.round(d.freeSpace / 1e9) : null,
+    accessible: d.accessible !== false,
+  }));
+}
+
+/** Ajoute un dossier racine. Radarr/Sonarr refusent un chemin qu'ils ne
+ *  voient pas : leur message d'erreur est renvoyé tel quel. */
+export async function ajouterDossier(kind, chemin) {
+  const d = await arrDe(kind)('/rootfolder', { method: 'POST', body: { path: chemin } });
+  return { path: d.path };
+}
+
+/** Série prête pour une sortie programmée : existante, sinon ajoutée dans
+ *  le dossier choisi. Surveillée (sinon rien ne s'importe), mais sans
+ *  chercher les autres épisodes. */
+export async function preparerSerie({ tvdbId, title, year, isAnime, dossier }) {
+  const all = await sonarr('/series');
+  let series = tvdbId ? all.find((s) => String(s.tvdbId) === String(tvdbId)) : null;
+  if (!series && title) series = all.find((s) => (s.title || '').toLowerCase() === title.toLowerCase());
+  if (!series) {
+    const candidats = await sonarr(`/series/lookup?term=${encodeURIComponent(tvdbId ? `tvdb:${tvdbId}` : title)}`);
+    const trouve = (year && candidats.find((c) => String(c.year) === String(year))) || candidats[0];
+    if (!trouve) throw new Error('Série introuvable côté Sonarr');
+    series = await sonarr('/series', {
+      method: 'POST',
+      body: {
+        ...trouve,
+        qualityProfileId: QUALITY_SERIES(),
+        rootFolderPath: dossier || (isAnime ? ROOT_ANIME() : ROOT_SERIES()),
+        seriesType: isAnime ? 'anime' : 'standard',
+        monitored: true,
+        seasonFolder: true,
+        addOptions: { searchForMissingEpisodes: false, searchForCutoffUnmetEpisodes: false, monitor: 'none' },
+      },
+    });
+  } else if (!series.monitored) {
+    series = await sonarr(`/series/${series.id}`, { method: 'PUT', body: { ...series, monitored: true } });
+  }
+  return { id: series.id, langueOrigine: series.originalLanguage?.name || null, dossier: series.rootFolderPath || series.path };
+}
+
+/** L'épisode visé, surveillé. Sonarr charge les épisodes quelques secondes
+ *  après l'ajout d'une série : on patiente. */
+export async function preparerEpisode(seriesId, saison, episode) {
+  const eps = await waitForEpisodes(seriesId, 30000);
+  const ep = eps.find((e) => e.seasonNumber === Number(saison) && e.episodeNumber === Number(episode));
+  if (!ep) throw new Error(`Épisode S${saison}E${episode} inconnu de Sonarr`);
+  if (!ep.monitored) await sonarr('/episode/monitor', { method: 'PUT', body: { episodeIds: [ep.id], monitored: true } });
+  return { id: ep.id, airDateUtc: ep.airDateUtc || null };
+}
+
+/** Film prêt pour une sortie programmée (surveillé, dans le dossier choisi). */
+export async function preparerFilm({ tmdbId, dossier }) {
+  const existant = (await radarr('/movie')).find((m) => String(m.tmdbId) === String(tmdbId));
+  if (existant) {
+    if (!existant.monitored) await radarr(`/movie/${existant.id}`, { method: 'PUT', body: { ...existant, monitored: true } });
+    return { id: existant.id, langueOrigine: existant.originalLanguage?.name || null };
+  }
+  const trouve = (await radarr(`/movie/lookup?term=tmdb:${encodeURIComponent(tmdbId)}`))[0];
+  if (!trouve) throw new Error('Film introuvable côté Radarr');
+  const m = await radarr('/movie', {
+    method: 'POST',
+    body: {
+      ...trouve,
+      qualityProfileId: QUALITY_MOVIE(),
+      rootFolderPath: dossier || ROOT_MOVIE(),
+      monitored: true,
+      minimumAvailability: 'announced',
+      addOptions: { searchForMovie: false },
+    },
+  });
+  return { id: m.id, langueOrigine: m.originalLanguage?.name || null };
+}
+
+/** Langues du fichier déjà présent ([] si aucun fichier). */
+export async function languesPresentes(kind, arrId, episodeId) {
+  if (kind === 'movie') {
+    const m = await radarr(`/movie/${arrId}`);
+    if (!m.hasFile) return [];
+    return (m.movieFile?.languages || []).map((l) => l.name).concat('__fichier');
+  }
+  const ep = await sonarr(`/episode/${episodeId}`);
+  if (!ep.hasFile || !ep.episodeFileId) return [];
+  const f = await sonarr(`/episodefile/${ep.episodeFileId}`);
+  return (f.languages || []).map((l) => l.name).concat('__fichier');
+}
+
+/** Lance la recherche automatique (Sonarr/Radarr choisissent selon leurs profils). */
+export async function lancerRecherche(kind, arrId, episodeId) {
+  if (kind === 'movie') return radarr('/command', { method: 'POST', body: { name: 'MoviesSearch', movieIds: [arrId] } });
+  return sonarr('/command', { method: 'POST', body: { name: 'EpisodeSearch', episodeIds: [episodeId] } });
+}
+
+/** La série est-elle déjà dans Sonarr ? (sans l'ajouter) */
+export async function trouverSerie(tvdbId) {
+  const all = await sonarr('/series');
+  return all.find((s) => String(s.tvdbId) === String(tvdbId)) || null;
+}

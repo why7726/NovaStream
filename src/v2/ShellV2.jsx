@@ -15,6 +15,7 @@ const TonightPure = React.lazy(() => import('./pure/TonightPure'));
 const ConnectPure = React.lazy(() => import('./pure/ConnectPure'));
 const DiscoverPure = React.lazy(() => import('./pure/DiscoverPure'));
 const SettingsPure = React.lazy(() => import('./pure/setup/SettingsPure'));
+const CalendrierPure = React.lazy(() => import('./pure/calendrier/CalendrierPure'));
 const ActorPageV2 = React.lazy(() => import('./pages/ActorPageV2'));
 const WrappedV2 = React.lazy(() => import('./pages/WrappedV2'));
 const Player = React.lazy(() => import('./pages/PlayerV2'));
@@ -150,6 +151,7 @@ export default function ShellV2({ user, handleAuth, serveurManquant }) {
             <Route path="/play/:id" element={<Protected user={user}><Player /></Protected>} />
             <Route path="/admin" element={<AdminOnly user={user}><Admin /></AdminOnly>} />
             <Route path="/reglages" element={<AdminOnly user={user}><SettingsPure /></AdminOnly>} />
+            <Route path="/calendrier" element={<AdminOnly user={user}><CalendrierPure /></AdminOnly>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

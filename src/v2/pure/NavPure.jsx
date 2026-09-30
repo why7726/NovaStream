@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library } from 'lucide-react';
+import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library, CalendarClock } from 'lucide-react';
 import authService from '../../services/authService';
 import SearchPure from './SearchPure';
 import { useLibraries, libraryKind } from '../lib/libraries';
@@ -201,6 +201,7 @@ export default function NavPure() {
                 {user?.isAdmin && (
                   <>
                     <MenuRow icon={ShieldCheck} onClick={() => { setMenu(false); navigate('/admin'); }}>Espace admin</MenuRow>
+                    <MenuRow icon={CalendarClock} onClick={() => { setMenu(false); navigate('/calendrier'); }}>Calendrier des sorties</MenuRow>
                     <MenuRow icon={Settings} onClick={() => { setMenu(false); navigate('/reglages'); }}>Réglages du serveur</MenuRow>
                   </>
                 )}

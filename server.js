@@ -24,6 +24,7 @@ import { croiser as croiserHorreur } from './horrorPlus.js';
 import * as plexLink from './plexLink.js';
 import * as vibe from './vibe.js';
 import * as setup from './setup.js';
+import * as calendrier from './calendrier.js';
 import { creerFiltrePrive } from './prive.js';
 import { creerJellyfin } from './jellyfin.js';
 
@@ -515,6 +516,15 @@ app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date() }))
 setup.installer(app, {
   db, bcrypt, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut,
   signerJeton: (u) => jwt.sign({ id: u.id, username: u.username, email: u.email, isAdmin: u.isAdmin, tv: u.tokenVersion || 0 }, JWT_SECRET, { expiresIn: '30d' }),
+});
+
+// Calendrier des sorties programmées (admin) — voir calendrier.js.
+calendrier.installer(app, {
+  db, authMiddleware, adminMiddleware, arr, tmdbGet,
+  features: () => config.features(),
+  notifierAdmins: (msg) => {
+    for (const a of db.prepare('SELECT id FROM users WHERE isAdmin = 1').all()) pushToUser(a.id, msg);
+  },
 });
 
 // TMDB Assets Proxy (Poster, Backdrop, Logo)
