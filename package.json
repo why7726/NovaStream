@@ -2,7 +2,8 @@
   "name": "novastream",
   "private": true,
   "version": "1.0.0",
-  "description": "Interface de streaming élégante pour un serveur Plex personnel",
+  "description": "Interface de streaming élégante pour un serveur Plex ou Jellyfin personnel",
+  "license": "MIT",
   "type": "module",
   "engines": { "node": ">=20" },
   "scripts": {

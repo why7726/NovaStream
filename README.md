@@ -126,3 +126,7 @@ Voir `CLAUDE.md` pour les conventions du projet.
 
 Créé par [why7726](https://github.com/why7726), co-créé avec [Claude](https://claude.ai) (Anthropic).
 Si tu réutilises NovaStream, merci de garder la mention en bas des pages.
+
+## Licence
+
+[MIT](LICENSE) — libre d'utiliser, modifier et redistribuer, en gardant la mention de copyright.
