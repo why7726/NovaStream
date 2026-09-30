@@ -1,0 +1,254 @@
+/* ════════════════════════════════════════════════════════════════
+   NovaStream — Bêta "PURE"
+   Refonte épurée, esprit Apple TV+ : noir absolu, une seule couleur
+   d'accent (le blanc), typo SF/Inter très serrée, beaucoup de vide,
+   zéro dégradé décoratif, zéro glow, zéro 3D.
+
+   Ce calque se superpose à .nova-v2 (classe ajoutée sur la même racine)
+   et neutralise les effets V2, pour que même les pages non redessinées
+   (Favoris, Historique, Admin, Demandes…) deviennent sobres.
+   ════════════════════════════════════════════════════════════════ */
+
+.nova-v2.nova-pure {
+  --p-bg: #000000;
+  --p-fg: #f5f5f7;
+  --p-dim: rgba(235, 235, 245, 0.6);
+  --p-faint: rgba(235, 235, 245, 0.3);
+  --p-line: rgba(255, 255, 255, 0.1);
+  --p-surface: rgba(255, 255, 255, 0.06);
+  --p-radius: 14px;
+  --p-ease: cubic-bezier(0.32, 0.72, 0, 1);
+
+  background: var(--p-bg);
+  color: var(--p-fg);
+  /* SF Pro sur Apple, Inter partout ailleurs — même dessin, même rythme */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Display', 'SF Pro Text',
+               'Inter', 'Segoe UI', sans-serif;
+  letter-spacing: -0.012em;
+  font-feature-settings: 'ss01', 'cv01';
+}
+
+/* ── On éteint la scénographie V2 ──────────────────────────────── */
+.nova-pure .spatial-bg,
+.nova-pure .spatial-veil { display: none !important; }
+
+.nova-pure .text-glow { text-shadow: none !important; }
+.nova-pure .accent-glow { box-shadow: none !important; }
+.nova-pure .tilt-inner { transform: none !important; transition: none !important; }
+.nova-pure .tilt-glow .tilt-inner::after { display: none !important; }
+.nova-pure .brand-tile { box-shadow: none !important; border-color: var(--p-line) !important; }
+.nova-pure .brand-tile:hover { transform: translateY(-2px) !important; }
+.nova-pure .brand-tile::after { display: none !important; }
+
+/* Les eyebrows dégradés deviennent une simple étiquette grise */
+.nova-pure .v2-eyebrow {
+  background: none !important;
+  -webkit-background-clip: border-box !important;
+  background-clip: border-box !important;
+  color: var(--p-faint) !important;
+  font-weight: 600 !important;
+  font-size: 10.5px !important;
+  letter-spacing: 0.14em !important;
+}
+
+/* Verre : à peine suggéré, pas d'ombre portée théâtrale */
+.nova-pure .glass-panel {
+  background: rgba(28, 28, 30, 0.72) !important;
+  backdrop-filter: blur(30px) saturate(180%) !important;
+  -webkit-backdrop-filter: blur(30px) saturate(180%) !important;
+  border: 1px solid var(--p-line) !important;
+  box-shadow: none !important;
+}
+.nova-pure .glass-soft {
+  background: var(--p-surface) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  border: 1px solid transparent !important;
+}
+
+/* Les gros chiffres du Top 10 : contour fin, pas de remplissage brillant */
+.nova-pure .top10-num,
+.nova-pure .top10-num-glass {
+  color: transparent !important;
+  background: none !important;
+  -webkit-text-fill-color: transparent;
+  -webkit-text-stroke: 1.5px rgba(255, 255, 255, 0.55) !important;
+  filter: none !important;
+  text-shadow: none !important;
+  font-weight: 700 !important;
+}
+
+/* ── Typographie ──────────────────────────────────────────────── */
+.nova-pure .p-title {
+  font-weight: 600;
+  letter-spacing: -0.028em;
+  line-height: 1.05;
+}
+.nova-pure .p-display {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+  line-height: 0.98;
+}
+.nova-pure .p-label {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--p-faint);
+}
+.nova-pure .p-dim { color: var(--p-dim); }
+.nova-pure .p-faint { color: var(--p-faint); }
+
+/* ── Boutons ──────────────────────────────────────────────────── */
+.nova-pure .p-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 26px;
+  border-radius: 999px;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  background: #ffffff;
+  color: #000000;
+  transition: opacity 200ms var(--p-ease), transform 200ms var(--p-ease);
+}
+.nova-pure .p-btn:hover { opacity: 0.86; }
+.nova-pure .p-btn:active { transform: scale(0.97); }
+
+.nova-pure .p-btn-ghost {
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--p-fg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+.nova-pure .p-btn-ghost:hover { background: rgba(255, 255, 255, 0.17); opacity: 1; }
+
+.nova-pure .p-icon-btn {
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255, 255, 255, 0.1);
+  color: var(--p-fg);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: background 200ms var(--p-ease), transform 200ms var(--p-ease);
+}
+.nova-pure .p-icon-btn:hover { background: rgba(255, 255, 255, 0.17); }
+.nova-pure .p-icon-btn:active { transform: scale(0.92); }
+
+/* ── Liquid glass ─────────────────────────────────────────────────
+   Du VERRE, pas une plaque laiteuse : on floute peu et on laisse passer
+   l'image. C'est la sursaturation qui donne l'effet (la couleur de
+   l'affiche traverse), pas le flou — trop de flou opacifie tout. Un
+   liseré clair en haut simule la réfraction de l'arête. */
+.nova-pure .p-glass {
+  position: relative;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.045) 0%, rgba(255, 255, 255, 0.012) 46%, rgba(255, 255, 255, 0.03) 100%);
+  backdrop-filter: blur(9px) saturate(185%) brightness(1.05);
+  -webkit-backdrop-filter: blur(9px) saturate(185%) brightness(1.05);
+  border: 1px solid rgba(255, 255, 255, 0.085);
+  box-shadow:
+    0 10px 28px -20px rgba(0, 0, 0, 0.6),
+    inset 0 1px 0 rgba(255, 255, 255, 0.20),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+  isolation: isolate;
+}
+/* reflet spéculaire haut, discret — sinon il recrée l'opacité qu'on vient d'enlever */
+.nova-pure .p-glass::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: radial-gradient(120% 76% at 50% -22%, rgba(255, 255, 255, 0.10), transparent 62%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Pastille active dans la bulle : une lentille un peu plus dense */
+.nova-pure .p-lens {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.075));
+  border: 1px solid rgba(255, 255, 255, 0.17);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.32), 0 5px 14px -9px rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(6px) saturate(165%);
+  -webkit-backdrop-filter: blur(6px) saturate(165%);
+}
+
+/* ── Cartes ───────────────────────────────────────────────────── */
+.nova-pure .p-card {
+  position: relative;
+  overflow: hidden;
+  border-radius: var(--p-radius);
+  background: #0b0b0c;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.07);
+  transition: transform 320ms var(--p-ease), box-shadow 320ms var(--p-ease);
+}
+.nova-pure .p-card-hit:hover .p-card { transform: scale(1.035); box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.2); }
+.nova-pure .p-card-hit:active .p-card { transform: scale(0.99); }
+.nova-pure .p-card img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* Séparateur ultra fin, façon liste iOS */
+.nova-pure .p-hair { border-bottom: 1px solid var(--p-line); }
+
+/* Rangées hors écran : le navigateur ne les met en page qu'à l'approche.
+   Avec ~20 sous-catégories, c'est ce qui garde le scroll fluide sur mobile.
+   La taille réservée évite tout saut de scrollbar. */
+.nova-pure [data-row] {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 320px;
+}
+
+/* Rails horizontaux : scroll libre, barre invisible.
+
+   ⚠️ `overflow-x: auto` rend AUSSI l'axe vertical défilable : en CSS, dès
+   qu'un axe vaut `auto`, l'autre ne peut plus rester `visible`. Un rail dont
+   le contenu dépasse un peu en hauteur se met donc à coulisser verticalement
+   sous le doigt au lieu de laisser défiler la page — constaté sur « Les 10 du
+   moment », qui débordait de 47 px à cause du grand chiffre.
+   `touch-action: pan-x` tranche : sur cet élément, le doigt ne peut faire
+   qu'un geste horizontal, le vertical repart à la page. */
+.nova-pure .p-rail {
+  display: flex;
+  overflow-x: auto;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.nova-pure .p-rail::-webkit-scrollbar { display: none; }
+
+/* Même règle pour les rails écrits directement en Tailwind (barre de filtres,
+   saga d'une demande, propositions de « Dis-moi ta soirée ») : eux aussi
+   captaient le geste vertical. */
+.nova-pure .overflow-x-auto { touch-action: pan-x; overscroll-behavior-x: contain; }
+.nova-pure .p-rail > * { scroll-snap-align: start; }
+
+/* Entrée : une seule idée — un fondu vers le haut, court */
+.nova-pure .p-in { animation: pIn 520ms var(--p-ease) both; }
+@keyframes pIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+
+/* La barre d'onglets mobile ne doit jamais masquer la fin d'une page
+   (utile pour les pages encore au design d'origine : Favoris, Admin…) */
+@media (max-width: 767px) {
+  .nova-pure .v2-content { padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
+}
+
+/* Focus clavier sobre */
+.nova-pure [data-card]:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.85);
+  outline-offset: 3px;
+  border-radius: var(--p-radius);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .nova-pure .p-in { animation: none; }
+  .nova-pure .p-card,
+  .nova-pure .p-btn { transition: none; }
+}

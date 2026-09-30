@@ -1,0 +1,7 @@
+# Fins de ligne normalisées en LF dans le dépôt
+* text=auto eol=lf
+*.vbs text eol=crlf
+*.bat text eol=crlf
+*.png binary
+*.jpg binary
+*.ico binary

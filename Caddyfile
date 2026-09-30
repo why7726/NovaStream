@@ -1,0 +1,22 @@
+# ─────────────────────────────────────────────────────────────────────
+#  HTTPS automatique pour NovaStream
+#
+#  Caddy obtient et renouvelle tout seul un certificat Let's Encrypt pour
+#  le domaine indiqué dans DOMAIN (fichier .env). Conditions :
+#    · DOMAIN pointe vers ton adresse IP publique ;
+#    · ta box redirige les ports TCP 80 et 443 vers cette machine.
+#  Sans DOMAIN, Caddy sert https://localhost avec un certificat local.
+# ─────────────────────────────────────────────────────────────────────
+{
+	# Pas de HTTP/3 : QUIC passe en UDP 443, et beaucoup de box ne
+	# redirigent que le TCP. Caddy l'annoncerait quand même
+	# (« Alt-Svc: h3 »), et certains navigateurs mobiles, après une
+	# première visite réussie, n'arriveraient plus à se reconnecter.
+	servers {
+		protocols h1 h2
+	}
+}
+
+{$DOMAIN:localhost} {
+	reverse_proxy {$NOVA_UPSTREAM:localhost:5174}
+}

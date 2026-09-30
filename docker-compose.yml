@@ -1,0 +1,45 @@
+# NovaStream — installation Docker
+#
+#   Réseau local seulement :   docker compose up -d
+#   Avec HTTPS (domaine) :     DOMAIN=nova.mon-domaine.fr dans .env, puis
+#                              docker compose --profile https up -d
+#
+# Ensuite, ouvre http://localhost:5174 sur cette machine : l'assistant
+# de premier démarrage crée le compte administrateur.
+
+services:
+  novastream:
+    build: .
+    image: novastream:latest
+    container_name: novastream
+    restart: unless-stopped
+    env_file:
+      - path: .env
+        required: false
+    volumes:
+      - ./data:/app/data
+    ports:
+      - "5174:5174"
+
+  # Reverse proxy HTTPS : certificat Let's Encrypt obtenu et renouvelé seul.
+  caddy:
+    image: caddy:2
+    container_name: novastream-caddy
+    restart: unless-stopped
+    profiles: ["https"]
+    depends_on:
+      - novastream
+    environment:
+      DOMAIN: ${DOMAIN:-localhost}
+      NOVA_UPSTREAM: novastream:5174
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  caddy_data:
+  caddy_config:

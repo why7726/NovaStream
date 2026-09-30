@@ -1,0 +1,33 @@
+# ── Données et secrets d'une installation : JAMAIS dans le dépôt ──
+# (base, comptes, clés API, certificats, caches, journaux, sauvegardes)
+data/
+.env
+.env.*
+!.env.example
+*.db
+*.db-wal
+*.db-shm
+*.sqlite
+.jwt_secret
+
+# Anciennes installations (avant le dossier data/) — au cas où
+backups/
+logs/
+subs-cache/
+*_cache.json
+
+# Scripts propres à une machine (chemins locaux)
+scripts/NovaStream.vbs
+
+# Dépendances et build
+node_modules/
+dist/
+
+# Outils
+.vscode/
+.idea/
+*.log
+.DS_Store
+Thumbs.db
+desktop.ini
+.claude/settings.local.json
