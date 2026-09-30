@@ -26,13 +26,6 @@ export const GROUPES = [
     ],
   },
   {
-    id: 'assistant', feature: 'assistant', titre: 'Gemini',
-    role: "L'assistant « Dis-moi ta soirée » : une humeur, et il propose des films de ta bibliothèque. Le palier gratuit de Google suffit.",
-    champs: [
-      { cle: 'GEMINI_API_KEY', label: 'Clé API Gemini', secret: true, aide: 'https://aistudio.google.com/apikey' },
-    ],
-  },
-  {
     id: 'arr', feature: 'arr', titre: 'Radarr & Sonarr',
     role: 'Lance la recherche des films et séries demandés par tes utilisateurs. Sans eux, les demandes arrivent quand même dans ton espace admin.',
     champs: [

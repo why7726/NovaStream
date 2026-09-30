@@ -16,20 +16,13 @@
    Rien de ce qui s'affiche ne repose sur sa parole.
    ══════════════════════════════════════════════════════════════════ */
 
-/* Modèles essayés dans l'ordre. Le palier gratuit de Google se déplace au fil
-   des versions : en août 2026, `gemini-2.0-flash` est à **limit: 0** alors que
-   les modèles récents répondent normalement avec la même clé. On garde donc
-   une liste plutôt qu'un nom en dur, et on retient celui qui a marché.
-   `gemini-flash-latest` est un alias : il suit les montées de version. */
-const MODELES = ['gemini-flash-latest', 'gemini-3.5-flash', 'gemini-flash-lite-latest'];
-let modeleQuiMarche = null;
-
-const URL_BASE = 'https://generativelanguage.googleapis.com/v1beta/models';
+/* Le choix de l'IA (Gemini, ChatGPT, Grok, Claude, Ollama, LM Studio) et les
+   appels eux-mêmes vivent dans ia.js : ici, on ne s'occupe que du GOÛT. */
+import * as ia from './ia.js';
 
 export function vibeConfigured() {
-  return !!(process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY);
+  return ia.iaConfiguree();
 }
-const cle = () => process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY || '';
 
 /** Normalisation partagée avec le reste du site (accents, ponctuation). */
 const DIACRITIQUES = new RegExp('[\\u0300-\\u036f]', 'g');
@@ -105,52 +98,15 @@ qui dit en quoi ça colle à SON humeur. Pas de résumé du film : il l'a déjà
 Écris en français, sur un ton simple et direct, sans superlatifs.`;
 }
 
-/** Appelle le modèle et renvoie l'objet brut (déjà en JSON). */
+/** Appelle l'IA configurée et renvoie l'objet brut (déjà en JSON). */
 export async function demanderAuModele(humeur, liste) {
-  const corps = JSON.stringify({
-    contents: [{ parts: [{ text: consigne(humeur, liste) }] }],
-    generationConfig: {
-      temperature: 0.9,               // du goût, pas de la rigueur
-      responseMimeType: 'application/json',
-      responseSchema: SCHEMA,
-    },
-  });
-
-  // La clé passe par l'EN-TÊTE : c'est ce qu'attend le nouveau format de clé
-  // Google (`AQ.…`), et l'ancien (`AIza…`) l'accepte aussi.
-  const essayer = async (modele) => {
-    const r = await fetch(`${URL_BASE}/${modele}:generateContent`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': cle() },
-      body: corps,
-      signal: AbortSignal.timeout(25000),
-    });
-    if (!r.ok) {
-      const err = new Error(`Gemini ${r.status} ${(await r.text()).slice(0, 120)}`);
-      err.statut = r.status;
-      throw err;
-    }
-    const d = await r.json();
-    const texte = d?.candidates?.[0]?.content?.parts?.[0]?.text;
-    if (!texte) throw new Error('réponse vide');
-    return JSON.parse(texte);
+  const res = await ia.demander(consigne(humeur, liste), SCHEMA);
+  // Les modèles hors Gemini n'ont pas de schéma imposé : on sécurise la forme.
+  return {
+    ambiance: typeof res?.ambiance === 'string' ? res.ambiance : '',
+    surNova: Array.isArray(res?.surNova) ? res.surNova : [],
+    aDecouvrir: Array.isArray(res?.aDecouvrir) ? res.aDecouvrir : [],
   };
-
-  const ordre = modeleQuiMarche ? [modeleQuiMarche, ...MODELES.filter((m) => m !== modeleQuiMarche)] : MODELES;
-  let derniere = null;
-  for (const m of ordre) {
-    try {
-      const res = await essayer(m);
-      if (modeleQuiMarche !== m) { modeleQuiMarche = m; console.log(`[Soirée] modèle retenu : ${m}`); }
-      return res;
-    } catch (e) {
-      derniere = e;
-      // Quota épuisé ou modèle absent → on tente le suivant ; sinon on s'arrête.
-      if (e.statut !== 429 && e.statut !== 404) throw e;
-      if (modeleQuiMarche === m) modeleQuiMarche = null;
-    }
-  }
-  throw derniere || new Error('aucun modèle disponible');
 }
 
 /**

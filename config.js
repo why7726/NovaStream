@@ -20,6 +20,7 @@
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { iaConfiguree } from './ia.js';
 
 const ROOT = path.dirname(fileURLToPath(import.meta.url));
 export const DATA_DIR = path.resolve(process.env.NOVA_DATA_DIR || path.join(ROOT, 'data'));
@@ -70,7 +71,14 @@ export const REGLAGES = {
   OPENSUBTITLES_API_KEY:  { groupe: 'soustitres', secret: true },
   OPENSUBTITLES_USER:     { groupe: 'soustitres' },
   OPENSUBTITLES_PASSWORD: { groupe: 'soustitres', secret: true },
+  IA_FOURNISSEUR:         { groupe: 'assistant' },
+  IA_MODELE:              { groupe: 'assistant' },
   GEMINI_API_KEY:         { groupe: 'assistant', secret: true },
+  OPENAI_API_KEY:         { groupe: 'assistant', secret: true },
+  XAI_API_KEY:            { groupe: 'assistant', secret: true },
+  ANTHROPIC_API_KEY:      { groupe: 'assistant', secret: true },
+  OLLAMA_URL:             { groupe: 'assistant' },
+  LMSTUDIO_URL:           { groupe: 'assistant' },
   RADARR_URL:             { groupe: 'arr' },
   RADARR_API_KEY:         { groupe: 'arr', secret: true },
   SONARR_URL:             { groupe: 'arr' },
@@ -176,7 +184,7 @@ export function features() {
     tmdb: !!get('TMDB_TOKEN'),
     soustitres: !!get('OPENSUBTITLES_API_KEY'),
     soustitresTelechargement: !!(get('OPENSUBTITLES_API_KEY') && get('OPENSUBTITLES_USER') && get('OPENSUBTITLES_PASSWORD')),
-    assistant: !!(get('GEMINI_API_KEY') || get('GOOGLE_API_KEY')),
+    assistant: iaConfiguree(),
     arr: !!(get('RADARR_API_KEY') && get('SONARR_API_KEY')),
     qbit: !!get('QBIT_URL'),
   };

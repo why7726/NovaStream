@@ -9,7 +9,7 @@ import authService from '../../services/authService';
 
 const NOMS = {
   soustitres: { service: 'OpenSubtitles', quoi: 'la recherche de sous-titres en ligne' },
-  assistant: { service: 'Gemini', quoi: "l'assistant « Dis-moi ta soirée »" },
+  assistant: { service: "d'une IA", quoi: "l'assistant « Dis-moi ta soirée »", titre: 'Choisis une IA pour l\'assistant' },
   tmdb: { service: 'TMDB', quoi: 'les affiches HD, bandes-annonces et demandes de films' },
   arr: { service: 'Radarr / Sonarr', quoi: 'la recherche automatique des demandes' },
   qbit: { service: 'qBittorrent', quoi: 'le suivi des téléchargements' },
@@ -26,7 +26,7 @@ export default function Indisponible({ feature, compact = false, className = '' 
         <div className="flex items-start gap-3">
           <KeyRound size={17} className="shrink-0 mt-0.5 text-white/50" />
           <div className="min-w-0">
-            <p className="text-[13.5px] font-medium text-white/85">Configure la clé API {n.service}</p>
+            <p className="text-[13.5px] font-medium text-white/85">{n.titre || `Configure la clé API ${n.service}`}</p>
             <p className="text-[12px] text-white/45 mt-1 leading-relaxed">
               Elle active {n.quoi}. Tant qu'elle manque, les utilisateurs voient que la fonction n'est pas activée.
             </p>

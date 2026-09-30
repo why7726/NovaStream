@@ -13,6 +13,7 @@ import { useHorrorPlus, marquerHorreur } from './horrorPlus';
 import plexService from '../../services/plexService';
 import progressService from '../../services/progressService';
 import authService from '../../services/authService';
+import { CREDITS } from '../../credits';
 
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
@@ -324,7 +325,9 @@ export default function HomePure({ section }) {
         )}
 
         <footer className="px-5 md:px-8 pt-6 pb-4 text-[11.5px] p-faint">
-          NovaStream · {allRows.length} catégories
+          NovaStream · {allRows.length} catégories · créé par{' '}
+          <a href={CREDITS.github} target="_blank" rel="noreferrer" className="hover:text-white/70 transition-colors">{CREDITS.auteur}</a>
+          {' '}avec {CREDITS.coAuteur}
         </footer>
       </div>
     </div>

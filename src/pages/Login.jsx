@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { Mail, Lock, LogIn, AlertCircle } from 'lucide-react';
 import authService from '../services/authService';
+import { CREDITS } from '../credits';
 
 function Login({ onAuth }) {
   const navigate = useNavigate();
@@ -81,6 +82,12 @@ function Login({ onAuth }) {
             <Link to="/register" className="text-white font-medium hover:underline">S'inscrire</Link>
           </p>
         </div>
+
+        <p className="text-center text-[11.5px] text-white/25 mt-8">
+          NovaStream · créé par{' '}
+          <a href={CREDITS.github} target="_blank" rel="noreferrer" className="hover:text-white/60 transition-colors">{CREDITS.auteur}</a>
+          {' '}avec {CREDITS.coAuteur}
+        </p>
       </div>
     </div>
   );

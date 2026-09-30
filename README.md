@@ -8,10 +8,16 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 - Comptes sur invitation, favoris, historique, « Reprendre », notifications
 - Connexion du compte Plex de chaque utilisateur (progression synchronisée dans les deux sens)
 - Bibliothèques **privées** : décoche une bibliothèque et elle n'existe plus pour Nova (menu, recherche, recommandations, lien direct — tout est bloqué côté serveur)
-- Services optionnels : TMDB, OpenSubtitles, Gemini (« Dis-moi ta soirée »), Radarr/Sonarr (demandes de films), qBittorrent (lecture seule)
+- Assistant « Dis-moi ta soirée » avec **l'IA de ton choix** : Gemini, ChatGPT, Claude, Grok, ou en local avec Ollama / LM Studio
+- Services optionnels : TMDB, OpenSubtitles, Radarr/Sonarr (demandes de films), qBittorrent (lecture seule)
 - Application installable sur téléphone (PWA)
 
-> Jellyfin : prévu dans une prochaine version.
+## Feuille de route
+
+- **Jellyfin** — connexion par bouton, comme Plex
+- Calendrier de sorties : programmer la recherche d'un titre à l'heure exacte de sa sortie
+- Traductions de l'interface (anglais d'abord)
+- Image Docker publiée, pour installer sans compiler
 
 ---
 
@@ -83,7 +89,7 @@ Aucune n'est obligatoire. Sans elle, la fonction est désactivée : l'administra
 |---|---|---|
 | TMDB *(conseillé)* | affiches HD, bandes-annonces, demandes, recommandations | [themoviedb.org/settings/api](https://www.themoviedb.org/settings/api) — « API Read Access Token » |
 | OpenSubtitles | sous-titres français quand le fichier n'en a pas | [opensubtitles.com/consumers](https://www.opensubtitles.com/en/consumers) + ton compte pour télécharger |
-| Gemini | l'assistant « Dis-moi ta soirée » | [aistudio.google.com/apikey](https://aistudio.google.com/apikey) |
+| Une IA au choix | l'assistant « Dis-moi ta soirée » | Gemini ([clé gratuite](https://aistudio.google.com/apikey)), ChatGPT, Claude, Grok — ou Ollama / LM Studio en local, sans clé |
 | Radarr / Sonarr | lancer la recherche des films et séries demandés | Settings → General → API Key |
 | qBittorrent | retrouver un téléchargement ajouté à la main (lecture seule) | identifiants de l'interface web |
 
@@ -109,3 +115,10 @@ npm run dev        # interface avec rechargement à chaud sur :5173
 
 Architecture : Vite + React 18 + React Router 7 (interface), Express 5 (API, proxy Plex/TMDB, authentification JWT), SQLite.
 Voir `CLAUDE.md` pour les conventions du projet.
+
+---
+
+## Crédits
+
+Créé par [why7726](https://github.com/why7726), co-créé avec [Claude](https://claude.ai) (Anthropic).
+Si tu réutilises NovaStream, merci de garder la mention en bas des pages.

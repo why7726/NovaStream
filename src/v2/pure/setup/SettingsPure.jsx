@@ -6,6 +6,8 @@ import { Carte, Champ, Bouton, Message, Pastille } from './ui';
 import ServeurSection from './ServeurSection';
 import BibliothequesSection from './BibliothequesSection';
 import ClesSection from './ClesSection';
+import AssistantSection from './AssistantSection';
+import APropos from './APropos';
 
 /* Réglages du serveur (administrateur) — et assistant de premier démarrage.
 
@@ -120,9 +122,11 @@ export default function SettingsPure() {
         <ServeurSection reglages={reglages} onChange={charger} />
         <BibliothequesSection serveurRelie={features.serveur} />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 pt-6 pb-1 px-1">Services optionnels</h2>
+        <AssistantSection reglages={reglages} features={features} onChange={charger} />
         <ClesSection reglages={reglages} features={features} onChange={charger} />
         <div className="pt-6" />
         <Acces reglages={reglages} onChange={charger} />
+        <APropos />
       </div>
     </div>
   );

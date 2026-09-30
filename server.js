@@ -2650,7 +2650,7 @@ app.get('/api/subtitles/vtt/:fileId', authMiddleware, async (req, res) => {
 const vibeQuota = new Map();   // userId → { n, depuis }
 
 app.post('/api/vibe', authMiddleware, async (req, res) => {
-  if (!vibe.vibeConfigured()) return res.status(503).json({ error: "L'assistant n'est pas activé : il faut une clé Gemini dans les réglages.", feature: 'assistant' });
+  if (!vibe.vibeConfigured()) return res.status(503).json({ error: "L'assistant n'est pas activé : il faut choisir une IA dans les réglages.", feature: 'assistant' });
   const humeur = String(req.body?.humeur || '').trim().slice(0, 300);
   if (humeur.length < 2) return res.status(400).json({ error: 'Dis-m\'en un peu plus' });
 

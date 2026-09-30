@@ -13,6 +13,7 @@
 import http from 'node:http';
 import * as config from './config.js';
 import * as plexLink from './plexLink.js';
+import * as ia from './ia.js';
 
 /* ── Adresse réelle du visiteur ──────────────────────────────────────
    X-Forwarded-For n'est cru que s'il a été posé par un relais du réseau
@@ -82,13 +83,8 @@ const TESTS = {
     if (!r.ok) throw new Error(`OpenSubtitles répond ${r.status}`);
     return 'Clé valide — ajoute un compte pour pouvoir télécharger';
   },
-  async assistant(v) {
-    if (!v.GEMINI_API_KEY) throw new Error('Clé manquante');
-    const r = await fetch('https://generativelanguage.googleapis.com/v1beta/models?pageSize=1', { headers: { 'x-goog-api-key': v.GEMINI_API_KEY }, signal: attente(8000) });
-    if (r.status === 400 || r.status === 401 || r.status === 403) throw new Error('Clé refusée par Google');
-    if (!r.ok) throw new Error(`Google répond ${r.status}`);
-    return 'Clé Gemini valide';
-  },
+  // Renvoie aussi la liste des modèles : les réglages la proposent au choix.
+  assistant: (v) => ia.tester(v),
   async arr(v) {
     const essai = async (nom, url, cle) => {
       if (!url || !cle) throw new Error(`${nom} : adresse ou clé manquante`);
@@ -162,6 +158,7 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
   app.put('/api/settings', authMiddleware, adminMiddleware, (req, res) => {
     try {
       config.setReglages(req.body?.reglages || {});
+      ia.oublierModeles();   // un autre fournisseur ou une autre clé : on re-choisit le modèle
       res.json({ reglages: config.reglagesPublics(), features: config.features() });
     } catch (e) {
       console.error('[Setup] enregistrement:', e.message);
@@ -180,7 +177,8 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
       v[cle] = typeof saisi === 'string' && saisi !== '' ? saisi.trim() : config.get(cle);
     }
     try {
-      res.json({ ok: true, message: await test(v) });
+      const r = await test(v);
+      res.json({ ok: true, ...(typeof r === 'string' ? { message: r } : r) });
     } catch (e) {
       const msg = e.cause?.code === 'ECONNREFUSED' || e.code === 'ECONNREFUSED' ? 'Connexion refusée — le service est-il démarré ?' : e.message;
       res.json({ ok: false, message: msg });
