@@ -16,6 +16,10 @@ logs/
 subs-cache/
 *_cache.json
 
+# Notes de travail locales (consignes pour l'assistant de code) : restent sur le PC
+CLAUDE.md
+.claude/
+
 # Scripts propres à une machine (chemins locaux)
 scripts/NovaStream.vbs
 

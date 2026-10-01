@@ -118,7 +118,6 @@ npm run dev        # interface avec rechargement à chaud sur :5173
 Architecture : Vite + React 18 + React Router 7 (interface), Express 5 (API, proxy Plex/Jellyfin/TMDB, authentification JWT), SQLite.
 Jellyfin est pris en charge par une couche de traduction côté serveur (`jellyfin.js`) : l'interface parle un seul format.
 Testé avec Plex Media Server et Jellyfin 12.
-Voir `CLAUDE.md` pour les conventions du projet.
 
 ---
 
