@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import authService from '../../services/authService';
 
+import { tr, locale } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Épisodes annoncés mais pas encore diffusés.
@@ -29,15 +30,15 @@ function compte(airDate, airTime) {
     if (reste > 0 && reste < JOURS) {
       const heures = Math.floor(reste / 3600000);
       if (heures >= 1) return { texte: `H−${heures}`, proche: true, exact: true };
-      return { texte: `${Math.max(1, Math.round(reste / 60000))} min`, proche: true, exact: true };
+      return { texte: tr('{0} min', [Math.max(1, Math.round(reste / 60000))]), proche: true, exact: true };
     }
-    if (reste <= 0) return { texte: "Aujourd'hui", proche: true };
+    if (reste <= 0) return { texte: tr("Aujourd'hui"), proche: true };
   }
 
   const jours = Math.round((minuit(cible) - minuit(new Date())) / JOURS);
   if (jours > 1) return { texte: `J−${jours}`, proche: jours <= 3 };
   if (jours === 1) return { texte: 'J−1', proche: true };
-  return { texte: "Aujourd'hui", proche: true };
+  return { texte: tr("Aujourd'hui"), proche: true };
 }
 
 /* La date se lit sur l'HEURE exacte quand Sonarr nous l'a donnee.
@@ -48,7 +49,7 @@ function dateLisible(airDate, airTime) {
   const source = airTime ? new Date(airTime) : (airDate ? new Date(`${airDate}T00:00:00`) : null);
   if (!source || Number.isNaN(source.getTime())) return null;
   try {
-    return source.toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return source.toLocaleDateString(locale(), { weekday: 'long', day: 'numeric', month: 'long' });
   } catch { return airDate; }
 }
 
@@ -140,10 +141,10 @@ export default function UpcomingEpisodes({ ratingKey, season, fallbackImage, mod
   return (
     <div className="mt-7">
       <p className="p-label mb-3">
-        {mode === 'vf' ? (attendus.length ? 'Prochainement en VF' : 'En VF') : 'Prochainement'}
+        {mode === 'vf' ? (attendus.length ? tr('Prochainement en VF') : 'En VF') : tr('Prochainement')}
         {mode === 'vf' && offset > 0 && (
           <span className="ml-2 normal-case tracking-normal text-white/30">
-            la VF a {offset} épisode{offset > 1 ? 's' : ''} de retard
+            la VF a {offset} {tr('épisode')}{offset > 1 ? 's' : ''} {tr('de retard')}
           </span>
         )}
       </p>
@@ -151,8 +152,8 @@ export default function UpcomingEpisodes({ ratingKey, season, fallbackImage, mod
       {trous.length > 0 && (
         <p className="text-[12px] p-faint pb-3 -mt-1">
           {trous.length === 1
-            ? `L'épisode ${trous[0]} n'est pas disponible en VF.`
-            : `Épisodes indisponibles en VF : ${trous.join(', ')}.`}
+            ? tr('L\'épisode {0} n\'est pas disponible en VF.', [trous[0]])
+            : tr('Épisodes indisponibles en VF : {0}.', [trous.join(', ')])}
         </p>
       )}
 
@@ -181,7 +182,7 @@ export default function UpcomingEpisodes({ ratingKey, season, fallbackImage, mod
               {(e.airDate || e.airTime) && (
                 <p className="text-[11.5px] p-faint mt-1 first-letter:uppercase">
                   {dateLisible(e.airDate, e.airTime)}
-                  {e.airTime && ` · ${new Date(e.airTime).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}`}
+                  {e.airTime && ` · ${new Date(e.airTime).toLocaleTimeString(locale(), { hour: '2-digit', minute: '2-digit' })}`}
                 </p>
               )}
               {e.overview && (

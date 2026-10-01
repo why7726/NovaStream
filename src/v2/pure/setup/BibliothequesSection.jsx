@@ -4,6 +4,7 @@ import { api } from './api';
 import { refreshLibraries, libraryKind } from '../../lib/libraries';
 import { Carte, Bouton, Message } from './ui';
 
+import { tr } from '../../../i18n';
 /* Quelles bibliothèques du serveur Nova montre, et comment.
 
    Deux cases par bibliothèque :
@@ -65,7 +66,7 @@ export default function BibliothequesSection({ serveurRelie }) {
         },
       });
       setInitial(JSON.stringify(libs));
-      setMsg({ ok: true, texte: 'Enregistré — le menu est à jour.' });
+      setMsg({ ok: true, texte: tr('Enregistré — le menu est à jour.') });
       refreshLibraries();
     } catch (e) {
       setMsg({ ok: false, texte: e.message });
@@ -75,12 +76,12 @@ export default function BibliothequesSection({ serveurRelie }) {
   };
 
   return (
-    <Carte id="bibliotheques" titre="Bibliothèques"
-      sousTitre="Coche celles que Nova peut montrer. Chaque bibliothèque partagée devient un onglet, sous le nom qu'elle porte sur ton serveur.">
-      {!serveurRelie && <p className="text-[13px] text-white/40">Relie d'abord ton serveur.</p>}
+    <Carte id="bibliotheques" titre={tr('Bibliothèques')}
+      sousTitre={tr('Coche celles que Nova peut montrer. Chaque bibliothèque partagée devient un onglet, sous le nom qu\'elle porte sur ton serveur.')}>
+      {!serveurRelie && <p className="text-[13px] text-white/40">{tr('Relie d\'abord ton serveur.')}</p>}
 
       {serveurRelie && !libs && (
-        <div className="flex items-center gap-2 text-[13px] text-white/40"><Loader2 size={15} className="animate-spin" /> Lecture du serveur…</div>
+        <div className="flex items-center gap-2 text-[13px] text-white/40"><Loader2 size={15} className="animate-spin" /> {tr('Lecture du serveur…')}</div>
       )}
 
       {libs && libs.length > 0 && (
@@ -90,8 +91,8 @@ export default function BibliothequesSection({ serveurRelie }) {
             return (
               <div key={l.key} className={`flex items-center gap-3 p-3 md:p-3.5 rounded-2xl transition-colors ${l.partagee ? 'bg-white/[0.05]' : 'bg-white/[0.02]'}`}>
                 <div className="flex flex-col">
-                  <button onClick={() => deplacer(i, -1)} disabled={i === 0} aria-label="Monter" className="text-white/35 hover:text-white disabled:opacity-20"><ChevronUp size={16} /></button>
-                  <button onClick={() => deplacer(i, 1)} disabled={i === libs.length - 1} aria-label="Descendre" className="text-white/35 hover:text-white disabled:opacity-20"><ChevronDown size={16} /></button>
+                  <button onClick={() => deplacer(i, -1)} disabled={i === 0} aria-label={tr('Monter')} className="text-white/35 hover:text-white disabled:opacity-20"><ChevronUp size={16} /></button>
+                  <button onClick={() => deplacer(i, 1)} disabled={i === libs.length - 1} aria-label={tr('Descendre')} className="text-white/35 hover:text-white disabled:opacity-20"><ChevronDown size={16} /></button>
                 </div>
                 <span className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${l.partagee ? 'bg-white/[0.08] text-white/70' : 'bg-white/[0.03] text-white/25'}`}>
                   {l.partagee ? <Icone size={17} /> : <Lock size={15} />}
@@ -99,12 +100,12 @@ export default function BibliothequesSection({ serveurRelie }) {
                 <div className="min-w-0 flex-1">
                   <p className={`text-[14px] font-medium truncate ${l.partagee ? '' : 'text-white/40'}`}>{l.title}</p>
                   <p className="text-[11.5px] text-white/35 mt-0.5">
-                    {l.partagee ? (l.type === 'movie' ? 'Films' : 'Séries') : 'Privée — invisible sur Nova'}
+                    {l.partagee ? (l.type === 'movie' ? tr('Films') : tr('Séries')) : tr('Privée — invisible sur Nova')}
                   </p>
                 </div>
                 <div className="flex flex-col sm:flex-row items-end sm:items-center gap-2 sm:gap-5 shrink-0">
-                  <Case coche={l.partagee} onChange={(v) => maj(l.key, { partagee: v })}>Partagée</Case>
-                  <Case coche={l.partagee && l.menu} disabled={!l.partagee} onChange={(v) => maj(l.key, { menu: v })}>Dans le menu</Case>
+                  <Case coche={l.partagee} onChange={(v) => maj(l.key, { partagee: v })}>{tr('Partagée')}</Case>
+                  <Case coche={l.partagee && l.menu} disabled={!l.partagee} onChange={(v) => maj(l.key, { menu: v })}>{tr('Dans le menu')}</Case>
                 </div>
               </div>
             );
@@ -113,20 +114,20 @@ export default function BibliothequesSection({ serveurRelie }) {
       )}
 
       {libs && libs.length === 0 && serveurRelie && !msg && (
-        <p className="text-[13px] text-white/40">Aucune bibliothèque de films ou de séries sur ce serveur.</p>
+        <p className="text-[13px] text-white/40">{tr('Aucune bibliothèque de films ou de séries sur ce serveur.')}</p>
       )}
 
       {libs && libs.some((l) => !l.partagee) && (
         <p className="flex items-start gap-2 text-[12px] text-white/40 mt-4 leading-relaxed">
           <Lock size={13} className="shrink-0 mt-[2px]" />
-          Une bibliothèque privée n'apparaît nulle part : ni menu, ni recherche, ni recommandations, ni historique — et ses titres sont bloqués par le serveur même avec un lien direct.
+          {tr('Une bibliothèque privée n\'apparaît nulle part : ni menu, ni recherche, ni recommandations, ni historique — et ses titres sont bloqués par le serveur même avec un lien direct.')}
         </p>
       )}
 
       {libs && libs.length > 0 && (
         <div className="flex items-center gap-3 mt-5">
-          <Bouton onClick={enregistrer} disabled={!modifie || envoi}>{envoi ? 'Enregistrement…' : 'Enregistrer'}</Bouton>
-          {modifie && <Bouton variante="discret" onClick={() => setLibs(JSON.parse(initial))}>Annuler</Bouton>}
+          <Bouton onClick={enregistrer} disabled={!modifie || envoi}>{envoi ? 'Enregistrement…' : tr('Enregistrer')}</Bouton>
+          {modifie && <Bouton variante="discret" onClick={() => setLibs(JSON.parse(initial))}>{tr('Annuler')}</Bouton>}
         </div>
       )}
       {msg && <Message ok={msg.ok} className="mt-3">{msg.texte}</Message>}

@@ -144,8 +144,8 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
       if (typeof password !== 'string' || password.length < 8 || password.length > 200) return res.status(400).json({ error: 'Mot de passe trop court (8 caractères minimum)' });
 
       const hash = bcrypt.hashSync(password, 10);
-      const r = db.prepare('INSERT INTO users (username, email, password, isAdmin) VALUES (?, ?, ?, 1)').run(username.trim(), email.trim(), hash);
-      const user = { id: r.lastInsertRowid, username: username.trim(), email: email.trim(), isAdmin: 1 };
+      const r = db.prepare('INSERT INTO users (username, email, password, isAdmin, bienvenueVue) VALUES (?, ?, ?, 1, 0)').run(username.trim(), email.trim(), hash);
+      const user = { id: r.lastInsertRowid, username: username.trim(), email: email.trim(), isAdmin: 1, langue: null, bienvenueVue: 0 };
       logActivity(user.id, 'register');
       console.log(`[Setup] Compte administrateur créé : ${user.username}`);
       res.json({ token: signerJeton({ ...user, tokenVersion: 0 }), user });

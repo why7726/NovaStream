@@ -3,11 +3,20 @@ import { BrowserRouter as Router } from 'react-router-dom';
 import authService from './services/authService';
 import activityService from './services/activityService';
 
+import { tr, langueActuelle, appliquerLangue } from './i18n';
 // V2 "Spatial Cinema" is now the one and only shell — shipped to everyone
 // (the old V1 opt-in/preview toggle has been retired).
 const ShellV2 = React.lazy(() => import('./v2/ShellV2'));
 // Premier démarrage : création du compte administrateur.
 const SetupAdmin = React.lazy(() => import('./v2/pure/setup/SetupAdmin'));
+// Premier passage d'un compte neuf : mot d'accueil et choix de la langue.
+const Bienvenue = React.lazy(() => import('./v2/pure/preferences/Bienvenue'));
+
+/* La langue est une préférence du COMPTE : sur un nouvel appareil, la page
+   s'ouvre dans celle du navigateur, puis bascule (une fois) sur celle du compte. */
+function suivreLangueDuCompte(u) {
+  if (u && !u.guest && u.langue && u.langue !== langueActuelle()) appliquerLangue(u.langue);
+}
 
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
@@ -38,7 +47,7 @@ if (typeof window !== 'undefined' && !window.__novaErrHooked) {
   window.__novaErrHooked = true;
   window.addEventListener('error', (e) => reportClientError(e.error || new Error(e.message)));
   window.addEventListener('unhandledrejection', (e) => {
-    const err = e.reason || new Error('Promesse rejetée');
+    const err = e.reason || new Error(tr('Promesse rejetée'));
     reportClientError(err);
     if (isStaleChunkError(err)) recoverFromStaleChunk();
   });
@@ -89,23 +98,23 @@ class ErrorBoundary extends React.Component {
       const { error, info, open } = this.state;
       return (
         <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 text-center">
-          <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-2.5">Une erreur est survenue</h1>
+          <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-2.5">{tr('Une erreur est survenue')}</h1>
           <p className="text-[14px] text-white/50 mb-8 max-w-md">
-            Cette page n'a pas pu s'afficher. Le détail a été envoyé au serveur.
+            {tr('Cette page n\'a pas pu s\'afficher. Le détail a été envoyé au serveur.')}
           </p>
           <div className="flex items-center gap-2.5">
             <button onClick={() => this.setState({ hasError: false, error: null, info: null })}
               className="inline-flex items-center justify-center h-[46px] px-7 rounded-full bg-white text-black text-[15px] font-semibold hover:opacity-90 transition-opacity">
-              Réessayer
+              {tr('Réessayer')}
             </button>
             <button onClick={() => { window.location.href = '/'; }}
               className="inline-flex items-center justify-center h-[46px] px-6 rounded-full bg-white/10 text-white text-[15px] font-semibold hover:bg-white/[0.17] transition-colors">
-              Accueil
+              {tr('Accueil')}
             </button>
           </div>
           <button onClick={() => this.setState({ open: !open })}
             className="mt-7 text-[12.5px] text-white/35 hover:text-white/70 transition-colors">
-            {open ? 'Masquer le détail' : 'Voir le détail'}
+            {open ? tr('Masquer le détail') : tr('Voir le détail')}
           </button>
           {open && (
             <pre className="mt-3 max-w-[92vw] md:max-w-2xl max-h-[38vh] overflow-auto text-left text-[11px] leading-relaxed text-white/45 bg-white/[0.04] rounded-2xl p-4 whitespace-pre-wrap">
@@ -145,6 +154,7 @@ function App() {
 
   useEffect(() => {
     authService.verify().then(u => {
+      suivreLangueDuCompte(u);
       setUser(u);
       setChecking(false);
       if (u && !u.guest) authService.initMediaToken();
@@ -178,7 +188,16 @@ function App() {
     );
   }
 
-  const handleAuth = (u) => { setUser(u); if (u && !u.guest) authService.initMediaToken(); };
+  const handleAuth = (u) => { suivreLangueDuCompte(u); setUser(u); if (u && !u.guest) authService.initMediaToken(); };
+
+  // Compte tout neuf (utilisateur ou administrateur) : d'abord le mot d'accueil.
+  if (user && !user.guest && user.bienvenueVue === 0) {
+    return (
+      <Suspense fallback={<PageLoader />}>
+        <Bienvenue user={user} onTermine={(u) => setUser(u)} />
+      </Suspense>
+    );
+  }
   const handleLogout = () => { authService.logout(); setUser(null); };
 
   return (

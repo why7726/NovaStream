@@ -6,14 +6,15 @@ import useRetour from './useRetour';
 import plexService from '../../services/plexService';
 import progressService from '../../services/progressService';
 
+import { tr } from '../../i18n';
 /* "Ce soir" — on ne demande qu'une chose : combien de temps tu as.
    Puis on propose TROIS titres, pas trois cents. Le choix est pondéré par
    les genres que tu regardes le plus, et n'affiche que du non-vu. */
 
 const SLOTS = [
-  { id: 'short', label: 'Une heure et demie', hint: 'moins de 1 h 35', max: 95 },
-  { id: 'mid', label: 'Une soirée normale', hint: '1 h 35 – 2 h 25', min: 95, max: 145 },
-  { id: 'long', label: 'Tout mon temps', hint: 'plus de 2 h 25', min: 145 },
+  { id: 'short', label: tr('Une heure et demie'), hint: tr('moins de 1 h 35'), max: 95 },
+  { id: 'mid', label: tr('Une soirée normale'), hint: '1 h 35 – 2 h 25', min: 95, max: 145 },
+  { id: 'long', label: tr('Tout mon temps'), hint: tr('plus de 2 h 25'), min: 145 },
 ];
 
 const num = (r) => {
@@ -99,19 +100,19 @@ export default function TonightPure() {
 
   const why = (it) => {
     const g = (it.genres || []).find((x) => tasteGenres.get(x));
-    if (g) return `Parce que tu regardes du ${g.toLowerCase()}`;
-    if (num(it.rating) >= 7.5) return `Très bien noté · ${it.rating}`;
-    return it.year ? `Sorti en ${it.year}` : 'Jamais vu';
+    if (g) return tr('Parce que tu regardes du {0}', [g.toLowerCase()]);
+    if (num(it.rating) >= 7.5) return tr('Très bien noté · {0}', [it.rating]);
+    return it.year ? tr('Sorti en {0}', [it.year]) : tr('Jamais vu');
   };
 
   return (
     <div className="min-h-screen pt-16 md:pt-20 pb-16 max-w-[1000px] mx-auto px-5 md:px-8">
       <div className="flex items-center gap-3 mb-8">
-        <button onClick={retour} aria-label="Retour"
+        <button onClick={retour} aria-label={tr('Retour')}
           className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
           <ChevronLeft size={20} />
         </button>
-        <h1 className="p-display text-[26px] md:text-[38px]">Ce soir</h1>
+        <h1 className="p-display text-[26px] md:text-[38px]">{tr('Ce soir')}</h1>
       </div>
 
       {loading ? (
@@ -120,7 +121,7 @@ export default function TonightPure() {
         </div>
       ) : (
         <>
-          <p className="text-[15px] p-dim mb-5">Tu as combien de temps ?</p>
+          <p className="text-[15px] p-dim mb-5">{tr('Tu as combien de temps ?')}</p>
           <div className="flex flex-col sm:flex-row gap-2.5 mb-12">
             {SLOTS.map((s) => (
               <button key={s.id} onClick={() => { setSlot(s.id); setSeed((n) => n + 1); }}
@@ -136,7 +137,7 @@ export default function TonightPure() {
           {slot && (
             <>
               {picks.length === 0 ? (
-                <p className="text-[14px] p-faint py-12 text-center">Rien de non-vu dans cette durée.</p>
+                <p className="text-[14px] p-faint py-12 text-center">{tr('Rien de non-vu dans cette durée.')}</p>
               ) : (
                 <div className="space-y-3.5">
                   {picks.map((it) => (
@@ -151,7 +152,7 @@ export default function TonightPure() {
                         </p>
                         <p className="text-[12px] p-faint mt-1.5">{why(it)}</p>
                       </div>
-                      <button onClick={() => navigate(`/play/${it.id}`)} aria-label="Lecture"
+                      <button onClick={() => navigate(`/play/${it.id}`)} aria-label={tr('Lecture')}
                         className="p-icon-btn shrink-0">
                         <Play size={17} fill="currentColor" />
                       </button>
@@ -162,7 +163,7 @@ export default function TonightPure() {
 
               <button onClick={() => setSeed((n) => n + 1)}
                 className="mt-7 mx-auto flex items-center gap-2 text-[13.5px] text-white/50 hover:text-white transition-colors">
-                <RefreshCw size={14} /> Trois autres
+                <RefreshCw size={14} /> {tr('Trois autres')}
               </button>
             </>
           )}

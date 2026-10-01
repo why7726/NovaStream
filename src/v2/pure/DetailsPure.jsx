@@ -15,6 +15,7 @@ import { useAudioPref, setAudioPref, versionOptions } from '../lib/audioPref';
 import { useLangBadges } from './langBadges';
 import WatchTogetherButton from '../components/WatchTogetherButton';
 
+import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Bascule VF / VO — n'apparaît que si le fichier propose vraiment les deux.
@@ -25,7 +26,7 @@ function VersionSwitch({ pref, options }) {
     <div className="flex p-[3px] rounded-full bg-white/[0.08] shrink-0">
       {options.map((v) => (
         <button key={v.id} onClick={() => setAudioPref(v.id)}
-          title={v.id === 'vf' ? 'Doublage français' : 'Version originale'}
+          title={v.id === 'vf' ? tr('Doublage français') : tr('Version originale')}
           className={`h-[26px] px-3 rounded-full text-[12px] font-semibold transition-colors ${
             pref === v.id ? 'bg-white text-black' : 'text-white/55 hover:text-white'
           }`}>
@@ -40,9 +41,9 @@ function VersionSwitch({ pref, options }) {
 function seasonLabel(s) {
   const t = (s.title || '').trim();
   const m = t.match(/^season\s*(\d+)$/i);
-  if (m) return `Saison ${m[1]}`;
-  if (/^specials?$/i.test(t)) return 'Hors-série';
-  if (!t && s.index != null) return `Saison ${s.index}`;
+  if (m) return tr('Saison {0}', [m[1]]);
+  if (/^specials?$/i.test(t)) return tr('Hors-série');
+  if (!t && s.index != null) return tr('Saison {0}', [s.index]);
   return t;
 }
 
@@ -209,7 +210,7 @@ export default function DetailsPure() {
       return pct > 0 && pct < 95 ? { id: movie.id, pct } : null;
     }
     const ep = episodes.find((e) => progressMap[e.id] > 0 && progressMap[e.id] < 95 && !watchedIds.has(e.id));
-    return ep ? { id: ep.id, pct: progressMap[ep.id], label: ep.index ? `l'épisode ${ep.index}` : '' } : null;
+    return ep ? { id: ep.id, pct: progressMap[ep.id], label: ep.index ? tr('l\'épisode {0}', [ep.index]) : '' } : null;
   }, [movie, episodes, progressMap, watchedIds]);
 
   /* Les « bonus » (PV, génériques sans crédits, menus de Blu-ray) sont
@@ -270,8 +271,8 @@ export default function DetailsPure() {
   if (!movie) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-3">
-        <p className="p-title text-xl">Contenu introuvable</p>
-        <button onClick={() => navigate('/')} className="text-[13px] p-dim hover:text-white transition-colors">Retour à l'accueil</button>
+        <p className="p-title text-xl">{tr('Contenu introuvable')}</p>
+        <button onClick={() => navigate('/')} className="text-[13px] p-dim hover:text-white transition-colors">{tr('Retour à l\'accueil')}</button>
       </div>
     );
   }
@@ -288,7 +289,7 @@ export default function DetailsPure() {
   const meta = [
     langBadge,
     movie.year,
-    movie.type === 'movie' ? movie.duration : (seasons.length ? `${seasons.length} saison${seasons.length > 1 ? 's' : ''}` : null),
+    movie.type === 'movie' ? movie.duration : (seasons.length ? tr('{0} saison{1}', [seasons.length, seasons.length > 1 ? 's' : '']) : null),
     movie.contentRating,
     movie.rating ? `★ ${movie.rating}` : null,
     ...(movie.genres || []).slice(0, 2),
@@ -306,7 +307,7 @@ export default function DetailsPure() {
 
         {/* z-30 : au-dessus du dégradé ET du bloc de titre, pour que la zone
             cliquable ne soit jamais recouverte. */}
-        <button onClick={() => navigate(sortie)} aria-label={movie.type === 'movie' ? 'Retour aux films' : 'Retour aux séries'}
+        <button onClick={() => navigate(sortie)} aria-label={movie.type === 'movie' ? tr('Retour aux films') : tr('Retour aux séries')}
           className="absolute top-[68px] md:top-[72px] left-4 md:left-8 z-30 w-9 h-9 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center text-white/85 hover:text-white active:scale-95 transition-all">
           <ChevronLeft size={19} />
         </button>
@@ -321,7 +322,7 @@ export default function DetailsPure() {
 
             {isCam && (
               <p className="text-[12px] md:text-[12.5px] text-white/70 mb-5 pl-3 border-l border-white/25 max-w-xl leading-relaxed">
-                <span className="text-white font-medium">Version CAM.</span> Ce film a été filmé en salle : image et son de qualité réduite.
+                <span className="text-white font-medium">{tr('Version CAM.')}</span> {tr('Ce film a été filmé en salle : image et son de qualité réduite.')}
               </p>
             )}
 
@@ -338,7 +339,7 @@ export default function DetailsPure() {
                 {desc.length > 180 && (
                   <button onClick={() => setFull(true)}
                     className="mt-1 text-[13px] font-medium text-white/50 hover:text-white transition-colors">
-                    plus
+                    {tr('plus')}
                   </button>
                 )}
               </div>
@@ -347,22 +348,22 @@ export default function DetailsPure() {
             <div className="flex flex-wrap items-center gap-2.5">
               <button onClick={play} className="p-btn relative overflow-hidden">
                 {resume ? <RotateCcw size={16} /> : <Play size={16} fill="currentColor" />}
-                {resume ? `Reprendre${resume.label ? ' ' + resume.label : ''}` : 'Lecture'}
+                {resume ? tr('Reprendre{0}', [resume.label ? ' ' + resume.label : '']) : tr('Lecture')}
                 {resume && <span className="absolute bottom-0 left-0 h-[2px] bg-black/35" style={{ width: `${Math.min(resume.pct, 100)}%` }} />}
               </button>
               {movie.trailer && (
-                <button onClick={() => setTrailer(true)} className="p-btn p-btn-ghost">Bande-annonce</button>
+                <button onClick={() => setTrailer(true)} className="p-btn p-btn-ghost">{tr('Bande-annonce')}</button>
               )}
               {/* Suivre : prévenu dès qu'un nouvel épisode ARRIVE SUR NOVA —
                   la seule alerte qui serve à quelque chose. */}
               {movie.type !== 'movie' && (
-                <button onClick={toggleSuivi} aria-label={suivi ? 'Ne plus suivre' : 'Suivre la série'}
-                  title={suivi ? 'Suivi — tu seras prévenu des nouveaux épisodes' : 'Être prévenu des nouveaux épisodes'}
+                <button onClick={toggleSuivi} aria-label={suivi ? tr('Ne plus suivre') : tr('Suivre la série')}
+                  title={suivi ? tr('Suivi — tu seras prévenu des nouveaux épisodes') : tr('Être prévenu des nouveaux épisodes')}
                   className={`p-icon-btn ${suivi ? 'bg-white text-black hover:bg-white' : ''}`}>
                   <Bell size={18} fill={suivi ? 'currentColor' : 'none'} />
                 </button>
               )}
-              <button onClick={toggleFav} aria-label="Favori" className="p-icon-btn">
+              <button onClick={toggleFav} aria-label={tr('Favori')} className="p-icon-btn">
                 <Heart size={18} fill={isFav ? 'currentColor' : 'none'} className={isFav ? 'text-white' : 'text-white/85'} />
               </button>
               <WatchTogetherButton media={movie} />
@@ -370,7 +371,7 @@ export default function DetailsPure() {
 
             {movie.type === 'movie' && versions && (
               <div className="mt-4 flex items-center gap-2.5">
-                <span className="text-[12px] p-faint">Version</span>
+                <span className="text-[12px] p-faint">{tr('Version')}</span>
                 <VersionSwitch pref={audioPref} options={versions} />
               </div>
             )}
@@ -382,21 +383,21 @@ export default function DetailsPure() {
       {movie.type === 'show' && seasons.length > 0 && (
         <section id="pure-eps" className="max-w-[1000px] mx-auto px-5 md:px-8 pt-10 md:pt-14">
           <div className="flex items-center justify-between gap-3 mb-4">
-            <h2 className="p-title text-[19px] md:text-[24px]">Épisodes</h2>
+            <h2 className="p-title text-[19px] md:text-[24px]">{tr('Épisodes')}</h2>
             <div className="flex items-center gap-2">
               {/* Toute la saison d'un coup — rageant quand ça manque. */}
               {season && episodes.length > 1 && (
                 <button onClick={marquerSaisonVue} disabled={saisonVue}
-                  title="Marquer toute la saison comme vue"
+                  title={tr('Marquer toute la saison comme vue')}
                   className="h-9 px-3 rounded-full text-[12.5px] font-medium bg-white/[0.08] text-white/75 hover:bg-white/[0.14] transition-colors inline-flex items-center gap-1.5 disabled:opacity-50">
-                  <CheckCheck size={14} /> Saison vue
+                  <CheckCheck size={14} /> {tr('Saison vue')}
                 </button>
               )}
               <VersionSwitch pref={audioPref} options={versions} />
               {seasons.length > 1 && (
               <PickerPure
-                title="Choisir une saison"
-                label="Saison"
+                title={tr('Choisir une saison')}
+                label={tr('Saison')}
                 value={season || ''}
                 options={seasons.map((s) => ({ value: s.id, label: seasonLabel(s) }))}
                 onPick={pickSeason}
@@ -433,7 +434,7 @@ export default function DetailsPure() {
                 </div>
               </button>
             ))}
-            {episodes.length === 0 && <p className="text-[13px] p-faint py-6">Chargement…</p>}
+            {episodes.length === 0 && <p className="text-[13px] p-faint py-6">{tr('Chargement…')}</p>}
           </div>
 
           {/* La suite de la saison, pas encore diffusée */}
@@ -448,7 +449,7 @@ export default function DetailsPure() {
 
           {bonusEpisodes.length > 0 && (
             <div className="mt-8">
-              <h3 className="p-label mb-3">Bonus</h3>
+              <h3 className="p-label mb-3">{tr('Bonus')}</h3>
               {bonusEpisodes.map((ep) => (
                 <button key={ep.id} onClick={() => navigate(`/play/${ep.id}`)}
                   className="w-full flex items-center gap-3.5 py-3 p-hair text-left group/b">
@@ -463,10 +464,10 @@ export default function DetailsPure() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-[13.5px] font-medium truncate">
-                      {/^episode\s*\d+$/i.test(ep.title || '') ? 'Contenus bonus' : ep.title}
+                      {/^episode\s*\d+$/i.test(ep.title || '') ? tr('Contenus bonus') : ep.title}
                     </p>
                     <p className="text-[11.5px] p-faint mt-0.5">
-                      Bandes-annonces, génériques{ep.duration ? ` · ${ep.duration}` : ''}
+                      {tr('Bandes-annonces, génériques')}{ep.duration ? ` · ${ep.duration}` : ''}
                     </p>
                   </div>
                 </button>
@@ -479,7 +480,7 @@ export default function DetailsPure() {
       {/* ── distribution ── */}
       {movie.cast?.length > 0 && (
         <section className="pt-10 md:pt-14">
-          <h2 className="p-title text-[19px] md:text-[24px] px-5 md:px-8 mb-4">Distribution</h2>
+          <h2 className="p-title text-[19px] md:text-[24px] px-5 md:px-8 mb-4">{tr('Distribution')}</h2>
           <div className="p-rail p-marge gap-5 px-5 md:px-8">
             {movie.cast.map((a) => (
               <button key={a.id} onClick={() => navigate(`/actor/${encodeURIComponent(a.name)}`)} className="shrink-0 w-[76px] md:w-[88px] group/a">
@@ -501,7 +502,7 @@ export default function DetailsPure() {
       {/* ── recommandations ── */}
       {similar.length > 0 && (
         <div className="pt-10 md:pt-14">
-          <RowPure title="À voir ensuite" items={similar} watchedIds={watchedIds} />
+          <RowPure title={tr('À voir ensuite')} items={similar} watchedIds={watchedIds} />
         </div>
       )}
 
@@ -517,12 +518,12 @@ export default function DetailsPure() {
         {trailer && movie.trailer && (
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 z-[100] bg-black flex items-center justify-center px-4">
-            <button onClick={() => setTrailer(false)} aria-label="Fermer"
+            <button onClick={() => setTrailer(false)} aria-label={tr('Fermer')}
               className="absolute top-5 right-5 w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white/85 hover:bg-white/20 transition-colors">
               <X size={19} />
             </button>
             <div className="w-full max-w-5xl rounded-xl overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
-              <iframe src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&rel=0`} title="Bande-annonce"
+              <iframe src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&rel=0`} title={tr('Bande-annonce')}
                 className="w-full h-full" allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
             </div>
           </motion.div>

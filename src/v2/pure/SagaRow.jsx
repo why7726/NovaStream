@@ -4,6 +4,7 @@ import { Play, Info } from 'lucide-react';
 import authService from '../../services/authService';
 import RequestDetailModal from '../components/RequestDetailModal';
 
+import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* La saga d'un film : tous les épisodes de la collection, dans l'ordre.
@@ -30,8 +31,8 @@ export default function SagaRow({ ratingKey }) {
   return (
     <section data-row className="pt-10 md:pt-14">
       <div className="px-5 md:px-8 mb-3.5 md:mb-4 flex items-baseline gap-2.5">
-        <h2 className="p-title text-[19px] md:text-[24px]">La saga {saga.name}</h2>
-        <span className="text-[12.5px] p-faint">{saga.onNova} sur {saga.total}</span>
+        <h2 className="p-title text-[19px] md:text-[24px]">{tr('La saga')} {saga.name}</h2>
+        <span className="text-[12.5px] p-faint">{saga.onNova} {tr('sur')} {saga.total}</span>
       </div>
 
       <div className="p-rail p-marge gap-3 md:gap-4 px-5 md:px-8 pb-1">
@@ -50,13 +51,13 @@ export default function SagaRow({ ratingKey }) {
               ) : (
                 <span className="absolute inset-0 flex items-end justify-center pb-2">
                   <span className="px-2 py-[3px] rounded-md bg-black/70 backdrop-blur-md text-[9.5px] font-semibold text-white/85">
-                    À demander
+                    {tr('À demander')}
                   </span>
                 </span>
               )}
               {x.isCurrent && (
                 <span className="absolute top-2 left-2 px-1.5 py-[3px] rounded-md bg-white text-black text-[9px] font-bold tracking-[0.06em]">
-                  EN COURS
+                  {tr('EN COURS')}
                 </span>
               )}
             </div>

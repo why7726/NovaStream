@@ -13,6 +13,7 @@ import { getAudioPref, setAudioPref, classifyAudio, audioLabel, versionOptions, 
 import { castSupported, initCast, getCastState, onCastStateChange, castMedia, stopCast } from '../lib/castService';
 import WatchPartyOverlay from '../components/WatchPartyOverlay';
 
+import { tr, locale } from '../../i18n';
 // hls.js (≈520 kB) n'est chargé que si le flux en a besoin. Le téléchargement
 // est lancé dès le montage, en parallèle de la requête de métadonnées : quand on
 // sait que le flux est HLS, le module est déjà là — aucun délai ajouté.
@@ -25,10 +26,10 @@ function loadHlsModule() {
 }
 
 const QUALITY_OPTIONS = [
-  { id: 'original', label: 'Qualité Originale', bitrate: '200000', res: '3840x2160', quality: '100' },
-  { id: 'high', label: 'FHD (1080p) • 10 Mbps', bitrate: '10000', res: '1920x1080', quality: '90' },
-  { id: 'medium', label: 'HD (720p) • 4 Mbps', bitrate: '4000', res: '1280x720', quality: '60' },
-  { id: 'low', label: 'SD (480p) • 1.5 Mbps', bitrate: '1500', res: '720x480', quality: '40' }
+  { id: 'original', label: tr('Qualité Originale'), bitrate: '200000', res: '3840x2160', quality: '100' },
+  { id: 'high', label: tr('FHD (1080p) • 10 Mbps'), bitrate: '10000', res: '1920x1080', quality: '90' },
+  { id: 'medium', label: tr('HD (720p) • 4 Mbps'), bitrate: '4000', res: '1280x720', quality: '60' },
+  { id: 'low', label: tr('SD (480p) • 1.5 Mbps'), bitrate: '1500', res: '720x480', quality: '40' }
 ];
 
 /* Qualité de DÉPART choisie d'après la connexion RÉELLE.
@@ -892,7 +893,7 @@ function PlayerV2() {
     setExtBusy(true); setExtError(null);
     try {
       const r = await fetch(`${apiBase}/api/subtitles/search/${id}`, { headers: authHeaders() });
-      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || 'Recherche impossible');
+      if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || tr('Recherche impossible'));
       const d = await r.json();
       setExtSubs(d.results || []);
       return d.results || [];
@@ -909,7 +910,7 @@ function PlayerV2() {
     setExtBusy(true); setExtError(null);
     try {
       const r = await fetch(`${apiBase}/api/subtitles/vtt/${sub.fileId}`, { headers: authHeaders() });
-      if (!r.ok) throw new Error('Téléchargement impossible');
+      if (!r.ok) throw new Error(tr('Téléchargement impossible'));
       const vtt = await r.text();
       if (extUrlRef.current) URL.revokeObjectURL(extUrlRef.current);
       const url = URL.createObjectURL(new Blob([vtt], { type: 'text/vtt' }));
@@ -954,14 +955,14 @@ function PlayerV2() {
     setSousTitreEnCours(true);
     try {
       const r = await fetch(`${apiBase}/api/subtitles/embedded/${ratingKey}/${streamId}`, { headers: authHeaders() });
-      if (!r.ok) throw new Error('extraction impossible');
+      if (!r.ok) throw new Error(tr('extraction impossible'));
       const vtt = await r.text();
-      if (!vtt.trim()) throw new Error('piste vide');
+      if (!vtt.trim()) throw new Error(tr('piste vide'));
       vttBrutRef.current = vtt;                       // gardé pour le décalage
       if (stIntegreUrlRef.current) URL.revokeObjectURL(stIntegreUrlRef.current);
       const url = URL.createObjectURL(new Blob([decalerVtt(vtt, subOffset)], { type: 'text/vtt' }));
       stIntegreUrlRef.current = url;
-      setSousTitreIntegre({ url, langue: langue || 'Français' });
+      setSousTitreIntegre({ url, langue: langue || tr('Français') });
     } catch (e) {
       console.warn('[Sous-titres] intégré :', e.message);
       setSousTitreIntegre(null);
@@ -995,7 +996,7 @@ function PlayerV2() {
       // Une piste externe OU la piste extraite du fichier : dans les deux cas
       // il faut l'activer à la main, un <track default> ne suffit pas.
       const afficher = !!extSub || !!sousTitreIntegre;
-      for (const tr of v.textTracks || []) tr.mode = afficher ? 'showing' : 'disabled';
+      for (const piste of v.textTracks || []) piste.mode = afficher ? 'showing' : 'disabled';
     }, 120);
     return () => clearTimeout(t);
   }, [extSub, sousTitreIntegre]);
@@ -1144,7 +1145,7 @@ function PlayerV2() {
       <div className="min-h-screen bg-black text-white flex items-center justify-center">
         <div className="flex flex-col items-center gap-4">
           <div className="w-7 h-7 border-2 border-white/15 border-t-white/70 rounded-full animate-spin" />
-          <p className="text-[13px] text-white/45">Chargement…</p>
+          <p className="text-[13px] text-white/45">{tr('Chargement…')}</p>
         </div>
       </div>
     );
@@ -1153,9 +1154,9 @@ function PlayerV2() {
   if (error || !media) {
     return (
       <div className="min-h-screen bg-black text-white flex flex-col items-center justify-center p-8 text-center">
-        <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-3">Lecture impossible</h1>
-        <p className="text-[14px] text-white/50 mb-8 max-w-md">Le fichier n'est pas disponible ou son format n'est pas compatible.</p>
-        <button onClick={() => navigate(-1)} className="inline-flex items-center justify-center h-[46px] px-7 rounded-full bg-white text-black text-[15px] font-semibold hover:opacity-90 transition-opacity">Retour</button>
+        <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-3">{tr('Lecture impossible')}</h1>
+        <p className="text-[14px] text-white/50 mb-8 max-w-md">{tr('Le fichier n\'est pas disponible ou son format n\'est pas compatible.')}</p>
+        <button onClick={() => navigate(-1)} className="inline-flex items-center justify-center h-[46px] px-7 rounded-full bg-white text-black text-[15px] font-semibold hover:opacity-90 transition-opacity">{tr('Retour')}</button>
       </div>
     );
   }
@@ -1170,7 +1171,7 @@ function PlayerV2() {
     <div ref={playerContainerRef} className="h-screen w-full bg-black relative overflow-hidden group">
       <div className={`absolute top-0 inset-x-0 z-20 px-4 md:px-7 pt-4 md:pt-5 pb-14 bg-gradient-to-b from-black/75 to-transparent flex items-start justify-between gap-4 transition-opacity duration-300 ${controlsVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}`}>
         <div className="flex items-start gap-2.5 min-w-0">
-          <button onClick={handleBack} aria-label="Retour"
+          <button onClick={handleBack} aria-label={tr('Retour')}
             className="w-10 h-10 -ml-1.5 shrink-0 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 transition-colors">
             <ChevronLeft size={22} />
           </button>
@@ -1181,12 +1182,12 @@ function PlayerV2() {
             <p className="text-[12px] text-white/45 truncate mt-0.5">
               {[
                 media.type === 'episode'
-                  ? [media.parentTitle, media.index ? `Épisode ${media.index}` : null, media.title].filter(Boolean).join(' · ')
+                  ? [media.parentTitle, media.index ? tr('Épisode {0}', [media.index]) : null, media.title].filter(Boolean).join(' · ')
                   : null,
                 versionOptions(audioStreams)
                   ? (classifyAudio(currentAudioTrack) === 'vao' ? 'VO' : versionOptions(audioStreams)[0].label)
                   : null,
-                isTranscoding ? 'Transcodage' : 'Lecture directe',
+                isTranscoding ? tr('Transcodage') : tr('Lecture directe'),
               ].filter(Boolean).join('  ·  ')}
             </p>
           </div>
@@ -1197,25 +1198,25 @@ function PlayerV2() {
         <div className="absolute top-0 right-0 h-full w-[320px] md:w-[380px] bg-black/40 backdrop-blur-3xl z-50 flex flex-col border-l border-white/10 shadow-[-30px_0_50px_rgba(0,0,0,0.5)]">
           <div className="p-6 md:p-8 border-b border-white/10 bg-white/[0.02]">
             <div className="flex items-center justify-between mb-5">
-              <h3 className="text-xl text-white font-bold tracking-tight">Paramètres</h3>
+              <h3 className="text-xl text-white font-bold tracking-tight">{tr('Paramètres')}</h3>
               <button onClick={() => setShowSettings(false)}
                 className="w-9 h-9 flex items-center justify-center rounded-full bg-white/[0.06] border border-white/10 text-white/80 hover:bg-white/[0.15] hover:text-white transition-all active:scale-90"
-                aria-label="Fermer les paramètres">
+                aria-label={tr('Fermer les paramètres')}>
                 <X size={18} />
               </button>
             </div>
             <div className="flex gap-1.5 p-1 bg-black/40 rounded-full border border-white/5 shadow-inner">
               <button onClick={() => setSettingsTab('audio')}
                 className={`flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-full text-[13px] font-semibold transition-all ${settingsTab === 'audio' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Volume2 size={15} /> Audio
+                <Volume2 size={15} /> {tr('Audio')}
               </button>
               <button onClick={() => setSettingsTab('subtitles')}
                 className={`flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-full text-[13px] font-semibold transition-all ${settingsTab === 'subtitles' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Subtitles size={15} /> Sous-titres
+                <Subtitles size={15} /> {tr('Sous-titres')}
               </button>
               <button onClick={() => setSettingsTab('quality')}
                 className={`flex-1 flex justify-center items-center gap-1.5 py-2.5 rounded-full text-[13px] font-semibold transition-all ${settingsTab === 'quality' ? 'bg-white text-black shadow-md' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}>
-                <Gauge size={15} /> Qualité
+                <Gauge size={15} /> {tr('Qualité')}
               </button>
             </div>
           </div>
@@ -1246,7 +1247,7 @@ function PlayerV2() {
                 {audioStreams.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-32 text-gray-500 gap-3">
                     <Volume2 size={32} className="opacity-20" />
-                    <p className="text-sm font-medium">Aucune piste audio</p>
+                    <p className="text-sm font-medium">{tr('Aucune piste audio')}</p>
                   </div>
                 ) : audioStreams.map(stream => {
                   const needsTranscode = plexService.needsTranscode(stream.codec);
@@ -1260,7 +1261,7 @@ function PlayerV2() {
                             {stream.codec?.toUpperCase()} • {stream.channels}ch
                           </span>
                           {needsTranscode && (
-                            <span className="text-[10px] font-medium text-white/35">transcodé</span>
+                            <span className="text-[10px] font-medium text-white/35">{tr('transcodé')}</span>
                           )}
                         </div>
                       </div>
@@ -1280,8 +1281,8 @@ function PlayerV2() {
                 <button onClick={() => handleSubtitleChange(null)}
                   className={`flex items-center justify-between p-4 rounded-2xl text-left transition-all border ${selectedSubtitle === null ? 'bg-white/[0.15] border-white/30 shadow-lg' : 'bg-white/[0.03] border-white/5 hover:bg-white/[0.08] hover:border-white/15'}`}>
                   <div>
-                    <p className={`text-[15px] font-bold ${selectedSubtitle === null ? 'text-white' : 'text-gray-300'}`}>Désactivés</p>
-                    <p className="text-[11px] font-medium text-gray-500 mt-1">Pas de sous-titres</p>
+                    <p className={`text-[15px] font-bold ${selectedSubtitle === null ? 'text-white' : 'text-gray-300'}`}>{tr('Désactivés')}</p>
+                    <p className="text-[11px] font-medium text-gray-500 mt-1">{tr('Pas de sous-titres')}</p>
                   </div>
                   {selectedSubtitle === null && (
                     <div className="w-6 h-6 rounded-full bg-white text-black flex items-center justify-center shadow-md">
@@ -1306,15 +1307,15 @@ function PlayerV2() {
                   </button>
                 ))}
                 {subtitleStreams.length === 0 && (
-                  <p className="text-[13px] text-white/35 py-4">Aucun sous-titre dans le fichier.</p>
+                  <p className="text-[13px] text-white/35 py-4">{tr('Aucun sous-titre dans le fichier.')}</p>
                 )}
 
                 {/* ── Confort de lecture ──────────────────────────────── */}
                 <div className="mt-5 pt-5 border-t border-white/10">
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35 mb-3">Affichage</p>
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35 mb-3">{tr('Affichage')}</p>
 
                   <div className="flex items-center justify-between mb-2.5">
-                    <span className="text-[13.5px] text-white/80">Taille</span>
+                    <span className="text-[13.5px] text-white/80">{tr('Taille')}</span>
                     <span className="text-[12px] text-white/40">{subSize} %</span>
                   </div>
                   <div className="flex gap-1.5 mb-4">
@@ -1323,7 +1324,7 @@ function PlayerV2() {
                         className={`flex-1 h-9 rounded-xl text-[12.5px] font-medium transition-colors ${
                           subSize === v ? 'bg-white text-black' : 'bg-white/[0.06] text-white/70 hover:bg-white/[0.12]'
                         }`}>
-                        {v === 75 ? 'Petit' : v === 100 ? 'Normal' : v === 125 ? 'Grand' : v === 150 ? 'Très grand' : 'Énorme'}
+                        {v === 75 ? tr('Petit') : v === 100 ? 'Normal' : v === 125 ? tr('Grand') : v === 150 ? tr('Très grand') : tr('Énorme')}
                       </button>
                     ))}
                   </div>
@@ -1331,8 +1332,8 @@ function PlayerV2() {
                   <button onClick={() => setSubRaised((r) => !r)}
                     className="w-full flex items-center justify-between p-4 rounded-2xl bg-white/[0.04] hover:bg-white/[0.08] text-left transition-colors">
                     <span>
-                      <span className="block text-[13.5px] text-white/85">Remonter les sous-titres</span>
-                      <span className="block text-[11.5px] text-white/40 mt-0.5">Pour qu'ils ne passent pas sous les commandes</span>
+                      <span className="block text-[13.5px] text-white/85">{tr('Remonter les sous-titres')}</span>
+                      <span className="block text-[11.5px] text-white/40 mt-0.5">{tr('Pour qu\'ils ne passent pas sous les commandes')}</span>
                     </span>
                     <span className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${subRaised ? 'bg-white' : 'bg-white/15'}`}>
                       <span className={`absolute top-0.5 w-5 h-5 rounded-full transition-all ${subRaised ? 'left-[22px] bg-black' : 'left-0.5 bg-white'}`} />
@@ -1343,7 +1344,7 @@ function PlayerV2() {
                   {(sousTitreIntegre || extSub) && (
                     <div className="mt-2.5 p-4 rounded-2xl bg-white/[0.04]">
                       <div className="flex items-center justify-between mb-2.5">
-                        <span className="text-[13.5px] text-white/85">Synchronisation</span>
+                        <span className="text-[13.5px] text-white/85">{tr('Synchronisation')}</span>
                         <span className="text-[12.5px] tabular-nums text-white/55">
                           {subOffset > 0 ? '+' : ''}{subOffset.toFixed(2).replace(/\.?0+$/, '')} s
                         </span>
@@ -1363,7 +1364,7 @@ function PlayerV2() {
                         </button>
                       </div>
                       <p className="text-[11.5px] text-white/40 mt-2">
-                        Négatif : le texte arrive plus tôt. Réglage conservé pour les prochains films.
+                        {tr('Négatif : le texte arrive plus tôt. Réglage conservé pour les prochains films.')}
                       </p>
                     </div>
                   )}
@@ -1372,10 +1373,10 @@ function PlayerV2() {
                 {/* ── En ligne (OpenSubtitles) ────────────────────────── */}
                 <div className="mt-5 pt-5 border-t border-white/10">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">En ligne</p>
+                    <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-white/35">{tr('En ligne')}</p>
                     {extSubs !== null && !extBusy && (
                       <button onClick={searchExternalSubs} className="text-[12px] text-white/40 hover:text-white transition-colors">
-                        Actualiser
+                        {tr('Actualiser')}
                       </button>
                     )}
                   </div>
@@ -1386,7 +1387,7 @@ function PlayerV2() {
                       <div className="min-w-0">
                         <p className="text-[14px] font-medium truncate">{extSub.name}</p>
                         <p className="text-[11px] text-white/45 mt-0.5">
-                          {extAuto ? 'Ajouté automatiquement · toucher pour retirer' : 'Actif · toucher pour retirer'}
+                          {extAuto ? tr('Ajouté automatiquement · toucher pour retirer') : tr('Actif · toucher pour retirer')}
                         </p>
                       </div>
                       <Check size={16} strokeWidth={3} className="shrink-0 ml-3" />
@@ -1396,7 +1397,7 @@ function PlayerV2() {
                   {extBusy && (
                     <div className="flex items-center gap-2.5 py-3 text-[13px] text-white/45">
                       <span className="w-4 h-4 border-2 border-white/15 border-t-white/70 rounded-full animate-spin" />
-                      Recherche…
+                      {tr('Recherche…')}
                     </div>
                   )}
 
@@ -1405,12 +1406,12 @@ function PlayerV2() {
                   {soustitresEnLigne && !extBusy && extSubs === null && (
                     <button onClick={searchExternalSubs}
                       className="w-full py-3 rounded-2xl bg-white/[0.06] hover:bg-white/[0.11] text-[14px] font-medium transition-colors">
-                      Chercher des sous-titres français
+                      {tr('Chercher des sous-titres français')}
                     </button>
                   )}
 
                   {!extBusy && Array.isArray(extSubs) && extSubs.length === 0 && (
-                    <p className="text-[13px] text-white/35 py-2">Rien trouvé pour ce film.</p>
+                    <p className="text-[13px] text-white/35 py-2">{tr('Rien trouvé pour ce film.')}</p>
                   )}
 
                   {!extBusy && Array.isArray(extSubs) && extSubs.length > 0 && (
@@ -1421,7 +1422,7 @@ function PlayerV2() {
                           <div className="min-w-0">
                             <p className="text-[13.5px] font-medium text-white/85 truncate">{x.name}</p>
                             <p className="text-[11px] text-white/35 mt-0.5">
-                              {x.downloads.toLocaleString('fr-FR')} téléchargements{x.hearingImpaired ? ' · malentendants' : ''}
+                              {x.downloads.toLocaleString(locale())} {tr('téléchargements')}{x.hearingImpaired ? tr(' · malentendants') : ''}
                             </p>
                           </div>
                         </button>
@@ -1460,10 +1461,10 @@ function PlayerV2() {
                             <p className={`text-[15px] font-bold ${isActive ? 'text-white' : 'text-gray-300'}`}>{opt.label}</p>
                             <div className="flex items-center gap-2 mt-1.5">
                               <span className="text-[11px] font-medium text-gray-400 bg-black/40 px-2 py-0.5 rounded-md border border-white/5">
-                                {opt.id === 'original' ? 'Source • débit max' : opt.res}
+                                {opt.id === 'original' ? tr('Source • débit max') : opt.res}
                               </span>
                               {forcesTranscode && (
-                                <span className="text-[10px] font-medium text-white/35">transcodé</span>
+                                <span className="text-[10px] font-medium text-white/35">{tr('transcodé')}</span>
                               )}
                             </div>
                           </div>
@@ -1482,8 +1483,8 @@ function PlayerV2() {
                 <button onClick={toggleAutoSkipIntro}
                   className="flex items-center justify-between p-4 rounded-2xl bg-white/[0.03] border border-white/5 backdrop-blur-xl text-left transition-all hover:bg-white/[0.06]">
                   <div>
-                    <p className="text-sm font-bold text-gray-200">Passer l'intro automatiquement</p>
-                    <p className="text-[11px] text-gray-500 mt-0.5">Saute le générique dès qu'il est détecté</p>
+                    <p className="text-sm font-bold text-gray-200">{tr('Passer l\'intro automatiquement')}</p>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{tr('Saute le générique dès qu\'il est détecté')}</p>
                   </div>
                   <div className={`relative w-11 h-6 rounded-full transition-colors shrink-0 ${autoSkipIntro ? 'bg-white' : 'bg-white/15'}`}>
                     <div className={`absolute top-0.5 w-5 h-5 rounded-full bg-white shadow-md transition-all ${autoSkipIntro ? 'left-[22px]' : 'left-0.5'}`} />
@@ -1497,7 +1498,7 @@ function PlayerV2() {
           <div className="p-4 md:p-6 bg-gradient-to-t from-black/60 to-transparent">
             <button onClick={() => setShowSettings(false)}
               className="w-full py-3.5 bg-white text-black hover:bg-gray-200 rounded-2xl font-bold text-sm transition-all shadow-lg active:scale-95">
-              Fermer les paramètres
+              {tr('Fermer les paramètres')}
             </button>
           </div>
         </div>
@@ -1511,36 +1512,35 @@ function PlayerV2() {
             <>
               <div className="w-8 h-8 border-2 border-white/15 border-t-white/80 rounded-full animate-spin mb-4" />
               <p className="text-[13.5px] text-white/60">
-                {attente === 'lent' ? 'Connexion lente — on continue' : 'Préparation du flux…'}
+                {attente === 'lent' ? tr('Connexion lente — on continue') : tr('Préparation du flux…')}
               </p>
               {attente === 'lent' && (
                 <button onClick={alleger}
                   className="mt-5 text-[13px] font-medium text-white/45 hover:text-white transition-colors">
-                  Passer en qualité réduite
+                  {tr('Passer en qualité réduite')}
                 </button>
               )}
             </>
           ) : (
             <>
-              <p className="text-[17px] font-semibold tracking-[-0.02em] mb-2">La lecture ne démarre pas</p>
+              <p className="text-[17px] font-semibold tracking-[-0.02em] mb-2">{tr('La lecture ne démarre pas')}</p>
               <p className="text-[13.5px] text-white/50 max-w-sm mb-7 leading-relaxed">
-                Le flux n'arrive pas. C'est souvent une connexion trop faible : une qualité
-                plus légère démarre presque toujours.
+                {tr('Le flux n\'arrive pas. C\'est souvent une connexion trop faible : une qualité plus légère démarre presque toujours.')}
               </p>
               <div className="flex flex-wrap items-center justify-center gap-2.5">
                 {qualiteInferieure && (
                   <button onClick={alleger}
                     className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white text-black text-[14.5px] font-semibold hover:opacity-90 transition-opacity">
-                    Qualité réduite
+                    {tr('Qualité réduite')}
                   </button>
                 )}
                 <button onClick={reessayer}
                   className="inline-flex items-center justify-center h-[44px] px-6 rounded-full bg-white/10 text-white text-[14.5px] font-semibold hover:bg-white/[0.17] transition-colors">
-                  Réessayer
+                  {tr('Réessayer')}
                 </button>
                 <button onClick={handleBack}
                   className="inline-flex items-center justify-center h-[44px] px-5 rounded-full text-white/50 text-[14px] font-medium hover:text-white transition-colors">
-                  Retour
+                  {tr('Retour')}
                 </button>
               </div>
             </>
@@ -1575,7 +1575,7 @@ function PlayerV2() {
           <track kind="subtitles" src={sousTitreIntegre.url} srcLang="fr" label={sousTitreIntegre.langue} default />
         )}
         {extSub && (
-          <track kind="subtitles" src={extSub.url} srcLang="fr" label={`Français — ${extSub.name}`} default />
+          <track kind="subtitles" src={extSub.url} srcLang="fr" label={tr('Français — {0}', [extSub.name])} default />
         )}
       </video>
 
@@ -1610,19 +1610,19 @@ function PlayerV2() {
         {/* transport central */}
         <div className="absolute inset-0 flex items-center justify-center gap-9 md:gap-14 pointer-events-none">
           <button onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime -= 10; }}
-            aria-label="Reculer de 10 secondes"
+            aria-label={tr('Reculer de 10 secondes')}
             className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all">
             <Rewind size={26} />
           </button>
 
           <button onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-            aria-label={isPlaying ? 'Pause' : 'Lecture'}
+            aria-label={isPlaying ? tr('Pause') : tr('Lecture')}
             className="pointer-events-auto w-[72px] h-[72px] rounded-full bg-white/12 backdrop-blur-2xl flex items-center justify-center text-white hover:bg-white/20 active:scale-95 transition-all">
             {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
 
           <button onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime += 10; }}
-            aria-label="Avancer de 10 secondes"
+            aria-label={tr('Avancer de 10 secondes')}
             className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all">
             <FastForward size={26} />
           </button>
@@ -1648,7 +1648,7 @@ function PlayerV2() {
               <div className="absolute w-3 h-3 -ml-1.5 rounded-full bg-white opacity-0 group-hover/bar:opacity-100 transition-opacity pointer-events-none"
                 style={{ left: `${(currentTime / duration) * 100 || 0}%` }} />
               <input type="range" min="0" max={duration || 100} step="0.1" value={currentTime || 0}
-                onChange={handleTimelineChange} aria-label="Progression"
+                onChange={handleTimelineChange} aria-label={tr('Progression')}
                 className="absolute inset-x-0 w-full h-5 opacity-0 cursor-pointer" />
             </div>
 
@@ -1658,31 +1658,31 @@ function PlayerV2() {
           <div className="flex items-center justify-between mt-3.5">
             <div className="flex items-center gap-1">
               {siblings.prev && (
-                <button onClick={handlePrevEpisode} disabled={isNavigating} aria-label="Episode precedent"
+                <button onClick={handlePrevEpisode} disabled={isNavigating} aria-label={tr('Episode precedent')}
                   className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                   <SkipBack size={18} />
                 </button>
               )}
               {siblings.next && (
-                <button onClick={handleNextEpisode} disabled={isNavigating} aria-label="Episode suivant"
+                <button onClick={handleNextEpisode} disabled={isNavigating} aria-label={tr('Episode suivant')}
                   className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                   <SkipForward size={18} />
                 </button>
               )}
-              <button onClick={toggleMute} aria-label={isMuted ? 'Retablir le son' : 'Couper le son'}
+              <button onClick={toggleMute} aria-label={isMuted ? tr('Retablir le son') : tr('Couper le son')}
                 className="hidden sm:flex w-10 h-10 rounded-full items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
               </button>
               <div className="hidden sm:flex items-center w-0 group-hover:w-24 overflow-hidden transition-[width] duration-300">
                 <input type="range" min="0" max="1" step="0.05" value={isMuted ? 0 : volume} onChange={handleVolumeChange}
-                  aria-label="Volume" className="w-24 h-1 rounded-full appearance-none bg-white/25" style={{ accentColor: 'white' }} />
+                  aria-label={tr('Volume')} className="w-24 h-1 rounded-full appearance-none bg-white/25" style={{ accentColor: 'white' }} />
               </div>
             </div>
 
             <div className="flex items-center gap-1">
               {castSupported() && castState !== 'no_devices' && (
                 <button onClick={castState === 'connected' ? stopCast : sendToTv}
-                  aria-label="Diffuser sur la tele (Chromecast)"
+                  aria-label={tr('Diffuser sur la tele (Chromecast)')}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${
                     castState === 'connected' ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'
                   }`}>
@@ -1690,22 +1690,22 @@ function PlayerV2() {
                 </button>
               )}
               {airplayReady && (
-                <button onClick={openAirplay} aria-label="Diffuser sur la tele"
+                <button onClick={openAirplay} aria-label={tr('Diffuser sur la tele')}
                   className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                   <MonitorSmartphone size={18} />
                 </button>
               )}
               {typeof document !== 'undefined' && document.pictureInPictureEnabled && (
-                <button onClick={togglePip} aria-label="Image dans l'image"
+                <button onClick={togglePip} aria-label={tr('Image dans l\'image')}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-colors ${inPip ? 'text-white bg-white/15' : 'text-white/70 hover:text-white hover:bg-white/10'}`}>
                   <PictureInPicture2 size={18} />
                 </button>
               )}
-              <button onClick={() => setShowSettings(true)} aria-label="Audio et sous-titres"
+              <button onClick={() => setShowSettings(true)} aria-label={tr('Audio et sous-titres')}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 <Subtitles size={18} />
               </button>
-              <button onClick={toggleFullscreen} aria-label="Plein ecran"
+              <button onClick={toggleFullscreen} aria-label={tr('Plein ecran')}
                 className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
               </button>
@@ -1743,7 +1743,7 @@ function PlayerV2() {
                 <div className="absolute inset-0 bg-gradient-to-r from-white/0 via-white/5 to-white/0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000" />
                 <FastForward size={18} className="text-white/80" />
                 <span className="text-[14px] font-semibold">
-                  {activeMarker.type === 'intro' ? "Passer l'intro" : 'Passer les crédits'}
+                  {activeMarker.type === 'intro' ? tr('Passer l\'intro') : tr('Passer les crédits')}
                 </span>
               </motion.button>
             )}
@@ -1771,7 +1771,7 @@ function PlayerV2() {
                     transition={{ duration: 5, ease: 'linear' }}
                   />
                   <span className="relative z-10 text-[11px] font-bold tracking-widest uppercase opacity-70">
-                    Épisode suivant
+                    {tr('Épisode suivant')}
                   </span>
                   <span className="relative z-10 text-xs font-medium max-w-[120px] truncate">{siblings.next.title}</span>
                   <div className="relative z-10 w-7 h-7 bg-white text-black rounded-full flex items-center justify-center shadow-md ml-1">
@@ -1780,7 +1780,7 @@ function PlayerV2() {
                 </button>
                 <button onClick={cancelAutoNext}
                   className="text-[11px] font-semibold text-white/50 hover:text-white transition-colors pr-2">
-                  Annuler
+                  {tr('Annuler')}
                 </button>
               </motion.div>
             )}

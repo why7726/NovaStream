@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 // Kahoot-style guest identity helpers: random funny French names + a palette
 // of emoji avatars (animals) with optional accessories.
 
@@ -21,11 +22,11 @@ export function randomName() {
 // Avatar animals (Kahoot vibe) — emoji is universal & needs no assets.
 export const AVATAR_ANIMALS = ['🦊', '🐼', '🦉', '🐨', '🦁', '🐯', '🐸', '🐵', '🦝', '🐹', '🐧', '🦄', '🐙', '🐳', '🦖', '🐷'];
 export const AVATAR_ACCESSORIES = [
-  { id: 'none', label: 'Aucun', emoji: '' },
-  { id: 'hat', label: 'Chapeau', emoji: '🎩' },
-  { id: 'glasses', label: 'Lunettes', emoji: '🕶️' },
-  { id: 'crown', label: 'Couronne', emoji: '👑' },
-  { id: 'party', label: 'Fête', emoji: '🎉' },
+  { id: 'none', label: tr('Aucun'), emoji: '' },
+  { id: 'hat', label: tr('Chapeau'), emoji: '🎩' },
+  { id: 'glasses', label: tr('Lunettes'), emoji: '🕶️' },
+  { id: 'crown', label: tr('Couronne'), emoji: '👑' },
+  { id: 'party', label: tr('Fête'), emoji: '🎉' },
 ];
 export const AVATAR_COLORS = ['#6366F1', '#E11D48', '#0EA5E9', '#22C55E', '#F59E0B', '#A855F7', '#EC4899', '#14B8A6'];
 

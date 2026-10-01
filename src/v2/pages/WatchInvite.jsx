@@ -5,6 +5,7 @@ import { Clapperboard, PartyPopper } from 'lucide-react';
 import KahootOnboard from '../components/KahootOnboard';
 import { getSessionInfo, joinSession, connectSession } from '../lib/watchParty';
 
+import { tr } from '../../i18n';
 // Public landing for a shared watch-party link. Works for people WITHOUT a
 // Nova account: they set an identity, get a guest token, and join the room.
 export default function WatchInvite({ handleAuth }) {
@@ -40,9 +41,9 @@ export default function WatchInvite({ handleAuth }) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center p-6 text-center">
         <div className="glass-panel rounded-3xl p-8 max-w-sm">
-          <h1 className="text-xl font-bold mb-2">Oups…</h1>
+          <h1 className="text-xl font-bold mb-2">{tr('Oups…')}</h1>
           <p className="text-gray-400 mb-6">{error}</p>
-          <button onClick={() => navigate('/')} className="px-6 py-3 bg-white text-black rounded-full font-bold">Accueil</button>
+          <button onClick={() => navigate('/')} className="px-6 py-3 bg-white text-black rounded-full font-bold">{tr('Accueil')}</button>
         </div>
       </div>
     );
@@ -73,13 +74,13 @@ export default function WatchInvite({ handleAuth }) {
           <div className="w-14 h-14 mx-auto rounded-2xl bg-white/10 flex items-center justify-center mb-4">
             <PartyPopper className="text-white" size={26} />
           </div>
-          <p className="p-label mb-2">Bienvenue sur NovaStream</p>
+          <p className="p-label mb-2">{tr('Bienvenue sur NovaStream')}</p>
           <h1 className="p-title text-[24px] md:text-[30px] mb-3">
-            Tu es invité·e à regarder<br />
+            {tr('Tu es invité·e à regarder')}<br />
             <span className="text-white">« {info.media?.title} »</span>
           </h1>
-          <p className="text-gray-400 mb-1">par <span className="font-bold text-white">{info.hostName}</span></p>
-          {info.started && <p className="text-[12px] text-white/50 mb-4">La séance a déjà commencé — tu rejoins en direct.</p>}
+          <p className="text-gray-400 mb-1">{tr('par')} <span className="font-bold text-white">{info.hostName}</span></p>
+          {info.started && <p className="text-[12px] text-white/50 mb-4">{tr('La séance a déjà commencé — tu rejoins en direct.')}</p>}
 
           {info.media?.poster && (
             <img src={info.media.poster} alt="" className="w-28 mx-auto rounded-xl my-5 shadow-2xl ring-1 ring-white/10" />
@@ -87,7 +88,7 @@ export default function WatchInvite({ handleAuth }) {
 
           <button onClick={() => setStep('onboard')}
             className="w-full flex items-center justify-center gap-2 h-[50px] rounded-full bg-white text-black text-[15px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all">
-            <Clapperboard size={18} /> Rejoindre la séance
+            <Clapperboard size={18} /> {tr('Rejoindre la séance')}
           </button>
         </motion.div>
       )}

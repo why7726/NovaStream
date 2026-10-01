@@ -6,6 +6,7 @@ import Indisponible from '../Indisponible';
 import EditeurSortie from './EditeurSortie';
 import { lisible, relatif } from './temps';
 
+import { tr } from '../../../i18n';
 /* Calendrier des sorties (administrateur).
    Un épisode ou un film programmé, et pour chaque version (VO, VF, VA)
    son heure de sortie et où en est la recherche. À l'heure dite, Nova
@@ -18,15 +19,15 @@ const ORDRE = { vo: 0, vf: 1, va: 2 };
 function Etat({ v }) {
   const futur = Date.parse(v.quand) > Date.now();
   if (v.etat === 'trouve') {
-    return <span className="inline-flex items-center gap-1 text-emerald-300/90"><Check size={12} strokeWidth={3} /> disponible</span>;
+    return <span className="inline-flex items-center gap-1 text-emerald-300/90"><Check size={12} strokeWidth={3} /> {tr('disponible')}</span>;
   }
   if (v.etat === 'echec') {
-    return <span className="inline-flex items-center gap-1 text-red-300/80"><AlertCircle size={12} /> introuvable</span>;
+    return <span className="inline-flex items-center gap-1 text-red-300/80"><AlertCircle size={12} /> {tr('introuvable')}</span>;
   }
   if (futur) return <span className="text-white/40">{relatif(v.quand)}</span>;
   return (
     <span className="inline-flex items-center gap-1 text-amber-200/80" title={v.detail || ''}>
-      <Loader2 size={12} className="animate-spin" /> recherche{v.essais ? ` · ${v.essais} essai${v.essais > 1 ? 's' : ''}` : ''}
+      <Loader2 size={12} className="animate-spin" /> {tr('recherche')}{v.essais ? tr(' · {0} essai{1}', [v.essais, v.essais > 1 ? 's' : '']) : ''}
     </span>
   );
 }
@@ -34,7 +35,7 @@ function Etat({ v }) {
 function Carte({ s, onModifier, onSupprimer, onChercher }) {
   const [occupe, setOccupe] = useState(false);
   const versions = [...s.versions].sort((a, b) => ORDRE[a.langue] - ORDRE[b.langue]);
-  const ep = s.kind === 'series' && s.saison != null ? `S${String(s.saison).padStart(2, '0')}E${String(s.episode).padStart(2, '0')}` : 'Film';
+  const ep = s.kind === 'series' && s.saison != null ? `S${String(s.saison).padStart(2, '0')}E${String(s.episode).padStart(2, '0')}` : tr('Film');
   return (
     <div className="flex gap-4 p-4 rounded-[20px] bg-white/[0.035] border border-white/[0.06]">
       {s.poster ? <img src={s.poster} alt="" className="w-[58px] h-[87px] rounded-xl object-cover shrink-0" /> : <span className="w-[58px] h-[87px] rounded-xl bg-white/10 shrink-0" />}
@@ -45,12 +46,12 @@ function Carte({ s, onModifier, onSupprimer, onChercher }) {
             <p className="text-[12px] text-white/40 truncate">{ep}{s.dossier ? ` · ${s.dossier}` : ''}</p>
           </div>
           <div className="flex items-center shrink-0 -mr-1.5 -mt-1">
-            <button title="Chercher maintenant" disabled={occupe} onClick={async () => { setOccupe(true); await onChercher(s); setOccupe(false); }}
+            <button title={tr('Chercher maintenant')} disabled={occupe} onClick={async () => { setOccupe(true); await onChercher(s); setOccupe(false); }}
               className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/55 hover:text-white disabled:opacity-40">
               {occupe ? <Loader2 size={15} className="animate-spin" /> : <Search size={15} />}
             </button>
-            <button title="Modifier les dates" onClick={() => onModifier(s)} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/55 hover:text-white"><Pencil size={15} /></button>
-            <button title="Supprimer" onClick={() => onSupprimer(s)} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/55 hover:text-red-300"><Trash2 size={15} /></button>
+            <button title={tr('Modifier les dates')} onClick={() => onModifier(s)} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/55 hover:text-white"><Pencil size={15} /></button>
+            <button title={tr('Supprimer')} onClick={() => onSupprimer(s)} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/55 hover:text-red-300"><Trash2 size={15} /></button>
           </div>
         </div>
         <div className="mt-2.5 space-y-1.5">
@@ -99,17 +100,17 @@ export default function CalendrierPure() {
     <div className="max-w-[860px] mx-auto px-4 md:px-8 pt-24 md:pt-28 pb-32">
       <div className="flex items-end justify-between gap-4 mb-2">
         <h1 className="text-[28px] md:text-[34px] font-semibold tracking-[-0.035em] flex items-center gap-3">
-          <CalendarClock size={28} className="text-white/60" /> Calendrier des sorties
+          <CalendarClock size={28} className="text-white/60" /> {tr('Calendrier des sorties')}
         </h1>
         {features?.arr && (
           <button onClick={() => setEditeur('nouveau')}
             className="shrink-0 h-10 px-4 rounded-full bg-white text-black text-[13.5px] font-semibold flex items-center gap-1.5 hover:opacity-90">
-            <Plus size={16} strokeWidth={2.6} /> <span className="hidden sm:inline">Programmer</span>
+            <Plus size={16} strokeWidth={2.6} /> <span className="hidden sm:inline">{tr('Programmer')}</span>
           </button>
         )}
       </div>
       <p className="text-[14px] text-white/50 mb-8 max-w-xl leading-relaxed">
-        À l'heure de sortie de chaque version, Nova demande à Sonarr ou Radarr de chercher, puis relance jusqu'à ce qu'elle arrive. Tu es prévenu dès qu'elle est disponible.
+        {tr('À l\'heure de sortie de chaque version, Nova demande à Sonarr ou Radarr de chercher, puis relance jusqu\'à ce qu\'elle arrive. Tu es prévenu dès qu\'elle est disponible.')}
       </p>
 
       {features && !features.arr && <Indisponible feature="arr" />}
@@ -119,20 +120,20 @@ export default function CalendrierPure() {
       {features?.arr && sorties && !sorties.length && (
         <div className="rounded-[22px] border border-dashed border-white/10 p-10 text-center">
           <Clock size={26} className="mx-auto text-white/30 mb-3" />
-          <p className="text-[14px] text-white/55">Rien de programmé pour l'instant.</p>
-          <button onClick={() => setEditeur('nouveau')} className="mt-4 h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[13px] font-semibold">Programmer une sortie</button>
+          <p className="text-[14px] text-white/55">{tr('Rien de programmé pour l\'instant.')}</p>
+          <button onClick={() => setEditeur('nouveau')} className="mt-4 h-9 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[13px] font-semibold">{tr('Programmer une sortie')}</button>
         </div>
       )}
 
       {actives.length > 0 && (
         <section className="space-y-3 mb-10">
-          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 px-1">À venir et en cours</h2>
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 px-1">{tr('À venir et en cours')}</h2>
           {actives.map((s) => <Carte key={s.id} s={s} onModifier={setEditeur} onSupprimer={supprimer} onChercher={chercher} />)}
         </section>
       )}
       {finies.length > 0 && (
         <section className="space-y-3">
-          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 px-1">Disponibles</h2>
+          <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 px-1">{tr('Disponibles')}</h2>
           {finies.map((s) => <Carte key={s.id} s={s} onModifier={setEditeur} onSupprimer={supprimer} onChercher={chercher} />)}
         </section>
       )}

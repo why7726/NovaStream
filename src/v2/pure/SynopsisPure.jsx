@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { X } from 'lucide-react';
 
+import { tr } from '../../i18n';
 /* Résumé au premier plan, façon Apple TV : un panneau sombre centré, du texte
    confortable à lire, rien d'autre.
 
@@ -47,7 +48,7 @@ export default function SynopsisPure({ title, text, meta, onClose }) {
               <h2 className="p-title text-[19px] md:text-[22px] truncate">{title}</h2>
               {meta && <p className="text-[12px] p-faint mt-1 truncate">{meta}</p>}
             </div>
-            <button onClick={onClose} aria-label="Fermer"
+            <button onClick={onClose} aria-label={tr('Fermer')}
               className="shrink-0 w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">
               <X size={17} />
             </button>

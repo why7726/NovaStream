@@ -1,3 +1,4 @@
+import { tr } from '../i18n';
 const getBase = () => import.meta.env.DEV ? 'http://localhost:5174' : '';
 
 const authService = {
@@ -8,7 +9,7 @@ const authService = {
       body: JSON.stringify({ email, password })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || 'Erreur de connexion');
+    if (!res.ok) throw new Error(data.error || tr('Erreur de connexion'));
     localStorage.setItem('nova_token', data.token);
     localStorage.setItem('nova_user', JSON.stringify(data.user));
     return data.user;
@@ -21,8 +22,22 @@ const authService = {
       body: JSON.stringify({ username, email, password, inviteCode })
     });
     const data = await res.json();
-    if (!res.ok) throw new Error(data.error || "Erreur d'inscription");
+    if (!res.ok) throw new Error(data.error || tr('Erreur d\'inscription'));
     localStorage.setItem('nova_token', data.token);
+    localStorage.setItem('nova_user', JSON.stringify(data.user));
+    return data.user;
+  },
+
+  /** Enregistre des préférences du compte ({ langue, bienvenueVue }) et renvoie le compte à jour. */
+  async savePreferences(prefs) {
+    const token = localStorage.getItem('nova_token');
+    const res = await fetch(`${getBase()}/api/profile/preferences`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify(prefs),
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || tr('Enregistrement impossible'));
     localStorage.setItem('nova_user', JSON.stringify(data.user));
     return data.user;
   },

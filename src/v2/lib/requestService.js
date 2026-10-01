@@ -1,5 +1,6 @@
 import authService from '../../services/authService';
 
+import { tr } from '../../i18n';
 const base = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 const auth = () => ({ Authorization: `Bearer ${authService.getToken()}` });
 
@@ -24,7 +25,7 @@ const requestService = {
   },
   async details(type, tmdbId) {
     const res = await fetch(`${base()}/api/requests/details/${type}/${tmdbId}`, { headers: auth() });
-    if (!res.ok) throw new Error('Détails indisponibles');
+    if (!res.ok) throw new Error(tr('Détails indisponibles'));
     return res.json();
   },
   async create(item) {
@@ -33,7 +34,7 @@ const requestService = {
       headers: { 'Content-Type': 'application/json', ...auth() },
       body: JSON.stringify(item),
     });
-    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Demande impossible');
+    if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Demande impossible'));
     return res.json();
   },
   async list(all = false) {

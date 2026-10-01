@@ -27,6 +27,7 @@ import * as setup from './setup.js';
 import * as calendrier from './calendrier.js';
 import { creerFiltrePrive } from './prive.js';
 import { creerJellyfin } from './jellyfin.js';
+import { contexte, langue, langueDe, langueTmdb, versAnglais } from './i18n-serveur.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -93,6 +94,24 @@ const watchApi = {};
 const app = express();
 console.log('\n\n>>> NOVASTREAM SERVER STARTING - [' + new Date().toLocaleString() + '] <<<\n\n');
 app.use(express.json());
+
+/* Langue du visiteur (cookie posé par l'interface) pour TOUTE la requête :
+   les messages renvoyés sont traduits au départ, et TMDB / l'assistant
+   répondent dans cette langue. Voir i18n-serveur.js. */
+app.use((req, res, next) => {
+  const l = langueDe(req);
+  if (l === 'en') {
+    const envoyer = res.json.bind(res);
+    res.json = (corps) => {
+      if (corps && typeof corps === 'object' && !Array.isArray(corps)) {
+        if (typeof corps.error === 'string') corps.error = versAnglais(corps.error);
+        if (typeof corps.message === 'string') corps.message = versAnglais(corps.message);
+      }
+      return envoyer(corps);
+    };
+  }
+  contexte.run({ langue: l }, next);
+});
 
 /* ─── Compression ────────────────────────────────────────────────────
    Elle n'était PAS branchée (le paquet était installé mais jamais utilisé) :
@@ -428,6 +447,11 @@ db.exec(`
 try { db.exec('ALTER TABLE users ADD COLUMN avatar TEXT'); } catch (e) { /* already exists */ }
 // Migration: per-user token version for revocation ("log out everywhere").
 try { db.exec('ALTER TABLE users ADD COLUMN tokenVersion INTEGER NOT NULL DEFAULT 0'); } catch (e) { /* already exists */ }
+// Préférences : langue de l'interface ('fr' | 'en', null = celle du navigateur)
+// et message de bienvenue. Les comptes existants l'ont « déjà vu » (DEFAULT 1) ;
+// les nouveaux sont créés avec 0 pour qu'il s'affiche une fois.
+try { db.exec('ALTER TABLE users ADD COLUMN langue TEXT'); } catch (e) { /* already exists */ }
+try { db.exec('ALTER TABLE users ADD COLUMN bienvenueVue INTEGER NOT NULL DEFAULT 1'); } catch (e) { /* already exists */ }
 
 // A real-user token stays valid only while its `tv` claim matches the user's
 // current tokenVersion. Bumping tokenVersion instantly revokes every token
@@ -538,7 +562,7 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
 
     if (isNaN(idOrTitle) || !idOrTitle) {
       const query = idOrTitle || req.query.title;
-      const searchUrl = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=fr-FR`;
+      const searchUrl = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=${langueTmdb()}`;
       const searchRes = await fetch(searchUrl, {
         headers: { 'Authorization': `Bearer ${TMDB_TOKEN}`, 'Accept': 'application/json' }
       });
@@ -548,7 +572,7 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
       tmdbId = match.id;
     }
 
-    const detailsUrl = `https://api.themoviedb.org/3/${tmdbType}/${tmdbId}?language=fr-FR`;
+    const detailsUrl = `https://api.themoviedb.org/3/${tmdbType}/${tmdbId}?language=${langueTmdb()}`;
     const detailsRes = await fetch(detailsUrl, {
       headers: { 'Authorization': `Bearer ${TMDB_TOKEN}`, 'Accept': 'application/json' }
     });
@@ -574,7 +598,7 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
         });
         return (await r.json()).results || [];
       };
-      let vids = await fetchVideos('fr-FR');
+      let vids = await fetchVideos(langueTmdb());
       if (vids.length === 0) vids = await fetchVideos('en-US');
       const yt = vids.filter(v => v.site === 'YouTube');
       const best = yt.find(v => v.type === 'Trailer' && v.official)
@@ -670,7 +694,7 @@ app.post('/api/auth/register', (req, res) => {
     const userCount = db.prepare('SELECT COUNT(*) as count FROM users').get().count;
     const isAdmin = userCount === 0 ? 1 : 0; // First user = admin
 
-    const result = db.prepare('INSERT INTO users (username, email, password, isAdmin) VALUES (?, ?, ?, ?)').run(username, email, hash, isAdmin);
+    const result = db.prepare('INSERT INTO users (username, email, password, isAdmin, bienvenueVue) VALUES (?, ?, ?, ?, 0)').run(username, email, hash, isAdmin);
 
     // Mark code as used
     db.prepare('UPDATE invitation_codes SET usedBy = ? WHERE id = ?').run(result.lastInsertRowid, code.id);
@@ -680,7 +704,7 @@ app.post('/api/auth/register', (req, res) => {
     // Generate token
     const token = jwt.sign({ id: result.lastInsertRowid, username, email, isAdmin, tv: 0 }, JWT_SECRET, { expiresIn: '30d' });
 
-    res.json({ token, user: { id: result.lastInsertRowid, username, email, isAdmin } });
+    res.json({ token, user: { id: result.lastInsertRowid, username, email, isAdmin, langue: null, bienvenueVue: 0 } });
   } catch (err) {
     console.error('Register error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -733,7 +757,7 @@ app.post('/api/auth/login', loginRateLimit, (req, res) => {
 
     const token = jwt.sign({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin, tv: user.tokenVersion || 0 }, JWT_SECRET, { expiresIn: '30d' });
 
-    res.json({ token, user: { id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin, avatar: user.avatar || null } });
+    res.json({ token, user: { id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin, avatar: user.avatar || null, langue: user.langue || null, bienvenueVue: user.bienvenueVue } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
@@ -769,8 +793,21 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   if (req.user.guest) {
     return res.json({ user: { id: null, username: req.user.username || 'Invité', email: null, isAdmin: false, avatar: null, guest: true, sessionId: req.user.sessionId } });
   }
-  const user = db.prepare('SELECT id, username, email, isAdmin, avatar FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, isAdmin, avatar, langue, bienvenueVue FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(401).json({ error: 'Utilisateur introuvable' });
+  res.json({ user });
+});
+
+// Préférences du compte (langue, message de bienvenue vu).
+app.put('/api/profile/preferences', authMiddleware, (req, res) => {
+  if (req.user.guest || req.user.id == null) return res.status(403).json({ error: 'Indisponible' });
+  const { langue, bienvenueVue } = req.body || {};
+  if (langue !== undefined) {
+    if (langue !== null && !['fr', 'en'].includes(langue)) return res.status(400).json({ error: 'Langue inconnue' });
+    db.prepare('UPDATE users SET langue = ? WHERE id = ?').run(langue, req.user.id);
+  }
+  if (bienvenueVue !== undefined) db.prepare('UPDATE users SET bienvenueVue = ? WHERE id = ?').run(bienvenueVue ? 1 : 0, req.user.id);
+  const user = db.prepare('SELECT id, username, email, isAdmin, avatar, langue, bienvenueVue FROM users WHERE id = ?').get(req.user.id);
   res.json({ user });
 });
 
@@ -1112,7 +1149,7 @@ app.get('/api/progress/list/continue', authMiddleware, async (req, res) => {
         const ep = eps.find((e) => e.ratingKey === String(r.mediaId));
         if (ep) {
           r.mediaTitle = ep.grandparentTitle || r.mediaTitle;
-          r.sousTitre = `S${ep.parentIndex ?? '?'} É${ep.index ?? '?'} · ${ep.title || ''}`.trim();
+          r.sousTitre = `S${ep.parentIndex ?? '?'} ${langue() === 'en' ? 'E' : 'É'}${ep.index ?? '?'} · ${ep.title || ''}`.trim();
         }
       }
     }
@@ -1152,7 +1189,7 @@ app.get('/api/progress/list/continue', authMiddleware, async (req, res) => {
         // Le client fabriquera l'URL de l'image au bon format (16:9)
         thumbPath: suivant.thumb || suivant.grandparentThumb || null,
         imageType: 'still',
-        sousTitre: `S${suivant.parentIndex ?? '?'} É${suivant.index ?? '?'} · ${suivant.title || ''}`.trim(),
+        sousTitre: `S${suivant.parentIndex ?? '?'} ${langue() === 'en' ? 'E' : 'É'}${suivant.index ?? '?'} · ${suivant.title || ''}`.trim(),
         nextUp: true,
       });
     }
@@ -1446,7 +1483,7 @@ app.get('/api/requests/search', authMiddleware, async (req, res) => {
   try {
     const q = (req.query.q || '').toString().trim();
     if (!q) return res.json({ results: [] });
-    const url = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&include_adult=false&language=fr-FR&page=1`;
+    const url = `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(q)}&include_adult=false&language=${langueTmdb()}&page=1`;
     const r = await fetch(url, { headers: tmdbHeaders });
     const data = await r.json();
     const results = (data.results || [])
@@ -1536,7 +1573,7 @@ app.get('/api/requests/browse', authMiddleware, async (req, res) => {
     if (!genre) return res.json({ results: [] });
 
     const qs = new URLSearchParams({
-      language: 'fr-FR',
+      language: langueTmdb(),
       include_adult: 'false',
       sort_by: 'popularity.desc',
       with_genres: genre,
@@ -1570,7 +1607,7 @@ app.get('/api/requests/browse', authMiddleware, async (req, res) => {
 app.get('/api/requests/details/:type/:tmdbId', authMiddleware, async (req, res) => {
   try {
     const type = req.params.type === 'movie' ? 'movie' : 'tv';
-    const r = await fetch(`https://api.themoviedb.org/3/${type}/${req.params.tmdbId}?language=fr-FR&append_to_response=credits`, { headers: tmdbHeaders });
+    const r = await fetch(`https://api.themoviedb.org/3/${type}/${req.params.tmdbId}?language=${langueTmdb()}&append_to_response=credits`, { headers: tmdbHeaders });
     if (!r.ok) return res.status(404).json({ error: 'Introuvable sur TMDB' });
     const d = await r.json();
     res.json({
@@ -1970,7 +2007,7 @@ app.post('/api/bot/request', botAuth, async (req, res) => {
     if (!query) return res.status(400).json({ error: 'Titre manquant' });
 
     const r = await fetch(
-      `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=fr-FR`,
+      `https://api.themoviedb.org/3/search/multi?query=${encodeURIComponent(query)}&include_adult=false&language=${langueTmdb()}`,
       { headers: tmdbHeaders }
     );
     const data = await r.json();
@@ -2163,7 +2200,7 @@ async function getTmdbIndex() {
 }
 
 async function tmdbGet(pathname, params = {}) {
-  const qs = new URLSearchParams({ language: 'fr-FR', ...params });
+  const qs = new URLSearchParams({ language: langueTmdb(), ...params });
   const r = await fetch(`https://api.themoviedb.org/3${pathname}?${qs}`, { headers: tmdbHeaders });
   if (!r.ok) throw new Error(`TMDB ${r.status}`);
   return r.json();
@@ -2718,7 +2755,7 @@ app.post('/api/vibe', authMiddleware, async (req, res) => {
       return b.note - a.note;                        // puis les mieux notés
     }).slice(0, 600);
 
-    const brut = await vibe.demanderAuModele(humeur, vibe.listePourModele(choisis, 600));
+    const brut = await vibe.demanderAuModele(humeur, vibe.listePourModele(choisis, 600), langue());
     const valides = vibe.verifierSurNova(brut.surNova, plat);
 
     /* Découvertes : chaque titre est confronté à TMDB. Ce qui n'existe pas
@@ -2728,7 +2765,7 @@ app.post('/api/vibe', authMiddleware, async (req, res) => {
     const aDemander = [];
     for (const p of (brut.aDecouvrir || []).slice(0, 4)) {
       try {
-        const qs = new URLSearchParams({ query: p.titre, include_adult: 'false', language: 'fr-FR' });
+        const qs = new URLSearchParams({ query: p.titre, include_adult: 'false', language: langueTmdb() });
         const r = await fetch(`https://api.themoviedb.org/3/search/multi?${qs}`, { headers: tmdbHeaders });
         const t = (await r.json()).results || [];
         const top = t.find((x) => (x.media_type === 'movie' || x.media_type === 'tv') && x.poster_path);
@@ -2828,7 +2865,7 @@ async function verifierSeriesSuivies() {
         for (const a of abonnes) {
           pushToUser(a.userId, {
             title: `Nouvel épisode — ${titre}`,
-            body: `S${dernier.parentIndex ?? '?'} É${dernier.index ?? '?'} · ${dernier.title || ''}`,
+            body: `S${dernier.parentIndex ?? '?'} ${langue() === 'en' ? 'E' : 'É'}${dernier.index ?? '?'} · ${dernier.title || ''}`,
             url: `/title/${s.ratingKey}`,
             tag: `ep-${dernier.ratingKey}`,
           });
@@ -3396,7 +3433,7 @@ let providersMetaCache = { at: 0, map: null };
 app.get('/api/providers', authMiddleware, async (req, res) => {
   try {
     if (providersMetaCache.map && Date.now() - providersMetaCache.at < 86400000) return res.json(providersMetaCache.map);
-    const r = await fetch('https://api.themoviedb.org/3/watch/providers/movie?language=fr-FR&watch_region=FR', {
+    const r = await fetch(`https://api.themoviedb.org/3/watch/providers/movie?language=${langueTmdb()}&watch_region=FR`, {
       headers: { Authorization: `Bearer ${TMDB_TOKEN}`, Accept: 'application/json' }, signal: AbortSignal.timeout(8000)
     });
     const data = await r.json();
@@ -3896,7 +3933,7 @@ async function getMovieFacts(type, tmdbId) {
   const key = `${type}:${tmdbId}`;
   if (movieFactsCache[key]) return movieFactsCache[key];
   try {
-    const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?language=fr-FR`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) });
+    const r = await fetch(`https://api.themoviedb.org/3/${type}/${tmdbId}?language=${langueTmdb()}`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) });
     if (!r.ok) { movieFactsCache[key] = {}; saveMovieFactsSoon(); return {}; }
     const d = await r.json();
     const facts = {
@@ -3919,13 +3956,13 @@ app.get('/api/actor/:name', authMiddleware, async (req, res) => {
     const hit = actorCache.get(ck);
     if (hit && Date.now() - hit.at < 86400000) return res.json(hit.data);
 
-    const sr = await (await fetch(`https://api.themoviedb.org/3/search/person?query=${encodeURIComponent(name)}&language=fr-FR`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json();
+    const sr = await (await fetch(`https://api.themoviedb.org/3/search/person?query=${encodeURIComponent(name)}&language=${langueTmdb()}`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json();
     const person = sr.results?.[0];
     if (!person) return res.status(404).json({ error: 'Personne introuvable sur TMDB' });
 
     const [details, credits] = await Promise.all([
-      (await fetch(`https://api.themoviedb.org/3/person/${person.id}?language=fr-FR`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json(),
-      (await fetch(`https://api.themoviedb.org/3/person/${person.id}/combined_credits?language=fr-FR`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json(),
+      (await fetch(`https://api.themoviedb.org/3/person/${person.id}?language=${langueTmdb()}`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json(),
+      (await fetch(`https://api.themoviedb.org/3/person/${person.id}/combined_credits?language=${langueTmdb()}`, { ...TMDB_HEADERS, signal: AbortSignal.timeout(8000) })).json(),
     ]);
 
     const items = await loadAllLibraryItems();

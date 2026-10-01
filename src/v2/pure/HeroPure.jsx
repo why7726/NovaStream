@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
 
+import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Hero "Pure" — une image, un logo, une phrase, un bouton.
@@ -69,9 +70,9 @@ export default function HeroPure({ movies = [] }) {
 
             <div className="flex items-center gap-3">
               <button onClick={() => navigate(m.type === 'movie' ? `/play/${m.id}` : `/title/${m.id}`)} className="p-btn">
-                <Play size={16} fill="currentColor" /> {m.type === 'movie' ? 'Lecture' : 'Voir'}
+                <Play size={16} fill="currentColor" /> {m.type === 'movie' ? tr('Lecture') : tr('Voir')}
               </button>
-              <button onClick={() => navigate(`/title/${m.id}`)} className="p-btn p-btn-ghost">Plus d'infos</button>
+              <button onClick={() => navigate(`/title/${m.id}`)} className="p-btn p-btn-ghost">{tr('Plus d\'infos')}</button>
             </div>
           </motion.div>
         </AnimatePresence>
@@ -80,7 +81,7 @@ export default function HeroPure({ movies = [] }) {
       {movies.length > 1 && (
         <div className="absolute bottom-[86px] md:bottom-10 inset-x-0 flex justify-center gap-1.5">
           {movies.map((_, k) => (
-            <button key={k} onClick={() => setI(k)} aria-label={`Titre ${k + 1}`}
+            <button key={k} onClick={() => setI(k)} aria-label={tr('Titre {0}', [k + 1])}
               className={`h-[3px] rounded-full transition-all duration-500 ${k === i ? 'w-6 bg-white' : 'w-[3px] bg-white/35 hover:bg-white/60'}`} />
           ))}
         </div>

@@ -4,6 +4,7 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import CardPure from './CardPure';
 import { slugify } from './CollectionPure';
 
+import { tr } from '../../i18n';
 /* Rangée "Pure" — un titre, un rail. Le titre est cliquable : il déplie la
    catégorie en grille. Les flèches n'apparaissent qu'au survol sur desktop. */
 export default function RowPure({
@@ -48,7 +49,7 @@ export default function RowPure({
         {seeAll ? (
           <button onClick={openAll} className="group/h inline-flex items-baseline gap-1.5">
             <h2 className="p-title text-[17px] md:text-[22px]">{title}</h2>
-            <span className="text-[13px] text-white/0 group-hover/h:text-white/50 transition-colors">Tout voir ›</span>
+            <span className="text-[13px] text-white/0 group-hover/h:text-white/50 transition-colors">{tr('Tout voir ›')}</span>
           </button>
         ) : (
           <h2 className="p-title text-[17px] md:text-[22px]">{title}</h2>
@@ -64,11 +65,11 @@ export default function RowPure({
         ))}
       </div>
 
-      <button onClick={() => by(-1)} aria-label="Précédent"
+      <button onClick={() => by(-1)} aria-label={tr('Précédent')}
         className="hidden md:flex absolute left-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md items-center justify-center text-white/85 opacity-0 group-hover/row:opacity-100 transition-opacity">
         <ChevronLeft size={18} />
       </button>
-      <button onClick={() => by(1)} aria-label="Suivant"
+      <button onClick={() => by(1)} aria-label={tr('Suivant')}
         className="hidden md:flex absolute right-1 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-black/55 backdrop-blur-md items-center justify-center text-white/85 opacity-0 group-hover/row:opacity-100 transition-opacity">
         <ChevronRight size={18} />
       </button>

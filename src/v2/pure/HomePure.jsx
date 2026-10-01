@@ -15,6 +15,7 @@ import progressService from '../../services/progressService';
 import authService from '../../services/authService';
 import { CREDITS } from '../../credits';
 
+import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Accueil "Pure" — Steve Jobs edition : un hero, ce qu'on reprend,
@@ -106,7 +107,7 @@ export default function HomePure({ section }) {
             showLib ? plexService.getLibraryItems(showLib.key).catch(() => []) : [],
           ]);
           top10 = (released.length ? released : recent).slice(0, 10);
-          if (recent.length) rows.push({ title: 'Nouveautés', items: recent.slice(0, 25) });
+          if (recent.length) rows.push({ title: tr('Nouveautés'), items: recent.slice(0, 25) });
           pool = [...movieItems, ...showItems];
         } else {
           for (const lib of useLibs) {
@@ -150,13 +151,13 @@ export default function HomePure({ section }) {
     if (!pourToi.length || !pool.length) return null;
     const parId = new Map(pool.map((it) => [String(it.id), it]));
     const items = pourToi.map((x) => parId.get(String(x.ratingKey))).filter(Boolean);
-    return items.length >= 4 ? { title: 'Pour toi', items: items.slice(0, 24) } : null;
+    return items.length >= 4 ? { title: tr('Pour toi'), items: items.slice(0, 24) } : null;
   }, [pourToi, pool]);
 
   const allRows = useMemo(() => {
     const cats = buildCategories(pool, { camIds, kind });
     const tail = pool.length
-      ? [{ title: 'Tout le catalogue', items: [...pool].sort((a, b) => (a.title || '').localeCompare(b.title || '')).slice(0, 60) }]
+      ? [{ title: tr('Tout le catalogue'), items: [...pool].sort((a, b) => (a.title || '').localeCompare(b.title || '')).slice(0, 60) }]
       : [];
     // « Pour toi » juste après les nouveautés : c'est la rangée qu'on regarde.
     return [...data.rows, ...(rangeePourToi ? [rangeePourToi] : []), ...cats, ...tail];
@@ -220,7 +221,7 @@ export default function HomePure({ section }) {
           <div className="px-5 md:px-8">
             {filtered.length
               ? <GridPure items={filtered} watchedIds={watchedIds} camIds={camIds} />
-              : <p className="text-[14px] p-faint py-16 text-center">Aucun titre avec ces filtres.</p>}
+              : <p className="text-[14px] p-faint py-16 text-center">{tr('Aucun titre avec ces filtres.')}</p>}
           </div>
         ) : (
         <>
@@ -235,7 +236,7 @@ export default function HomePure({ section }) {
         {/* Reprendre */}
         {data.cw.length > 0 && (
           <section data-row className="mb-10 md:mb-14">
-            <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">Reprendre</h2>
+            <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">{tr('Reprendre')}</h2>
             <div className="p-rail p-marge gap-3 md:gap-4 px-5 md:px-8 pb-1">
               {data.cw.map((it) => {
                 const pct = it.duration > 0 ? Math.min(100, (it.currentTime / it.duration) * 100) : 0;
@@ -250,14 +251,14 @@ export default function HomePure({ section }) {
                         : <span className="absolute inset-0 flex items-center justify-center text-[11px] text-white/40 p-2 text-center">{it.title}</span>}
 
                       {isCam && (
-                        <span className="absolute top-2 left-2 px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">CAM</span>
+                        <span className="absolute top-2 left-2 px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">{tr('CAM')}</span>
                       )}
 
                       {/* Croix = retirer de la rangée. On ne marque PAS le
                           titre comme vu : proposer l'épisode 2 puis le déclarer
                           regardé parce qu'on l'a écarté n'aurait aucun sens. */}
-                      <button onClick={(e) => retirer(e, it.id)} title="Retirer de Reprendre"
-                        aria-label="Retirer de Reprendre"
+                      <button onClick={(e) => retirer(e, it.id)} title={tr('Retirer de Reprendre')}
+                        aria-label={tr('Retirer de Reprendre')}
                         className="absolute top-2 right-2 z-10 w-7 h-7 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center text-white/75 hover:text-white hover:bg-black/75 transition-colors active:scale-90">
                         <X size={14} strokeWidth={2.6} />
                       </button>
@@ -277,10 +278,10 @@ export default function HomePure({ section }) {
                     <div className="mt-2 px-0.5">
                       <p className="text-[12.5px] font-medium text-white/80 truncate">{it.title}</p>
                       {it.nextUp ? (
-                        <p className="text-[11px] p-faint mt-0.5 truncate">{it.sousTitre || 'Épisode suivant'}</p>
+                        <p className="text-[11px] p-faint mt-0.5 truncate">{it.sousTitre || tr('Épisode suivant')}</p>
                       ) : (
                         <p className="text-[11px] p-faint mt-0.5 truncate">
-                          {[it.sousTitre, left != null ? (left > 0 ? `${left} min restantes` : 'Presque terminé') : null]
+                          {[it.sousTitre, left != null ? (left > 0 ? tr('{0} min restantes', [left]) : tr('Presque terminé')) : null]
                             .filter(Boolean).join('  ·  ')}
                         </p>
                       )}
@@ -295,7 +296,7 @@ export default function HomePure({ section }) {
         {/* Top 10 — chiffres en contour, rien d'autre */}
         {data.top10.length > 0 && (
           <section data-row className="mb-10 md:mb-14">
-            <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">Les 10 du moment</h2>
+            <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">{tr('Les 10 du moment')}</h2>
             <div className="p-rail p-marge gap-4 md:gap-7 px-5 md:px-8 pt-5 pb-14 items-end">
               {data.top10.map((it, k) => (
                 <div key={it.id} className="flex items-end shrink-0">
@@ -325,9 +326,9 @@ export default function HomePure({ section }) {
         )}
 
         <footer className="px-5 md:px-8 pt-6 pb-4 text-[11.5px] p-faint">
-          NovaStream · {allRows.length} catégories · créé par{' '}
+          {tr('NovaStream ·')} {allRows.length} {tr('catégories · créé par')}{' '}
           <a href={CREDITS.github} target="_blank" rel="noreferrer" className="hover:text-white/70 transition-colors">{CREDITS.auteur}</a>
-          {' '}avec {CREDITS.coAuteur}
+          {' '}{tr('avec')} {CREDITS.coAuteur}
         </footer>
       </div>
     </div>

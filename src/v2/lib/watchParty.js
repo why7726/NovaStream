@@ -6,6 +6,7 @@
 import { io } from 'socket.io-client';
 import authService from '../../services/authService';
 
+import { tr } from '../../i18n';
 const base = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 let socket = null;
@@ -40,13 +41,13 @@ export async function createSession(media) {
     headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
     body: JSON.stringify(media),
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Création impossible');
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Création impossible'));
   return res.json(); // { sessionId, hostPid }
 }
 
 export async function getSessionInfo(id) {
   const res = await fetch(`${base()}/api/watch/${id}`);
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Séance introuvable');
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Séance introuvable'));
   return res.json(); // { media, hostName, started, count }
 }
 
@@ -56,7 +57,7 @@ export async function joinSession(id, { name, avatar }) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ name, avatar }),
   });
-  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || 'Impossible de rejoindre');
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Impossible de rejoindre'));
   return res.json(); // { token, pid, media, hostName, user }
 }
 
@@ -75,7 +76,7 @@ export function connectSession(identity) {
   if (socket.connected) hello();
 
   socket.off('connect_error').on('connect_error', (e) =>
-    listeners.error.forEach((fn) => fn({ error: e?.message || 'Connexion refusée' })));
+    listeners.error.forEach((fn) => fn({ error: e?.message || tr('Connexion refusée') })));
 
   Object.keys(listeners).forEach((ev) => {
     socket.off(`watch:${ev}`).on(`watch:${ev}`, (data) => listeners[ev].forEach((fn) => fn(data)));

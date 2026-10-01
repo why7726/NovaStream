@@ -9,6 +9,7 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 - **Plex ou Jellyfin**, au choix, en un clic dans l'assistant
 - Avec Plex : connexion du compte Plex de chaque utilisateur (progression synchronisée dans les deux sens)
 - Bibliothèques **privées** : décoche une bibliothèque et elle n'existe plus pour Nova (menu, recherche, recommandations, lien direct — tout est bloqué côté serveur)
+- **Français ou anglais** : chaque compte choisit sa langue (préférences, ou dès le message de bienvenue)
 - Assistant « Dis-moi ta soirée » avec **l'IA de ton choix** : Gemini, ChatGPT, Claude, Grok, ou en local avec Ollama / LM Studio
 - Services optionnels : TMDB, OpenSubtitles, Radarr/Sonarr (demandes de films), qBittorrent (lecture seule)
 - Application installable sur téléphone (PWA)
@@ -16,7 +17,6 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 ## Feuille de route
 
 - Calendrier de sorties : programmer la recherche d'un titre à l'heure exacte de sa sortie
-- Traductions de l'interface (anglais d'abord)
 - Image Docker publiée, pour installer sans compiler
 
 ---

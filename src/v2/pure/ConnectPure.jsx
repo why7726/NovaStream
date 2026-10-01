@@ -4,6 +4,7 @@ import authService from '../../services/authService';
 import useRetour from './useRetour';
 import { useFeatures } from '../lib/features';
 
+import { tr } from '../../i18n';
 /* Connecteurs — relier un compte extérieur à Nova.
 
    Pour l'instant : Plex. On ouvre plex.tv dans une fenêtre, l'utilisateur
@@ -51,7 +52,7 @@ export default function ConnectPure() {
     setErreur(''); setMessage('');
     try {
       const r = await api('/api/connect/plex/start', { method: 'POST' });
-      if (!r.ok) throw new Error('Plex indisponible');
+      if (!r.ok) throw new Error(tr('Plex indisponible'));
       const { url } = await r.json();
 
       /* La fenêtre DOIT être ouverte dans le geste de clic, sinon Safari la
@@ -66,7 +67,7 @@ export default function ConnectPure() {
         if (Date.now() - debut > 5 * 60 * 1000) {   // 5 min, puis on abandonne
           clearInterval(sondage.current);
           setPhase('idle');
-          setErreur('Délai dépassé. Réessaie quand tu veux.');
+          setErreur(tr('Délai dépassé. Réessaie quand tu veux.'));
           return;
         }
         try {
@@ -78,14 +79,14 @@ export default function ConnectPure() {
             clearInterval(sondage.current);
             try { fenetre.current?.close(); } catch {}
             setPhase('idle');
-            setMessage(`Compte ${d.username} relié — ${d.sync?.vus ?? 0} titres vus et ${d.sync?.enCours ?? 0} en cours récupérés.`);
+            setMessage(tr('Compte {0} relié — {1} titres vus et {2} en cours récupérés.', [d.username, d.sync?.vus ?? 0, d.sync?.enCours ?? 0]));
             charger();
           }
         } catch { /* réseau : on retentera au prochain tour */ }
       }, 2000);
     } catch (e) {
       setPhase('idle');
-      setErreur(e.message || 'Connexion impossible');
+      setErreur(e.message || tr('Connexion impossible'));
     }
   };
 
@@ -94,8 +95,8 @@ export default function ConnectPure() {
     try {
       const r = await api('/api/connect/plex/sync', { method: 'POST' });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Échec');
-      setMessage(`${d.vus} titres vus et ${d.enCours} en cours récupérés.`);
+      if (!r.ok) throw new Error(d.error || tr('Échec'));
+      setMessage(tr('{0} titres vus et {1} en cours récupérés.', [d.vus, d.enCours]));
       charger();
     } catch (e) {
       setErreur(e.message);
@@ -116,9 +117,9 @@ export default function ConnectPure() {
   if (features?.serveurType === 'jellyfin') {
     return (
       <div className="min-h-screen pt-24 md:pt-28 pb-16 max-w-[720px] mx-auto px-5 md:px-8">
-        <h1 className="p-display text-[26px] md:text-[38px] mb-3">Connecteurs</h1>
+        <h1 className="p-display text-[26px] md:text-[38px] mb-3">{tr('Connecteurs')}</h1>
         <p className="text-[14px] p-dim leading-relaxed">
-          Ce serveur utilise Jellyfin : ta progression est déjà enregistrée directement sur le serveur, il n'y a rien à relier.
+          {tr('Ce serveur utilise Jellyfin : ta progression est déjà enregistrée directement sur le serveur, il n\'y a rien à relier.')}
         </p>
       </div>
     );
@@ -127,14 +128,14 @@ export default function ConnectPure() {
   return (
     <div className="min-h-screen pt-16 md:pt-20 pb-16 max-w-[720px] mx-auto">
       <div className="px-5 md:px-8 mb-2 flex items-center gap-3">
-        <button onClick={retour} aria-label="Retour"
+        <button onClick={retour} aria-label={tr('Retour')}
           className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
           <ChevronLeft size={20} />
         </button>
-        <h1 className="p-display text-[26px] md:text-[38px]">Connecteurs</h1>
+        <h1 className="p-display text-[26px] md:text-[38px]">{tr('Connecteurs')}</h1>
       </div>
       <p className="px-5 md:px-8 text-[13.5px] p-dim mb-8 md:mb-10 leading-relaxed">
-        Relie un compte extérieur pour que ta progression suive partout.
+        {tr('Relie un compte extérieur pour que ta progression suive partout.')}
       </p>
 
       <div className="px-5 md:px-8">
@@ -143,10 +144,10 @@ export default function ConnectPure() {
             <LogoPlex />
             <div className="flex-1 min-w-0">
               <div className="flex items-center gap-2">
-                <h2 className="p-title text-[16px]">Plex</h2>
+                <h2 className="p-title text-[16px]">{'Plex'}</h2>
                 {plex && (
                   <span className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-300/90">
-                    <Check size={12} /> Relié
+                    <Check size={12} /> {tr('Relié')}
                   </span>
                 )}
               </div>
@@ -156,13 +157,12 @@ export default function ConnectPure() {
                 </p>
               ) : (
                 <p className="text-[13px] p-dim mt-1 leading-relaxed">
-                  Ce que tu regardes sur Nova sera enregistré sur ton compte Plex,
-                  et ce que tu as déjà vu sur Plex apparaîtra ici.
+                  {tr('Ce que tu regardes sur Nova sera enregistré sur ton compte Plex, et ce que tu as déjà vu sur Plex apparaîtra ici.')}
                 </p>
               )}
 
               {plex?.lastSyncInfo && (
-                <p className="text-[12px] p-faint mt-2">Dernière synchro : {plex.lastSyncInfo}</p>
+                <p className="text-[12px] p-faint mt-2">{tr('Dernière synchro :')} {plex.lastSyncInfo}</p>
               )}
 
               <div className="flex flex-wrap items-center gap-2 mt-4">
@@ -170,18 +170,18 @@ export default function ConnectPure() {
                   <button onClick={connecter} disabled={phase === 'attente'}
                     className="p-btn h-[38px] px-5 text-[13.5px] disabled:opacity-60">
                     {phase === 'attente'
-                      ? <><Loader2 size={14} className="animate-spin" /> En attente de Plex…</>
-                      : <><ExternalLink size={14} /> Connecter mon compte</>}
+                      ? <><Loader2 size={14} className="animate-spin" /> {tr('En attente de Plex…')}</>
+                      : <><ExternalLink size={14} /> {tr('Connecter mon compte')}</>}
                   </button>
                 ) : (
                   <>
                     <button onClick={synchroniser} disabled={phase === 'sync'}
                       className="p-btn p-btn-ghost h-[38px] px-5 text-[13.5px] disabled:opacity-60">
-                      <RefreshCw size={14} className={phase === 'sync' ? 'animate-spin' : ''} /> Synchroniser
+                      <RefreshCw size={14} className={phase === 'sync' ? 'animate-spin' : ''} /> {tr('Synchroniser')}
                     </button>
                     <button onClick={deconnecter}
                       className="h-[38px] px-4 rounded-full text-[13.5px] font-medium text-white/45 hover:text-white transition-colors inline-flex items-center gap-1.5">
-                      <Unlink size={14} /> Délier
+                      <Unlink size={14} /> {tr('Délier')}
                     </button>
                   </>
                 )}
@@ -189,8 +189,7 @@ export default function ConnectPure() {
 
               {phase === 'attente' && (
                 <p className="text-[12.5px] p-faint mt-3 leading-relaxed">
-                  Valide la demande dans la fenêtre Plex. Si elle ne s'est pas ouverte,
-                  autorise les fenêtres surgissantes puis réessaie.
+                  {tr('Valide la demande dans la fenêtre Plex. Si elle ne s\'est pas ouverte, autorise les fenêtres surgissantes puis réessaie.')}
                 </p>
               )}
               {message && <p className="text-[12.5px] text-emerald-300/90 mt-3">{message}</p>}
@@ -200,8 +199,7 @@ export default function ConnectPure() {
         </div>
 
         <p className="text-[12px] p-faint mt-4 leading-relaxed px-1">
-          La synchronisation se fait aussi toute seule toutes les 30 minutes : ce que tu
-          regardes depuis l'application Plex (télé, téléphone) remonte dans Nova.
+          {tr('La synchronisation se fait aussi toute seule toutes les 30 minutes : ce que tu regardes depuis l\'application Plex (télé, téléphone) remonte dans Nova.')}
         </p>
       </div>
     </div>

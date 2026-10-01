@@ -3,17 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { Plus, Copy, Check, ArrowLeft, Ticket, User, Clock, Activity, History, Monitor, LogIn, LogOut, PlayCircle, UserPlus, Square, Eye, Globe } from 'lucide-react';
 
 const ACTIVITY_LABELS = {
-  login: 'Connexion',
-  logout: 'Déconnexion',
-  register: 'Inscription',
-  visit: 'Visite',
-  play: 'Lecture',
-  stop: 'Arrêt de lecture',
-  view: 'Consultation'
+  login: tr('Connexion'),
+  logout: tr('Déconnexion'),
+  register: tr('Inscription'),
+  visit: tr('Visite'),
+  play: tr('Lecture'),
+  stop: tr('Arrêt de lecture'),
+  view: tr('Consultation')
 };
 const activityLabel = (type) => ACTIVITY_LABELS[type] || type;
 import authService from '../services/authService';
 
+import { tr, locale } from '../i18n';
 function Admin() {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('codes'); // 'codes' or 'users'
@@ -81,8 +82,8 @@ function Admin() {
     const h = Math.floor(s / 3600);
     const d = Math.floor(h / 24);
     if (d > 0) return `${d}j ${h % 24}h`;
-    if (h > 0) return `${h}h ${Math.floor((s % 3600) / 60)}min`;
-    return `${Math.floor(s / 60)}min`;
+    if (h > 0) return tr('{0}h {1}min', [h, Math.floor((s % 3600) / 60)]);
+    return tr('{0}min', [Math.floor(s / 60)]);
   };
 
   const fetchUserHistory = async (userId) => {
@@ -114,9 +115,9 @@ function Admin() {
   };
 
   const formatTime = (iso) => {
-    if (!iso) return 'Jamais';
+    if (!iso) return tr('Jamais');
     const date = new Date(iso);
-    return date.toLocaleString('fr-FR', { 
+    return date.toLocaleString(locale(), { 
       day: '2-digit', month: '2-digit', year: '2-digit',
       hour: '2-digit', minute: '2-digit'
     });
@@ -141,8 +142,8 @@ function Admin() {
     <div className="min-h-screen bg-[#060606] text-white overflow-x-hidden">
       <div className="pt-24 md:pt-32 px-4 md:px-12 max-w-5xl mx-auto pb-28">
         <header className="mb-10 text-center md:text-left">
-          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">Espace Admin</h1>
-          <p className="text-gray-500 text-sm">Gestion des accès et surveillance de l'activité NovaStream</p>
+          <h1 className="text-3xl md:text-4xl font-black mb-2 tracking-tight">{tr('Espace Admin')}</h1>
+          <p className="text-gray-500 text-sm">{tr('Gestion des accès et surveillance de l\'activité NovaStream')}</p>
         </header>
 
         {/* Tab Navigation (Liquid Bubbles) — wraps on mobile so nothing is clipped */}
@@ -153,7 +154,7 @@ function Admin() {
               activeTab === 'codes' ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
           >
-            <Ticket size={16} className="md:w-[18px] md:h-[18px]" /> Invitations
+            <Ticket size={16} className="md:w-[18px] md:h-[18px]" /> {tr('Invitations')}
           </button>
           <button
             onClick={() => setActiveTab('users')}
@@ -161,7 +162,7 @@ function Admin() {
               activeTab === 'users' ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
           >
-            <History size={16} className="md:w-[18px] md:h-[18px]" /> Utilisateurs
+            <History size={16} className="md:w-[18px] md:h-[18px]" /> {tr('Utilisateurs')}
           </button>
           <button
             onClick={() => setActiveTab('activity')}
@@ -169,18 +170,18 @@ function Admin() {
               activeTab === 'activity' ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-white/5 text-gray-400 hover:bg-white/10'
             }`}
           >
-            <Globe size={16} className="md:w-[18px] md:h-[18px]" /> Activité
+            <Globe size={16} className="md:w-[18px] md:h-[18px]" /> {tr('Activité')}
           </button>
         </div>
 
         {activeTab === 'codes' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
             <div className="flex items-center justify-between mb-8">
-              <h2 className="text-xl font-bold">Codes d'invitation</h2>
+              <h2 className="text-xl font-bold">{tr('Codes d\'invitation')}</h2>
               <button onClick={generateCode} disabled={generating}
                 className="flex items-center gap-2 px-5 py-2.5 bg-white text-black rounded-xl font-bold text-sm hover:bg-gray-100 transition-all active:scale-[0.98] disabled:opacity-50">
                 {generating ? <div className="w-4 h-4 border-2 border-black/30 border-t-black rounded-full animate-spin" /> : <Plus size={16} />}
-                Générer un code
+                {tr('Générer un code')}
               </button>
             </div>
 
@@ -192,7 +193,7 @@ function Admin() {
               ) : codes.length === 0 ? (
                 <div className="col-span-full text-center py-20 bg-white/[0.02] rounded-3xl border border-white/5">
                   <Ticket size={40} className="mx-auto mb-4 text-gray-700" />
-                  <p className="text-gray-500">Aucun code créé pour le moment</p>
+                  <p className="text-gray-500">{tr('Aucun code créé pour le moment')}</p>
                 </div>
               ) : codes.map((c) => (
                 <div key={c.id} className={`flex items-center justify-between p-5 rounded-2xl border transition-all ${
@@ -209,10 +210,10 @@ function Admin() {
                       <div className="flex items-center gap-3 mt-1">
                         {c.usedBy ? (
                           <span className="text-[11px] text-gray-500 font-medium bg-white/5 px-2 py-0.5 rounded-full">
-                            Utilisé par {c.usedByName}
+                            {tr('Utilisé par')} {c.usedByName}
                           </span>
                         ) : (
-                          <span className="text-[11px] text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded-full">Disponible</span>
+                          <span className="text-[11px] text-emerald-400 font-bold bg-emerald-400/10 px-2 py-0.5 rounded-full">{tr('Disponible')}</span>
                         )}
                       </div>
                     </div>
@@ -231,7 +232,7 @@ function Admin() {
 
         {activeTab === 'users' && !selectedUser && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
-            <h2 className="text-xl font-bold mb-8">Utilisateurs inscrits</h2>
+            <h2 className="text-xl font-bold mb-8">{tr('Utilisateurs inscrits')}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {loading ? (
                 <div className="col-span-full flex justify-center py-20">
@@ -247,14 +248,14 @@ function Admin() {
                     <div className="w-12 h-12 rounded-2xl overflow-hidden bg-white/10 flex items-center justify-center text-white font-black text-xl group-hover:scale-110 transition-transform">
                       {u.avatar ? <img src={u.avatar} alt={u.username} className="w-full h-full object-cover" /> : u.username.charAt(0).toUpperCase()}
                     </div>
-                    {u.isAdmin && <span className="text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md uppercase">Admin</span>}
+                    {u.isAdmin && <span className="text-[10px] font-black tracking-widest text-emerald-400 bg-emerald-400/10 px-2 py-1 rounded-md uppercase">{tr('Admin')}</span>}
                   </div>
                   <h3 className="font-bold text-lg mb-1">{u.username}</h3>
                   <p className="text-gray-500 text-xs truncate mb-4">{u.email}</p>
                   
                   <div className="pt-4 border-t border-white/5 flex items-center justify-between">
                     <span className="text-[10px] text-gray-600 flex items-center gap-1.5 uppercase tracking-wider font-bold">
-                      <Clock size={12} /> {u.lastActivity ? 'Actif' : 'Jamais vu'}
+                      <Clock size={12} /> {u.lastActivity ? tr('Actif') : tr('Jamais vu')}
                     </span>
                     <span className="text-[10px] text-gray-500">
                       {formatTime(u.lastActivity)}
@@ -269,7 +270,7 @@ function Admin() {
         {activeTab === 'users' && selectedUser && (
           <div className="animate-in fade-in slide-in-from-right-4 duration-500">
             <button onClick={() => setSelectedUser(null)} className="flex items-center gap-2 text-gray-500 hover:text-white mb-8 transition-colors text-sm font-bold">
-              <ArrowLeft size={16} /> Retour à la liste
+              <ArrowLeft size={16} /> {tr('Retour à la liste')}
             </button>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
@@ -283,11 +284,11 @@ function Admin() {
                   <p className="text-gray-500 text-sm mb-6">{selectedUser.email}</p>
                   <div className="flex flex-col gap-3">
                     <div className="bg-white/5 p-4 rounded-2xl text-left">
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Inscription</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">{tr('Inscription')}</p>
                       <p className="text-sm font-bold">{formatTime(selectedUser.createdAt)}</p>
                     </div>
                     <div className="bg-white/5 p-4 rounded-2xl text-left">
-                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">Dernière activité</p>
+                      <p className="text-[10px] text-gray-500 uppercase font-black tracking-widest mb-1">{tr('Dernière activité')}</p>
                       <p className="text-sm font-bold text-emerald-400">{formatTime(selectedUser.lastActivity)}</p>
                     </div>
                   </div>
@@ -299,11 +300,11 @@ function Admin() {
                 {/* Watch Progress */}
                 <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/[0.04]">
                   <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <PlayCircle size={20} className="text-blue-400" /> Reprendre / En cours
+                    <PlayCircle size={20} className="text-blue-400" /> {tr('Reprendre / En cours')}
                   </h3>
                   <div className="space-y-4">
                     {userHistory.watchHistory.length === 0 ? (
-                      <p className="text-gray-600 text-sm italic">Aucun visionnage enregistré</p>
+                      <p className="text-gray-600 text-sm italic">{tr('Aucun visionnage enregistré')}</p>
                     ) : userHistory.watchHistory.slice(0, 5).map((w) => (
                       <div key={w.id} className="flex items-center justify-between p-4 bg-white/5 rounded-2xl border border-white/5">
                         <div className="flex-1 min-w-0 pr-4">
@@ -312,7 +313,7 @@ function Admin() {
                             <div className="flex-1 h-1 bg-white/10 rounded-full max-w-[100px]">
                               <div className="h-full bg-red-500 rounded-full" style={{ width: `${w.duration > 0 ? Math.min((w.currentTime/w.duration)*100, 100) : 0}%` }} />
                             </div>
-                            <span className="text-[10px] text-gray-500">{w.completed ? 'Terminé' : `${w.duration > 0 ? Math.round((w.currentTime/w.duration)*100) : 0}%`}</span>
+                            <span className="text-[10px] text-gray-500">{w.completed ? tr('Terminé') : `${w.duration > 0 ? Math.round((w.currentTime/w.duration)*100) : 0}%`}</span>
                           </div>
                         </div>
                         <span className="text-[10px] text-gray-600 font-mono whitespace-nowrap">
@@ -326,11 +327,11 @@ function Admin() {
                 {/* Activity Log */}
                 <div className="p-8 rounded-[32px] bg-white/[0.02] border border-white/[0.04]">
                   <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-                    <Activity size={20} className="text-purple-400" /> Historique détaillé (100 derniers logs)
+                    <Activity size={20} className="text-purple-400" /> {tr('Historique détaillé (100 derniers logs)')}
                   </h3>
                   <div className="space-y-3 max-h-[500px] overflow-y-auto pr-2 custom-scrollbar">
                     {userHistory.history.length === 0 ? (
-                      <p className="text-gray-600 text-sm italic">Aucune activité enregistrée</p>
+                      <p className="text-gray-600 text-sm italic">{tr('Aucune activité enregistrée')}</p>
                     ) : userHistory.history.map((h) => (
                       <div key={h.id} className="flex items-center gap-4 p-3 hover:bg-white/[0.02] rounded-xl transition-colors">
                         <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center shrink-0">
@@ -357,13 +358,13 @@ function Admin() {
             {/* Stats cards */}
             {stats && (
               <div className="mb-10">
-                <h2 className="text-xl font-bold mb-5">Statistiques</h2>
+                <h2 className="text-xl font-bold mb-5">{tr('Statistiques')}</h2>
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
                   {[
-                    { icon: <Clock size={18} className="text-emerald-400" />, label: 'Temps visionné', value: formatDuration(stats.totalSeconds) },
-                    { icon: <PlayCircle size={18} className="text-blue-400" />, label: 'Lectures', value: stats.totalPlays },
-                    { icon: <Check size={18} className="text-green-400" />, label: 'Terminés', value: stats.completed },
-                    { icon: <Activity size={18} className="text-purple-400" />, label: 'Actifs (7j)', value: `${stats.activeWeek}/${stats.totalUsers}` }
+                    { icon: <Clock size={18} className="text-emerald-400" />, label: tr('Temps visionné'), value: formatDuration(stats.totalSeconds) },
+                    { icon: <PlayCircle size={18} className="text-blue-400" />, label: tr('Lectures'), value: stats.totalPlays },
+                    { icon: <Check size={18} className="text-green-400" />, label: tr('Terminés'), value: stats.completed },
+                    { icon: <Activity size={18} className="text-purple-400" />, label: tr('Actifs (7j)'), value: `${stats.activeWeek}/${stats.totalUsers}` }
                   ].map((c, i) => (
                     <div key={i} className="p-4 md:p-5 rounded-3xl bg-white/[0.03] border border-white/[0.06]">
                       <div className="w-9 h-9 rounded-full bg-white/5 flex items-center justify-center mb-3">{c.icon}</div>
@@ -375,7 +376,7 @@ function Admin() {
 
                 {stats.topTitles && stats.topTitles.length > 0 && (
                   <div className="p-5 md:p-6 rounded-[28px] bg-white/[0.02] border border-white/[0.04]">
-                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">Top contenus</h3>
+                    <h3 className="text-sm font-bold text-gray-300 uppercase tracking-wider mb-4">{tr('Top contenus')}</h3>
                     <div className="space-y-3">
                       {stats.topTitles.map((t, i) => {
                         const max = stats.topTitles[0].seconds || 1;
@@ -400,7 +401,7 @@ function Admin() {
               </div>
             )}
 
-            <h2 className="text-xl font-bold mb-8">Activité globale (100 derniers événements)</h2>
+            <h2 className="text-xl font-bold mb-8">{tr('Activité globale (100 derniers événements)')}</h2>
             {loading ? (
               <div className="flex justify-center py-20">
                 <div className="w-10 h-10 border-2 border-white/10 border-t-white rounded-full animate-spin" />
@@ -408,7 +409,7 @@ function Admin() {
             ) : globalActivity.length === 0 ? (
               <div className="text-center py-20 bg-white/[0.02] rounded-3xl border border-white/5">
                 <Globe size={40} className="mx-auto mb-4 text-gray-700" />
-                <p className="text-gray-500">Aucune activité enregistrée</p>
+                <p className="text-gray-500">{tr('Aucune activité enregistrée')}</p>
               </div>
             ) : (
               <div className="space-y-2.5 p-4 md:p-6 rounded-[32px] bg-white/[0.02] border border-white/[0.04]">

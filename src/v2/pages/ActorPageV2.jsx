@@ -6,6 +6,7 @@ import plexService from '../../services/plexService';
 import TiltCard from '../components/TiltCard';
 import FooterV2 from '../components/FooterV2';
 
+import { tr, locale } from '../../i18n';
 /* ── Actor page (Spatial Cinema) ──────────────────────────────────────
    TMDB person + filmography, split into "available on Nova" (clickable,
    with production budget & box-office) and the rest (dimmed). */
@@ -19,7 +20,7 @@ const fmtMoney = (n) => {
 
 const fmtDate = (iso) => {
   if (!iso) return null;
-  try { return new Date(iso).toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return iso; }
+  try { return new Date(iso).toLocaleDateString(locale(), { day: 'numeric', month: 'long', year: 'numeric' }); } catch { return iso; }
 };
 
 const age = (birth, death) => {
@@ -41,16 +42,16 @@ function CreditCard({ credit, onClick }) {
         : <div className="w-full h-full flex items-center justify-center p-3 text-center text-[11px] text-white/40">{credit.title}</div>}
       {available && (
         <span className="absolute top-2 left-2 px-1.5 py-0.5 rounded bg-black/60 backdrop-blur-md text-[9px] font-semibold uppercase tracking-wider text-white/90">
-          Sur Nova
+          {tr('Sur Nova')}
         </span>
       )}
       {(credit.budget || credit.revenue) && (
         <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/90 via-black/60 to-transparent flex flex-col gap-0.5">
           {credit.budget && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-white/85"><Wallet size={10} /> Budget {fmtMoney(credit.budget)}</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-white/85"><Wallet size={10} /> {tr('Budget')} {fmtMoney(credit.budget)}</span>
           )}
           {credit.revenue && (
-            <span className="flex items-center gap-1 text-[10px] font-bold text-white/70"><TrendingUp size={10} /> Box-office {fmtMoney(credit.revenue)}</span>
+            <span className="flex items-center gap-1 text-[10px] font-bold text-white/70"><TrendingUp size={10} /> {tr('Box-office')} {fmtMoney(credit.revenue)}</span>
           )}
         </div>
       )}
@@ -93,8 +94,8 @@ export default function ActorPageV2() {
   if (error) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold">Acteur introuvable</h1>
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-white transition-colors">Retour</button>
+        <h1 className="text-2xl font-bold">{tr('Acteur introuvable')}</h1>
+        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-white transition-colors">{tr('Retour')}</button>
       </div>
     );
   }
@@ -115,7 +116,7 @@ export default function ActorPageV2() {
       <div className="px-5 md:px-12 max-w-7xl mx-auto">
         <button onClick={() => navigate(-1)}
           className="flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-sm font-semibold text-white/85 hover:text-white transition-colors mb-8">
-          <ArrowLeft size={15} /> Retour
+          <ArrowLeft size={15} /> {tr('Retour')}
         </button>
 
         {/* ── identity panel ── */}
@@ -138,12 +139,12 @@ export default function ActorPageV2() {
               )}
               {actor.birthday && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold glass-soft text-gray-200">
-                  <Cake size={12} /> {fmtDate(actor.birthday)}{a != null && !actor.deathday ? ` (${a} ans)` : ''}
+                  <Cake size={12} /> {fmtDate(actor.birthday)}{a != null && !actor.deathday ? tr(' ({0} ans)', [a]) : ''}
                 </span>
               )}
               {actor.deathday && (
                 <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold glass-soft text-gray-400">
-                  † {fmtDate(actor.deathday)}{a != null ? ` (à ${a} ans)` : ''}
+                  † {fmtDate(actor.deathday)}{a != null ? tr(' (à {0} ans)', [a]) : ''}
                 </span>
               )}
               {actor.birthPlace && (
@@ -152,7 +153,7 @@ export default function ActorPageV2() {
                 </span>
               )}
               <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold glass-soft text-emerald-300">
-                {onNova.length} titre{onNova.length > 1 ? 's' : ''} sur Nova
+                {onNova.length} {tr('titre')}{onNova.length > 1 ? 's' : ''} {tr('sur Nova')}
               </span>
             </div>
             {actor.biography ? (
@@ -163,12 +164,12 @@ export default function ActorPageV2() {
                 {actor.biography.length > 320 && (
                   <button onClick={() => setFullBio(!fullBio)}
                     className="mt-2 text-xs font-bold text-indigo-300 hover:text-indigo-200 transition-colors">
-                    {fullBio ? 'Réduire' : 'Lire la suite'}
+                    {fullBio ? tr('Réduire') : tr('Lire la suite')}
                   </button>
                 )}
               </>
             ) : (
-              <p className="text-sm text-white/40">Aucune biographie disponible en français.</p>
+              <p className="text-sm text-white/40">{tr('Aucune biographie disponible en français.')}</p>
             )}
           </div>
         </motion.div>
@@ -176,8 +177,8 @@ export default function ActorPageV2() {
         {/* ── available on Nova ── */}
         {onNova.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }} className="mb-12">
-            <p className="v2-eyebrow mb-1.5">Disponible maintenant</p>
-            <h2 className="text-xl md:text-2xl font-bold mb-6">Sa filmographie sur NovaStream</h2>
+            <p className="v2-eyebrow mb-1.5">{tr('Disponible maintenant')}</p>
+            <h2 className="text-xl md:text-2xl font-bold mb-6">{tr('Sa filmographie sur NovaStream')}</h2>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 gap-4 md:gap-5">
               {onNova.map((c) => (
                 <CreditCard key={`${c.type}:${c.tmdbId}`} credit={c} onClick={() => navigate(`/title/${c.ratingKey}`)} />
@@ -189,8 +190,8 @@ export default function ActorPageV2() {
         {/* ── rest of the filmography ── */}
         {others.length > 0 && (
           <motion.section initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="mb-12">
-            <h2 className="text-xl md:text-2xl font-bold mb-1.5">Filmographie complète</h2>
-            <p className="text-sm text-white/40 mb-6">Titres pas encore disponibles sur Nova.</p>
+            <h2 className="text-xl md:text-2xl font-bold mb-1.5">{tr('Filmographie complète')}</h2>
+            <p className="text-sm text-white/40 mb-6">{tr('Titres pas encore disponibles sur Nova.')}</p>
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-4">
               {others.map((c) => (
                 <CreditCard key={`${c.type}:${c.tmdbId}`} credit={c} />

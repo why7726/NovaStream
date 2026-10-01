@@ -6,6 +6,7 @@ import CardPure from './CardPure';
 import { getCatalog, getCatalogSync, searchCatalog, norm } from './catalog';
 import plexService from '../../services/plexService';
 
+import { tr } from '../../i18n';
 const RECENT_KEY = 'nova_recent_search';
 
 /* Recherche "Pure" — locale, instantanée, tolérante aux fautes.
@@ -68,15 +69,15 @@ export default function SearchPure({ onClose }) {
           <div className="flex-1 flex items-center gap-2.5 h-11 px-4 rounded-xl bg-white/[0.08]">
             <Search size={17} className="text-white/40 shrink-0" />
             <input ref={inputRef} value={q} onChange={(e) => setQ(e.target.value)}
-              placeholder="Films, séries, acteurs, genres…"
+              placeholder={tr('Films, séries, acteurs, genres…')}
               className="flex-1 bg-transparent text-[15px] outline-none placeholder:text-white/35" />
             {q && (
-              <button onClick={() => setQ('')} aria-label="Effacer" className="text-white/40 hover:text-white transition-colors">
+              <button onClick={() => setQ('')} aria-label={tr('Effacer')} className="text-white/40 hover:text-white transition-colors">
                 <X size={16} />
               </button>
             )}
           </div>
-          <button onClick={onClose} className="text-[15px] text-white/70 hover:text-white transition-colors">Annuler</button>
+          <button onClick={onClose} className="text-[15px] text-white/70 hover:text-white transition-colors">{tr('Annuler')}</button>
         </div>
       </div>
 
@@ -87,7 +88,7 @@ export default function SearchPure({ onClose }) {
             <>
               {recent.length > 0 && (
                 <section className="mb-8">
-                  <p className="p-label mb-3">Recherches récentes</p>
+                  <p className="p-label mb-3">{tr('Recherches récentes')}</p>
                   <div className="flex flex-wrap gap-2">
                     {recent.map((r) => (
                       <button key={r} onClick={() => setQ(r)}
@@ -101,13 +102,13 @@ export default function SearchPure({ onClose }) {
               <section className="mb-8">
                 <button onClick={() => { onClose(); navigate('/explorer'); }}
                   className="w-full flex items-center justify-between px-4 h-12 rounded-xl bg-white/[0.06] hover:bg-white/[0.11] transition-colors">
-                  <span className="text-[14px] font-medium">Recherche avancée — par films aimés et thèmes</span>
+                  <span className="text-[14px] font-medium">{tr('Recherche avancée — par films aimés et thèmes')}</span>
                   <span className="text-white/40">›</span>
                 </button>
               </section>
 
               <section>
-                <p className="p-label mb-3">Parcourir</p>
+                <p className="p-label mb-3">{tr('Parcourir')}</p>
                 <div className="flex flex-wrap gap-2">
                   {genres.map((g) => (
                     <button key={g} onClick={() => setQ(g)}
@@ -119,10 +120,10 @@ export default function SearchPure({ onClose }) {
               </section>
             </>
           ) : shown.length === 0 ? (
-            <p className="text-center text-[14px] p-faint mt-16">Aucun résultat pour « {q} ».</p>
+            <p className="text-center text-[14px] p-faint mt-16">{tr('Aucun résultat pour «')} {q} ».</p>
           ) : (
             <>
-              <p className="p-label mb-3">{shown.length} résultat{shown.length > 1 ? 's' : ''}</p>
+              <p className="p-label mb-3">{shown.length} {tr('résultat')}{shown.length > 1 ? 's' : ''}</p>
               <div data-row className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
                 {shown.map((it) => (
                   <CardPure key={it.id} item={it} width="w-full" onClick={() => open(it)} />

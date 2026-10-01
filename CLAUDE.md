@@ -47,6 +47,26 @@ styles, Framer Motion 10 pour les animations.
 - Ne jamais lire le serveur multimédia avec `fetch(PLEX_URL…)` : passer par
   `plexJson` (filtré) ou `plexJsonBrut` (réservé à prive.js).
 
+## Langues (français / anglais)
+
+- Tout texte affiché passe par `tr('Texte en français')` (`src/i18n`). La clé
+  EST le texte français ; la traduction anglaise va dans `src/i18n/en.js`
+  (même clé, exacte). Clé absente = le français s'affiche, jamais un trou.
+- Variables : `tr('{0} min restantes', [n])`. La fonction s'appelle `tr` et
+  pas `t` : beaucoup de fichiers nomment `t` le jeton de connexion.
+- Ne JAMAIS passer dans `tr` : clés internes (genres de `categories.js`,
+  « Horreur + »), classes CSS, URL, en-têtes (`Bearer …`), noms de marque.
+  Les genres se regroupent sous leur nom français et se traduisent à
+  l'affichage seulement.
+- Changer de langue recharge la page (des textes sont calculés à l'import
+  des modules) : `appliquerLangue(l)`. La langue est une préférence du
+  compte (`users.langue`), posée aussi en cookie `nova_langue`.
+- Serveur : `i18n-serveur.js` traduit `error` / `message` des réponses JSON
+  (cookie `nova_langue=en`) ; `langue()` / `langueTmdb()` donnent la langue de
+  la requête en cours (AsyncLocalStorage) — TMDB et l'assistant IA la suivent.
+- Un nouveau message serveur affiché à l'utilisateur → l'ajouter à `EN` dans
+  `i18n-serveur.js`.
+
 ## Bibliothèques
 
 - Le menu est construit depuis `/api/libraries` (hook `useLibraries()`), une

@@ -2,6 +2,7 @@
 // Nécessite HTTPS (déjà en place via Caddy) et un service worker enregistré.
 import authService from '../../services/authService';
 
+import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 const headers = () => {
@@ -31,13 +32,13 @@ export async function pushStatus() {
 }
 
 export async function subscribePush() {
-  if (!pushSupported()) throw new Error('Non supporté sur cet appareil');
+  if (!pushSupported()) throw new Error(tr('Non supporté sur cet appareil'));
   const perm = await Notification.requestPermission();
-  if (perm !== 'granted') throw new Error('Notifications refusées');
+  if (perm !== 'granted') throw new Error(tr('Notifications refusées'));
 
   const reg = await navigator.serviceWorker.ready;
   const r = await fetch(`${apiBase()}/api/push/key`, { headers: headers() });
-  if (!r.ok) throw new Error('Serveur indisponible');
+  if (!r.ok) throw new Error(tr('Serveur indisponible'));
   const { publicKey } = await r.json();
 
   const sub = await reg.pushManager.subscribe({
@@ -48,7 +49,7 @@ export async function subscribePush() {
   const res = await fetch(`${apiBase()}/api/push/subscribe`, {
     method: 'POST', headers: headers(), body: JSON.stringify(sub.toJSON()),
   });
-  if (!res.ok) throw new Error('Enregistrement impossible');
+  if (!res.ok) throw new Error(tr('Enregistrement impossible'));
   return true;
 }
 

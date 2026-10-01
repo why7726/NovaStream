@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Check, X } from 'lucide-react';
 
+import { tr } from '../../i18n';
 /* Barre de filtres "Pure" — des pastilles discrètes qui ouvrent un petit
    menu, façon barre de tri d'Apple TV. Rien ne s'affiche tant que rien
    n'est choisi : au repos, la barre est presque invisible. */
@@ -114,58 +115,58 @@ export default function FilterBar({ genres = [], value, onChange, onReset, count
   return (
     <div className="px-5 md:px-8 mb-6">
       <div className="flex items-center gap-2 overflow-x-auto no-scrollbar pb-1">
-        <Dropdown label="Genre" title="Filtrer par genre" value={value.genre} onPick={set('genre')}
-          options={genres.map((g) => ({ value: g.name, label: g.name, count: g.count }))} />
+        <Dropdown label={tr('Genre')} title={tr('Filtrer par genre')} value={value.genre} onPick={set('genre')}
+          options={genres.map((g) => ({ value: g.name, label: tr(g.name), count: g.count }))} />
 
-        <Dropdown label="Époque" title="Filtrer par époque" value={value.decade} onPick={set('decade')}
+        <Dropdown label={tr('Époque')} title={tr('Filtrer par époque')} value={value.decade} onPick={set('decade')}
           options={[
-            { value: '2020', label: 'Depuis 2020' },
-            { value: '2010', label: 'Années 2010' },
-            { value: '2000', label: 'Années 2000' },
-            { value: '1990', label: 'Années 90' },
-            { value: '1980', label: 'Années 80' },
-            { value: 'old', label: 'Avant 1980' },
+            { value: '2020', label: tr('Depuis 2020') },
+            { value: '2010', label: tr('Années 2010') },
+            { value: '2000', label: tr('Années 2000') },
+            { value: '1990', label: tr('Années 90') },
+            { value: '1980', label: tr('Années 80') },
+            { value: 'old', label: tr('Avant 1980') },
           ]} />
 
-        <Dropdown label="Durée" title="Filtrer par durée" value={value.length} onPick={set('length')}
+        <Dropdown label={tr('Durée')} title={tr('Filtrer par durée')} value={value.length} onPick={set('length')}
           options={[
-            { value: 'short', label: 'Moins de 1 h 35' },
+            { value: 'short', label: tr('Moins de 1 h 35') },
             { value: 'mid', label: '1 h 35 – 2 h 25' },
-            { value: 'long', label: 'Plus de 2 h 25' },
+            { value: 'long', label: tr('Plus de 2 h 25') },
           ]} />
 
-        <Dropdown label="Note" title="Filtrer par note" value={value.rating} onPick={set('rating')}
+        <Dropdown label={tr('Note')} title={tr('Filtrer par note')} value={value.rating} onPick={set('rating')}
           options={[
-            { value: 8, label: '8 et plus' },
-            { value: 7, label: '7 et plus' },
-            { value: 6, label: '6 et plus' },
+            { value: 8, label: tr('8 et plus') },
+            { value: 7, label: tr('7 et plus') },
+            { value: 6, label: tr('6 et plus') },
           ]} />
 
         <button onClick={() => set('unseen')(value.unseen ? null : true)}
           className={`h-9 px-3.5 rounded-full text-[13px] font-medium shrink-0 transition-colors ${
             value.unseen ? 'bg-white text-black' : 'bg-white/[0.08] text-white/75 hover:bg-white/[0.14]'
           }`}>
-          Non vus
+          {tr('Non vus')}
         </button>
 
-        <Dropdown label="Trier" title="Trier par" value={value.sort} onPick={set('sort')}
+        <Dropdown label={tr('Trier')} title={tr('Trier par')} value={value.sort} onPick={set('sort')}
           options={[
-            { value: 'recent', label: 'Ajouts récents' },
-            { value: 'rating', label: 'Mieux notés' },
-            { value: 'year', label: 'Plus récents' },
+            { value: 'recent', label: tr('Ajouts récents') },
+            { value: 'rating', label: tr('Mieux notés') },
+            { value: 'year', label: tr('Plus récents') },
             { value: 'az', label: 'A → Z' },
           ]} />
 
         {dirty && (
           <button onClick={onReset}
             className="h-9 px-3 rounded-full text-[13px] font-medium text-white/45 hover:text-white shrink-0 flex items-center gap-1.5 transition-colors">
-            <X size={13} /> Effacer
+            <X size={13} /> {tr('Effacer')}
           </button>
         )}
       </div>
 
       {dirty && count != null && (
-        <p className="text-[12px] p-faint mt-2">{count} titre{count > 1 ? 's' : ''}</p>
+        <p className="text-[12px] p-faint mt-2">{count} {tr('titre')}{count > 1 ? 's' : ''}</p>
       )}
     </div>
   );

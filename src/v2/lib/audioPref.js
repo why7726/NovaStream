@@ -7,6 +7,7 @@
 // dit la vérité. On regarde donc le titre d'abord, la langue ensuite.
 import { useSyncExternalStore } from 'react';
 
+import { tr } from '../../i18n';
 const KEY = 'nova_audio_pref';
 const EVT = 'nova-audio-pref';
 
@@ -50,9 +51,9 @@ export function classifyAudio(stream) {
 /** Libellé lisible : « Français (VF) », « Japonais (VO) »… */
 export function audioLabel(stream) {
   const kind = classifyAudio(stream);
-  const raw = (stream?.displayTitle || stream?.title || stream?.language || 'Piste').trim();
-  if (kind === 'vf') return `Français (VF) · ${raw}`;
-  if (kind === 'vao') return `Version originale (VO) · ${raw}`;
+  const raw = (stream?.displayTitle || stream?.title || stream?.language || tr('Piste')).trim();
+  if (kind === 'vf') return tr('Français (VF) · {0}', [raw]);
+  if (kind === 'vao') return tr('Version originale (VO) · {0}', [raw]);
   return raw;
 }
 
@@ -62,12 +63,12 @@ export function hasBothVersions(streams = []) {
   return kinds.has('vf') && kinds.has('vao');
 }
 
-const LANGS = { english: 'Anglais', japanese: 'Japonais', korean: 'Coréen', spanish: 'Espagnol',
-  german: 'Allemand', italian: 'Italien', chinese: 'Chinois', portuguese: 'Portugais' };
+const LANGS = { english: tr('Anglais'), japanese: tr('Japonais'), korean: tr('Coréen'), spanish: tr('Espagnol'),
+  german: tr('Allemand'), italian: tr('Italien'), chinese: tr('Chinois'), portuguese: tr('Portugais') };
 
 function shortLang(stream) {
   const raw = (stream?.language || stream?.title || '').trim();
-  return LANGS[raw.toLowerCase()] || raw || 'Autre';
+  return LANGS[raw.toLowerCase()] || raw || tr('Autre');
 }
 
 /**

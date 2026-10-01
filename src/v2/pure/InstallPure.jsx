@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { X, Share, Plus, Download } from 'lucide-react';
 
+import { tr } from '../../i18n';
 /* Invitation à installer Nova sur l'écran d'accueil.
 
    Android/Chrome propose l'installation tout seul (on récupère l'événement
@@ -61,20 +62,19 @@ export default function InstallPure() {
         <div className="flex items-start gap-3">
           <img src="/icon-192.png" alt="" className="w-11 h-11 rounded-xl shrink-0" />
           <div className="min-w-0 flex-1">
-            <p className="text-[14.5px] font-semibold">Installer NovaStream</p>
+            <p className="text-[14.5px] font-semibold">{tr('Installer NovaStream')}</p>
             {prompt ? (
               <p className="text-[12.5px] text-white/55 mt-0.5">
-                Pour l'avoir en application, plein écran, avec les notifications.
+                {tr('Pour l\'avoir en application, plein écran, avec les notifications.')}
               </p>
             ) : (
               <p className="text-[12.5px] text-white/55 mt-1 leading-relaxed">
-                Touche <Share size={13} className="inline -mt-0.5" /> en bas de Safari,
-                puis <span className="text-white/80">« Sur l'écran d'accueil »</span>
+                {tr('Touche')} <Share size={13} className="inline -mt-0.5" /> {tr('en bas de Safari, puis')} <span className="text-white/80">{tr('« Sur l\'écran d\'accueil »')}</span>
                 <Plus size={13} className="inline -mt-0.5 ml-0.5" />.
               </p>
             )}
           </div>
-          <button onClick={close} aria-label="Fermer" className="text-white/40 hover:text-white transition-colors shrink-0">
+          <button onClick={close} aria-label={tr('Fermer')} className="text-white/40 hover:text-white transition-colors shrink-0">
             <X size={16} />
           </button>
         </div>
@@ -82,7 +82,7 @@ export default function InstallPure() {
         {prompt && (
           <button onClick={install}
             className="mt-3 w-full h-10 rounded-full bg-white text-black text-[14px] font-semibold flex items-center justify-center gap-2 hover:opacity-90 active:scale-[0.98] transition-all">
-            <Download size={15} /> Installer
+            <Download size={15} /> {tr('Installer')}
           </button>
         )}
       </div>

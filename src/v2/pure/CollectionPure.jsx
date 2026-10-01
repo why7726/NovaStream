@@ -11,6 +11,7 @@ import useRetour from './useRetour';
 import plexService from '../../services/plexService';
 import progressService from '../../services/progressService';
 
+import { tr } from '../../i18n';
 export const slugify = (s) =>
   (s || '')
     .toLowerCase()
@@ -49,13 +50,13 @@ export default function CollectionPure() {
         const all = marquerHorreur(brut, horreur);
         if (!on) return;
         if (slug === 'tout') {
-          setTitle('Tout le catalogue');
+          setTitle(tr('Tout le catalogue'));
           setItems([...all].sort((a, b) => (a.title || '').localeCompare(b.title || '')));
           return;
         }
         const cats = buildCategories(all, { kind: 'mixed' });
         const match = cats.find((c) => slugify(c.title) === slug);
-        setTitle(match?.title || 'Sélection');
+        setTitle(match?.title || tr('Sélection'));
         setItems(match?.items || all);
       })();
     }
@@ -68,7 +69,7 @@ export default function CollectionPure() {
   return (
     <div className="min-h-screen pt-16 md:pt-20 pb-10 max-w-[1400px] mx-auto">
       <div className="px-5 md:px-8 mb-5 flex items-center gap-3">
-        <button onClick={retour} aria-label="Retour"
+        <button onClick={retour} aria-label={tr('Retour')}
           className="w-9 h-9 -ml-1.5 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
           <ChevronLeft size={20} />
         </button>
@@ -86,7 +87,7 @@ export default function CollectionPure() {
           <div className="px-5 md:px-8">
             {shown.length
               ? <GridPure items={shown} watchedIds={watchedIds} camIds={camIds} />
-              : <p className="text-[14px] p-faint py-16 text-center">Aucun titre avec ces filtres.</p>}
+              : <p className="text-[14px] p-faint py-16 text-center">{tr('Aucun titre avec ces filtres.')}</p>}
           </div>
         </>
       )}

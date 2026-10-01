@@ -4,6 +4,7 @@ import { api, signalerInstallation } from './api';
 import { refreshLibraries } from '../../lib/libraries';
 import { Carte, Champ, Bouton, Message } from './ui';
 
+import { tr } from '../../../i18n';
 /* Relier le serveur multimédia.
    Plex : même principe qu'Overseerr — plex.tv donne un code, on valide dans
    un nouvel onglet, Nova récupère la liste de TES serveurs et essaie leurs
@@ -52,7 +53,7 @@ export default function ServeurSection({ reglages, features, onChange }) {
     setEtape('liaison'); setMsg(null);
     try {
       const d = await api('/api/setup/plex/choose', { method: 'POST', body: { id: s.id, uri } });
-      setMsg({ ok: true, texte: `${d.nom} est relié (${d.uri}).` });
+      setMsg({ ok: true, texte: tr('{0} est relié ({1}).', [d.nom, d.uri]) });
       setEtape('repos');
       refreshLibraries();
       signalerInstallation();
@@ -111,7 +112,7 @@ export default function ServeurSection({ reglages, features, onChange }) {
     setEtape('liaison'); setMsg(null);
     try {
       const d = await api('/api/setup/jellyfin', { method: 'POST', body: jf });
-      setMsg({ ok: true, texte: `${d.nom} (Jellyfin ${d.version}) est relié.` });
+      setMsg({ ok: true, texte: tr('{0} (Jellyfin {1}) est relié.', [d.nom, d.version]) });
       setJf({ url: '', identifiant: '', motDePasse: '' });
       setJfOuvert(false);
       refreshLibraries();
@@ -130,12 +131,12 @@ export default function ServeurSection({ reglages, features, onChange }) {
   };
 
   return (
-    <Carte id="serveur" titre="Serveur multimédia"
-      sousTitre="Nova lit tes films et séries directement sur ton serveur.">
+    <Carte id="serveur" titre={tr('Serveur multimédia')}
+      sousTitre={tr('Nova lit tes films et séries directement sur ton serveur.')}>
       {relie && (
         <div className="flex items-center gap-2.5 text-[13.5px] text-white/80 mb-4 min-w-0">
           <span className="shrink-0 w-5 h-5 rounded-full bg-emerald-400/15 text-emerald-300 flex items-center justify-center"><Check size={12} strokeWidth={3} /></span>
-          {type === 'jellyfin' ? 'Jellyfin' : 'Plex'} relié — <span className="text-white/45 truncate">{type === 'jellyfin' ? reglages?.JELLYFIN_URL?.valeur : reglages?.PLEX_URL?.valeur}</span>
+          {type === 'jellyfin' ? 'Jellyfin' : 'Plex'} {tr('relié —')} <span className="text-white/45 truncate">{type === 'jellyfin' ? reglages?.JELLYFIN_URL?.valeur : reglages?.PLEX_URL?.valeur}</span>
         </div>
       )}
 
@@ -143,40 +144,40 @@ export default function ServeurSection({ reglages, features, onChange }) {
         <button onClick={connecterPlex} disabled={etape === 'attente' || etape === 'liaison'}
           className="flex-1 h-[48px] rounded-xl bg-[#E5A00D] text-[#1f1f1f] text-[14.5px] font-semibold flex items-center justify-center gap-2.5 hover:brightness-105 transition disabled:opacity-60">
           {etape === 'attente' || etape === 'liaison' ? <Loader2 size={17} className="animate-spin" /> : <LogoPlex />}
-          {etape === 'attente' ? 'En attente de Plex…' : etape === 'liaison' ? 'Liaison…' : type === 'plex' ? 'Changer de serveur Plex' : 'Se connecter avec Plex'}
+          {etape === 'attente' ? tr('En attente de Plex…') : etape === 'liaison' ? 'Liaison…' : type === 'plex' ? tr('Changer de serveur Plex') : tr('Se connecter avec Plex')}
         </button>
         <button onClick={() => setJfOuvert(!jfOuvert)} disabled={etape === 'attente' || etape === 'liaison'}
           className={`flex-1 h-[48px] rounded-xl text-[14.5px] font-semibold flex items-center justify-center gap-2.5 transition disabled:opacity-60 ${jfOuvert ? 'bg-white text-black' : 'bg-white/[0.08] hover:bg-white/[0.13] text-white'}`}>
-          <LogoJellyfin /> {type === 'jellyfin' ? 'Changer de serveur Jellyfin' : 'Se connecter avec Jellyfin'}
+          <LogoJellyfin /> {type === 'jellyfin' ? tr('Changer de serveur Jellyfin') : tr('Se connecter avec Jellyfin')}
         </button>
       </div>
 
       {jfOuvert && (
         <form onSubmit={connecterJellyfin} className="mt-4 p-4 rounded-2xl bg-white/[0.04] space-y-3">
-          <Champ label="Adresse du serveur Jellyfin" placeholder="http://192.168.1.10:8096"
+          <Champ label={tr('Adresse du serveur Jellyfin')} placeholder="http://192.168.1.10:8096"
             valeur={jf.url} onChange={(v) => setJf({ ...jf, url: v })}
-            note="L'adresse que tu tapes dans ton navigateur pour ouvrir Jellyfin. En Docker, pas de « localhost » : mets l'IP de la machine." />
+            note={tr('L\'adresse que tu tapes dans ton navigateur pour ouvrir Jellyfin. En Docker, pas de « localhost » : mets l\'IP de la machine.')} />
           <div className="grid sm:grid-cols-2 gap-3">
-            <Champ label="Identifiant Jellyfin" valeur={jf.identifiant} onChange={(v) => setJf({ ...jf, identifiant: v })} />
-            <Champ label="Mot de passe" secret valeur={jf.motDePasse} onChange={(v) => setJf({ ...jf, motDePasse: v })} />
+            <Champ label={tr('Identifiant Jellyfin')} valeur={jf.identifiant} onChange={(v) => setJf({ ...jf, identifiant: v })} />
+            <Champ label={tr('Mot de passe')} secret valeur={jf.motDePasse} onChange={(v) => setJf({ ...jf, motDePasse: v })} />
           </div>
           <p className="text-[11.5px] text-white/35 leading-relaxed">
-            Nova lira tout avec ce compte : choisis-en un qui voit les bibliothèques à partager. Le mot de passe n'est pas conservé, seulement le jeton que Jellyfin renvoie.
+            {tr('Nova lira tout avec ce compte : choisis-en un qui voit les bibliothèques à partager. Le mot de passe n\'est pas conservé, seulement le jeton que Jellyfin renvoie.')}
           </p>
-          <Bouton type="submit" disabled={!jf.url || !jf.identifiant || etape === 'liaison'}>{etape === 'liaison' ? 'Connexion…' : 'Se connecter'}</Bouton>
+          <Bouton type="submit" disabled={!jf.url || !jf.identifiant || etape === 'liaison'}>{etape === 'liaison' ? 'Connexion…' : tr('Se connecter')}</Bouton>
         </form>
       )}
 
       {etape === 'attente' && (
         <p className="text-[12.5px] text-white/45 mt-3">
-          Valide la connexion dans l'onglet Plex qui vient de s'ouvrir, puis reviens ici.{' '}
-          <button className="underline hover:text-white" onClick={() => { arret.current = true; setEtape('repos'); }}>Annuler</button>
+          {tr('Valide la connexion dans l\'onglet Plex qui vient de s\'ouvrir, puis reviens ici.')}{' '}
+          <button className="underline hover:text-white" onClick={() => { arret.current = true; setEtape('repos'); }}>{tr('Annuler')}</button>
         </p>
       )}
 
       {etape === 'choix' && serveurs.length > 0 && (
         <div className="mt-4 space-y-2">
-          <p className="text-[12.5px] text-white/45">Quel serveur relier ?</p>
+          <p className="text-[12.5px] text-white/45">{tr('Quel serveur relier ?')}</p>
           {serveurs.map((s) => (
             <button key={s.id} onClick={() => choisir(s)}
               className="w-full text-left p-3.5 rounded-xl bg-white/[0.05] hover:bg-white/[0.1] transition-colors">
@@ -190,35 +191,35 @@ export default function ServeurSection({ reglages, features, onChange }) {
       {msg && <Message ok={msg.ok} className="mt-4">{msg.texte}</Message>}
 
       <button onClick={() => setManuel(!manuel)} className="mt-4 text-[12.5px] text-white/40 hover:text-white/70 transition-colors">
-        {manuel ? 'Masquer la saisie manuelle' : 'Plex : saisir l\'adresse et le jeton à la main'}
+        {manuel ? tr('Masquer la saisie manuelle') : tr('Plex : saisir l\'adresse et le jeton à la main')}
       </button>
       {manuel && (
         <div className="mt-3 space-y-3">
-          <Champ label="Adresse du serveur Plex" placeholder="http://192.168.1.10:32400"
+          <Champ label={tr('Adresse du serveur Plex')} placeholder="http://192.168.1.10:32400"
             valeur={saisie.PLEX_URL} onChange={(v) => setSaisie({ ...saisie, PLEX_URL: v })} />
-          <Champ label="Jeton Plex (X-Plex-Token)" secret placeholder={reglages?.PLEX_TOKEN?.apercu || ''}
+          <Champ label={tr('Jeton Plex (X-Plex-Token)')} secret placeholder={reglages?.PLEX_TOKEN?.apercu || ''}
             aide="https://support.plex.tv/articles/204059436-finding-an-authentication-token-x-plex-token/"
             valeur={saisie.PLEX_TOKEN} onChange={(v) => setSaisie({ ...saisie, PLEX_TOKEN: v })} />
-          <Bouton onClick={enregistrerManuel} disabled={!saisie.PLEX_URL || (!saisie.PLEX_TOKEN && !reglages?.PLEX_TOKEN?.defini)}>Tester et enregistrer</Bouton>
+          <Bouton onClick={enregistrerManuel} disabled={!saisie.PLEX_URL || (!saisie.PLEX_TOKEN && !reglages?.PLEX_TOKEN?.defini)}>{tr('Tester et enregistrer')}</Bouton>
         </div>
       )}
 
       {type === 'plex' && (
         <div className="mt-5 pt-4 border-t border-white/[0.07]">
           <button onClick={() => setAvance(!avance)} className="flex items-center gap-1.5 text-[12.5px] text-white/40 hover:text-white/70 transition-colors">
-            <ChevronDown size={14} className={`transition-transform ${avance ? 'rotate-180' : ''}`} /> Avancé
+            <ChevronDown size={14} className={`transition-transform ${avance ? 'rotate-180' : ''}`} /> {tr('Avancé')}
           </button>
           {avance && (
             <div className="mt-3 space-y-3">
               <p className="text-[12px] text-white/45 leading-relaxed">
-                Facultatif : le jeton d'un compte Plex géré dédié à Nova. Les lectures de tes utilisateurs apparaîtront sous ce compte plutôt que sous le tien, et ta propre reprise de lecture reste intacte.
+                {tr('Facultatif : le jeton d\'un compte Plex géré dédié à Nova. Les lectures de tes utilisateurs apparaîtront sous ce compte plutôt que sous le tien, et ta propre reprise de lecture reste intacte.')}
               </p>
-              <Champ label="Jeton du compte Plex dédié" secret placeholder={reglages?.PLEX_NOVA_TOKEN?.apercu || 'non défini'}
+              <Champ label={tr('Jeton du compte Plex dédié')} secret placeholder={reglages?.PLEX_NOVA_TOKEN?.apercu || tr('non défini')}
                 valeur={jetonNova} onChange={setJetonNova} />
               <div className="flex gap-2">
-                <Bouton onClick={() => enregistrerJetonNova(jetonNova)} disabled={!jetonNova}>Enregistrer</Bouton>
+                <Bouton onClick={() => enregistrerJetonNova(jetonNova)} disabled={!jetonNova}>{tr('Enregistrer')}</Bouton>
                 {reglages?.PLEX_NOVA_TOKEN?.defini && !reglages.PLEX_NOVA_TOKEN.depuisEnv && (
-                  <Bouton variante="discret" onClick={() => enregistrerJetonNova(null)}>Retirer</Bouton>
+                  <Bouton variante="discret" onClick={() => enregistrerJetonNova(null)}>{tr('Retirer')}</Bouton>
                 )}
               </div>
             </div>
@@ -228,7 +229,7 @@ export default function ServeurSection({ reglages, features, onChange }) {
 
       {!relie && etape === 'repos' && !msg && (
         <p className="flex items-center gap-2 text-[12.5px] text-white/40 mt-4">
-          <AlertCircle size={14} /> Tant qu'aucun serveur n'est relié, les autres utilisateurs voient une page d'attente.
+          <AlertCircle size={14} /> {tr('Tant qu\'aucun serveur n\'est relié, les autres utilisateurs voient une page d\'attente.')}
         </p>
       )}
     </Carte>

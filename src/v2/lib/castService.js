@@ -1,3 +1,4 @@
+import { tr } from '../../i18n';
 // ═══════════════════════════════════════════════════════════════════
 //  Chromecast (Google Cast)
 //
@@ -74,7 +75,7 @@ export async function castMedia(media) {
   const ctx = window.cast.framework.CastContext.getInstance();
   await ctx.requestSession();
   const session = ctx.getCurrentSession();
-  if (!session) throw new Error('Aucune session');
+  if (!session) throw new Error(tr('Aucune session'));
 
   // URL absolue : c'est la télé qui télécharge, pas le navigateur.
   const absolute = new URL(media.url, window.location.origin).href;

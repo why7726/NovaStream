@@ -7,6 +7,7 @@ import HomePure from './pure/HomePure';
 import InstallPure from './pure/InstallPure';
 import { useLibraries } from './lib/libraries';
 
+import { tr } from '../i18n';
 const DetailsPure = React.lazy(() => import('./pure/DetailsPure'));
 const FavoritesPure = React.lazy(() => import('./pure/FavoritesPure'));
 const HistoryPure = React.lazy(() => import('./pure/HistoryPure'));
@@ -16,6 +17,7 @@ const ConnectPure = React.lazy(() => import('./pure/ConnectPure'));
 const DiscoverPure = React.lazy(() => import('./pure/DiscoverPure'));
 const SettingsPure = React.lazy(() => import('./pure/setup/SettingsPure'));
 const CalendrierPure = React.lazy(() => import('./pure/calendrier/CalendrierPure'));
+const PreferencesPure = React.lazy(() => import('./pure/preferences/PreferencesPure'));
 const ActorPageV2 = React.lazy(() => import('./pages/ActorPageV2'));
 const WrappedV2 = React.lazy(() => import('./pages/WrappedV2'));
 const Player = React.lazy(() => import('./pages/PlayerV2'));
@@ -105,8 +107,8 @@ export default function ShellV2({ user, handleAuth, serveurManquant }) {
     if (user.isAdmin) return <Navigate to="/reglages" replace />;
     return (
       <div className="nova-v2 nova-pure min-h-screen flex flex-col items-center justify-center text-center px-8">
-        <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-2.5">Presque prêt</h1>
-        <p className="text-[14px] text-white/50 max-w-sm">L'administrateur n'a pas encore relié de serveur multimédia. Reviens un peu plus tard.</p>
+        <h1 className="text-[22px] font-semibold tracking-[-0.03em] mb-2.5">{tr('Presque prêt')}</h1>
+        <p className="text-[14px] text-white/50 max-w-sm">{tr('L\'administrateur n\'a pas encore relié de serveur multimédia. Reviens un peu plus tard.')}</p>
       </div>
     );
   }
@@ -152,6 +154,7 @@ export default function ShellV2({ user, handleAuth, serveurManquant }) {
             <Route path="/admin" element={<AdminOnly user={user}><Admin /></AdminOnly>} />
             <Route path="/reglages" element={<AdminOnly user={user}><SettingsPure /></AdminOnly>} />
             <Route path="/calendrier" element={<AdminOnly user={user}><CalendrierPure /></AdminOnly>} />
+            <Route path="/preferences" element={<Protected user={user}><PreferencesPure /></Protected>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Suspense>

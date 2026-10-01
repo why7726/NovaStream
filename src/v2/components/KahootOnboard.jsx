@@ -4,6 +4,7 @@ import { Shuffle, Upload, ArrowRight } from 'lucide-react';
 import WatchAvatar from './WatchAvatar';
 import { AVATAR_ANIMALS, AVATAR_ACCESSORIES, AVATAR_COLORS, randomName, randomAvatar } from '../lib/watchNames';
 
+import { tr } from '../../i18n';
 // Kahoot-style guest onboarding: pick a name + animal avatar (+ accessory /
 // color / imported photo), or hit "Passer" for a random funny identity.
 export default function KahootOnboard({ onDone }) {
@@ -33,7 +34,7 @@ export default function KahootOnboard({ onDone }) {
           value={name}
           onChange={(e) => setName(e.target.value)}
           maxLength={32}
-          placeholder="Ton pseudo…"
+          placeholder={tr('Ton pseudo…')}
           className="mt-5 w-full text-center text-lg font-bold bg-white/[0.06] border border-white/10 rounded-2xl px-4 py-3 outline-none focus:border-white/30 transition-colors"
         />
       </div>
@@ -42,7 +43,7 @@ export default function KahootOnboard({ onDone }) {
         <>
           {/* Animals */}
           <div className="mt-6">
-            <p className="p-label mb-2">Personnage</p>
+            <p className="p-label mb-2">{tr('Personnage')}</p>
             <div className="grid grid-cols-8 gap-1.5">
               {AVATAR_ANIMALS.map((a) => (
                 <button key={a} onClick={() => set({ animal: a })}
@@ -55,7 +56,7 @@ export default function KahootOnboard({ onDone }) {
 
           {/* Colors */}
           <div className="mt-4">
-            <p className="p-label mb-2">Couleur</p>
+            <p className="p-label mb-2">{tr('Couleur')}</p>
             <div className="flex gap-2 flex-wrap">
               {AVATAR_COLORS.map((c) => (
                 <button key={c} onClick={() => set({ color: c })}
@@ -67,7 +68,7 @@ export default function KahootOnboard({ onDone }) {
 
           {/* Accessories */}
           <div className="mt-4">
-            <p className="p-label mb-2">Accessoire</p>
+            <p className="p-label mb-2">{tr('Accessoire')}</p>
             <div className="flex gap-2 flex-wrap">
               {AVATAR_ACCESSORIES.map((acc) => (
                 <button key={acc.id} onClick={() => set({ accessory: acc.id })}
@@ -85,12 +86,12 @@ export default function KahootOnboard({ onDone }) {
         <input ref={fileRef} type="file" accept="image/*" onChange={importPhoto} className="hidden" />
         <button onClick={() => fileRef.current?.click()}
           className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/[0.06] border border-white/10 text-sm font-semibold hover:bg-white/10 transition-colors">
-          <Upload size={16} /> Importer une photo
+          <Upload size={16} /> {tr('Importer une photo')}
         </button>
         {avatar.type === 'photo' && (
           <button onClick={() => setAvatar(randomAvatar())}
             className="py-2.5 px-4 rounded-xl bg-white/[0.06] border border-white/10 text-sm font-semibold hover:bg-white/10 transition-colors">
-            Emoji
+            {tr('Emoji')}
           </button>
         )}
       </div>
@@ -99,11 +100,11 @@ export default function KahootOnboard({ onDone }) {
       <div className="mt-6 flex items-center gap-3">
         <button onClick={skip}
           className="flex items-center justify-center gap-2 py-3 px-4 rounded-2xl bg-white/[0.06] border border-white/10 text-sm font-bold text-gray-300 hover:bg-white/10 transition-colors">
-          <Shuffle size={16} /> Passer
+          <Shuffle size={16} /> {tr('Passer')}
         </button>
         <button onClick={confirm}
           className="flex-1 flex items-center justify-center gap-2 h-[48px] rounded-full bg-white text-black text-[15px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all">
-          Rejoindre <ArrowRight size={18} />
+          {tr('Rejoindre')} <ArrowRight size={18} />
         </button>
       </div>
     </motion.div>

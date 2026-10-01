@@ -4,6 +4,7 @@ import { MessageCircle, Send, Smile, X, Users, Hourglass, Timer } from 'lucide-r
 import WatchAvatar from './WatchAvatar';
 import { getCurrent, on, connectSession, isConnected, sendChat, sendReaction } from '../lib/watchParty';
 
+import { tr } from '../../i18n';
 const EMOJIS = ['😂', '❤️', '🔥', '😮', '😢', '👏', '🎉', '💀'];
 
 // In-player watch-party layer: presence, live chat, floating emoji reactions,
@@ -100,7 +101,7 @@ export default function WatchPartyOverlay({ videoRef }) {
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
             className="absolute top-14 left-1/2 -translate-x-1/2 z-[55] flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/55 backdrop-blur-xl border border-white/15 text-white/85 text-[12px] font-medium pointer-events-none">
             <Hourglass size={13} className="animate-pulse" />
-            En attente de {bufferers.map((b) => b.name).join(', ')}…
+            {tr('En attente de')} {bufferers.map((b) => b.name).join(', ')}…
           </motion.div>
         )}
       </AnimatePresence>
@@ -108,7 +109,7 @@ export default function WatchPartyOverlay({ videoRef }) {
       {/* ── Guest hint ── */}
       {!isHost && (
         <div className="absolute top-3 right-3 z-[55] px-2.5 py-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 text-[10px] font-bold text-white/60 pointer-events-none hidden md:block">
-          🎬 L'hôte contrôle la lecture
+          {tr('🎬 L\'hôte contrôle la lecture')}
         </div>
       )}
 
@@ -160,9 +161,9 @@ export default function WatchPartyOverlay({ videoRef }) {
         </button>
 
         {isHost && (
-          <button onClick={() => setAutoWait((w) => !w)} title="Attendre que tout le monde ait chargé"
+          <button onClick={() => setAutoWait((w) => !w)} title={tr('Attendre que tout le monde ait chargé')}
             className={`h-11 px-3 rounded-full flex items-center gap-1.5 backdrop-blur-xl border shadow-lg transition-all active:scale-95 text-[11px] font-bold ${autoWait ? 'bg-white text-black border-white' : 'bg-black/50 text-white/60 border-white/15'}`}>
-            <Timer size={15} /> <span className="hidden sm:inline">Attendre tous</span>
+            <Timer size={15} /> <span className="hidden sm:inline">{tr('Attendre tous')}</span>
           </button>
         )}
       </div>
@@ -174,11 +175,11 @@ export default function WatchPartyOverlay({ videoRef }) {
             onClick={(e) => e.stopPropagation()}
             className="absolute top-0 left-0 h-full w-[86%] max-w-[360px] z-[60] bg-black/50 backdrop-blur-2xl border-r border-white/10 flex flex-col shadow-2xl">
             <div className="p-4 border-b border-white/10 flex items-center justify-between">
-              <h3 className="text-[15px] font-semibold flex items-center gap-2"><MessageCircle size={17} /> Discussion</h3>
+              <h3 className="text-[15px] font-semibold flex items-center gap-2"><MessageCircle size={17} /> {tr('Discussion')}</h3>
               <button onClick={() => setChatOpen(false)} className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"><X size={16} /></button>
             </div>
             <div ref={listRef} className="flex-1 overflow-y-auto p-3 space-y-3 scrollbar-hide">
-              {messages.length === 0 && <p className="text-center text-white/40 text-sm mt-6">Dis quelque chose 👋</p>}
+              {messages.length === 0 && <p className="text-center text-white/40 text-sm mt-6">{tr('Dis quelque chose 👋')}</p>}
               {messages.map((m, i) => {
                 const mine = m.pid === selfPid;
                 return (
@@ -194,7 +195,7 @@ export default function WatchPartyOverlay({ videoRef }) {
             </div>
             <div className="p-3 border-t border-white/10 flex items-center gap-2">
               <input value={draft} onChange={(e) => setDraft(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && send()}
-                placeholder="Message…" maxLength={300}
+                placeholder={tr('Message…')} maxLength={300}
                 className="flex-1 bg-white/[0.06] border border-white/10 rounded-full px-4 py-2.5 text-sm outline-none focus:border-white/30 transition-colors" />
               <button onClick={send} className="w-10 h-10 rounded-full bg-white text-black flex items-center justify-center shrink-0 active:scale-90 transition-transform">
                 <Send size={16} />

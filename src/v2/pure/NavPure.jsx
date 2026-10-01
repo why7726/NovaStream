@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library, CalendarClock } from 'lucide-react';
+import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library, CalendarClock, SlidersHorizontal } from 'lucide-react';
 import authService from '../../services/authService';
 import SearchPure from './SearchPure';
 import { useLibraries, libraryKind } from '../lib/libraries';
@@ -9,6 +9,7 @@ import { useFeatures } from '../lib/features';
 
 import { pushStatus, subscribePush, unsubscribePush } from '../lib/pushService';
 
+import { tr } from '../../i18n';
 /* Navigation "Pure" — une ligne de texte, rien d'autre.
    Desktop : liens texte centrés, fond qui se voile au scroll.
    Mobile  : barre d'onglets translucide en bas (icône + micro-label). */
@@ -16,8 +17,8 @@ import { pushStatus, subscribePush, unsubscribePush } from '../lib/pushService';
 /* Accueil, puis une entrée par bibliothèque du serveur — sous le nom qu'elle y
    porte (« Films FR », « Animés »…), dans l'ordre choisi dans les réglages —,
    puis Favoris. */
-const HOME = { id: 'home', label: 'Accueil', path: '/', icon: Home };
-const FAVS = { id: 'favorites', label: 'Favoris', path: '/favorites', icon: Heart };
+const HOME = { id: 'home', label: tr('Accueil'), path: '/', icon: Home };
+const FAVS = { id: 'favorites', label: tr('Favoris'), path: '/favorites', icon: Heart };
 const ICONES = { movie: Film, show: Tv, anime: Sparkles };
 // La barre du téléphone n'a de place que pour trois bibliothèques ; les
 // suivantes passent dans le menu du compte.
@@ -57,7 +58,7 @@ export default function NavPure() {
       else await subscribePush();
       setPush(await pushStatus());
     } catch (e) {
-      alert(e.message || 'Notifications indisponibles');
+      alert(e.message || tr('Notifications indisponibles'));
     } finally {
       setPushBusy(false);
     }
@@ -101,8 +102,8 @@ export default function NavPure() {
         {/* le dégradé ne capte pas les clics, seuls les éléments le font */}
         <div className="max-w-[1400px] mx-auto h-14 md:h-[58px] px-4 md:px-8 flex items-center justify-between [&>*]:pointer-events-auto">
           <button onClick={() => navigate('/')} className="flex items-baseline gap-1.5 shrink-0">
-            <span className="text-[17px] font-semibold tracking-[-0.03em]">Nova</span>
-            <span className="text-[17px] font-light tracking-[-0.03em] text-white/60">Stream</span>
+            <span className="text-[17px] font-semibold tracking-[-0.03em]">{'Nova'}</span>
+            <span className="text-[17px] font-light tracking-[-0.03em] text-white/60">{'Stream'}</span>
           </button>
 
           {/* bulle de verre, centrée, comme en bas sur téléphone */}
@@ -131,11 +132,11 @@ export default function NavPure() {
           </nav>
 
           <div className="flex items-center gap-1">
-            <button onClick={() => setSearch(true)} aria-label="Rechercher"
+            <button onClick={() => setSearch(true)} aria-label={tr('Rechercher')}
               className="w-9 h-9 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/[0.08] transition-colors">
               <Search size={17} />
             </button>
-            <button onClick={() => setMenu(true)} aria-label="Compte" className="p-0.5">{avatar}</button>
+            <button onClick={() => setMenu(true)} aria-label={tr('Compte')} className="p-0.5">{avatar}</button>
           </div>
         </div>
       </header>
@@ -189,20 +190,21 @@ export default function NavPure() {
                     <div className="my-1.5 mx-3.5 border-t border-white/[0.08]" />
                   </div>
                 )}
-                <MenuRow icon={Compass} onClick={() => { setMenu(false); navigate('/explorer'); }}>Explorer</MenuRow>
-                <MenuRow icon={Popcorn} onClick={() => { setMenu(false); navigate('/tonight'); }}>Ce soir</MenuRow>
-                <MenuRow icon={Clock} onClick={() => { setMenu(false); navigate('/history'); }}>Historique</MenuRow>
-                <MenuRow icon={Heart} onClick={() => { setMenu(false); navigate('/favorites'); }}>Favoris</MenuRow>
-                <MenuRow icon={Sparkles} onClick={() => { setMenu(false); navigate('/wrapped'); }}>Mon Wrapped</MenuRow>
-                <MenuRow icon={PlusCircle} onClick={() => { setMenu(false); navigate('/requests'); }}>Demander un film</MenuRow>
+                <MenuRow icon={Compass} onClick={() => { setMenu(false); navigate('/explorer'); }}>{tr('Explorer')}</MenuRow>
+                <MenuRow icon={Popcorn} onClick={() => { setMenu(false); navigate('/tonight'); }}>{tr('Ce soir')}</MenuRow>
+                <MenuRow icon={Clock} onClick={() => { setMenu(false); navigate('/history'); }}>{tr('Historique')}</MenuRow>
+                <MenuRow icon={Heart} onClick={() => { setMenu(false); navigate('/favorites'); }}>{tr('Favoris')}</MenuRow>
+                <MenuRow icon={Sparkles} onClick={() => { setMenu(false); navigate('/wrapped'); }}>{tr('Mon Wrapped')}</MenuRow>
+                <MenuRow icon={PlusCircle} onClick={() => { setMenu(false); navigate('/requests'); }}>{tr('Demander un film')}</MenuRow>
                 {connecteurs && (
-                  <MenuRow icon={Link2} onClick={() => { setMenu(false); navigate('/connect'); }}>Connecteurs</MenuRow>
+                  <MenuRow icon={Link2} onClick={() => { setMenu(false); navigate('/connect'); }}>{tr('Connecteurs')}</MenuRow>
                 )}
+                <MenuRow icon={SlidersHorizontal} onClick={() => { setMenu(false); navigate('/preferences'); }}>{tr('Préférences')}</MenuRow>
                 {user?.isAdmin && (
                   <>
-                    <MenuRow icon={ShieldCheck} onClick={() => { setMenu(false); navigate('/admin'); }}>Espace admin</MenuRow>
-                    <MenuRow icon={CalendarClock} onClick={() => { setMenu(false); navigate('/calendrier'); }}>Calendrier des sorties</MenuRow>
-                    <MenuRow icon={Settings} onClick={() => { setMenu(false); navigate('/reglages'); }}>Réglages du serveur</MenuRow>
+                    <MenuRow icon={ShieldCheck} onClick={() => { setMenu(false); navigate('/admin'); }}>{tr('Espace admin')}</MenuRow>
+                    <MenuRow icon={CalendarClock} onClick={() => { setMenu(false); navigate('/calendrier'); }}>{tr('Calendrier des sorties')}</MenuRow>
+                    <MenuRow icon={Settings} onClick={() => { setMenu(false); navigate('/reglages'); }}>{tr('Réglages du serveur')}</MenuRow>
                   </>
                 )}
 
@@ -213,19 +215,19 @@ export default function NavPure() {
                     <button onClick={togglePush} disabled={pushBusy}
                       className="w-full flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-[14px] font-medium text-white/90 hover:bg-white/[0.08] transition-colors disabled:opacity-50">
                       <Check size={17} className={push.subscribed ? 'opacity-100' : 'opacity-0'} />
-                      <span className="flex-1 text-left">Notifications</span>
-                      <span className="text-[11px] text-white/40">{push.subscribed ? 'Activées' : 'Désactivées'}</span>
+                      <span className="flex-1 text-left">{tr('Notifications')}</span>
+                      <span className="text-[11px] text-white/40">{push.subscribed ? tr('Activées') : tr('Désactivées')}</span>
                     </button>
                     <div className="my-1.5 mx-3.5 border-t border-white/[0.08]" />
                   </>
                 )}
 
                 <MenuRow icon={LogOut} tone="text-white/70" onClick={() => { authService.logout(); window.location.href = '/login'; }}>
-                  Déconnexion
+                  {tr('Déconnexion')}
                 </MenuRow>
                 <button onClick={async () => { await authService.logoutAll(); window.location.href = '/login'; }}
                   className="w-full text-left px-3.5 pb-2.5 pt-0.5 text-[11.5px] text-white/35 hover:text-white/60 transition-colors">
-                  Déconnecter tous les appareils
+                  {tr('Déconnecter tous les appareils')}
                 </button>
               </div>
             </motion.div>

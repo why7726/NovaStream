@@ -1,5 +1,6 @@
 import authService from '../../../services/authService';
 
+import { tr } from '../../../i18n';
 const base = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /** Appel JSON authentifié ; lève une Error avec le message du serveur. */
@@ -14,7 +15,7 @@ export async function api(chemin, { method = 'GET', body } = {}) {
     body: body ? JSON.stringify(body) : undefined,
   });
   const d = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(d.error || `Erreur ${r.status}`);
+  if (!r.ok) throw new Error(d.error || tr('Erreur {0}', [r.status]));
   return d;
 }
 

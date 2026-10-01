@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Check, AlertCircle, Eye, EyeOff, ExternalLink } from 'lucide-react';
 
+import { tr } from '../../../i18n';
 /* Briques communes de la page Réglages — même langage que le reste de Pure :
    surfaces à peine teintées, un seul bouton blanc par action principale. */
 
@@ -19,7 +20,7 @@ export function Carte({ id, titre, sousTitre, badge, children }) {
   );
 }
 
-export function Pastille({ actif, texteActif = 'Actif', texteInactif = 'Non configuré' }) {
+export function Pastille({ actif, texteActif = tr('Actif'), texteInactif = tr('Non configuré') }) {
   return actif ? (
     <span className="shrink-0 inline-flex items-center gap-1.5 h-6 px-2.5 rounded-full bg-emerald-400/12 text-emerald-300 text-[11.5px] font-medium">
       <Check size={11} strokeWidth={3} /> {texteActif}
@@ -40,7 +41,7 @@ export function Champ({ label, valeur, onChange, placeholder, secret = false, ai
         {aide && (
           <a href={aide} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()}
             className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-white/35 hover:text-white/70 transition-colors font-normal">
-            Où la trouver <ExternalLink size={11} />
+            {tr('Où la trouver')} <ExternalLink size={11} />
           </a>
         )}
       </span>
@@ -49,7 +50,7 @@ export function Champ({ label, valeur, onChange, placeholder, secret = false, ai
           type={secret && !voir ? 'password' : 'text'} autoComplete="off" spellCheck={false}
           className="w-full h-11 bg-black/25 border border-white/[0.08] rounded-xl px-3.5 pr-10 text-[13.5px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25 transition-colors" />
         {secret && (
-          <button type="button" onClick={() => setVoir(!voir)} aria-label={voir ? 'Masquer' : 'Afficher'}
+          <button type="button" onClick={() => setVoir(!voir)} aria-label={voir ? tr('Masquer') : tr('Afficher')}
             className="absolute right-2.5 top-1/2 -translate-y-1/2 text-white/30 hover:text-white/70">
             {voir ? <EyeOff size={15} /> : <Eye size={15} />}
           </button>

@@ -8,6 +8,7 @@ import requestService from '../lib/requestService';
 import { useFeatures } from '../lib/features';
 import Indisponible from './Indisponible';
 
+import { tr } from '../../i18n';
 /* « Dis-moi ta soirée » — de l'humeur vers un film.
 
    Parti pris : l'assistant reste INVISIBLE. Pas de bulle de conversation,
@@ -18,12 +19,12 @@ import Indisponible from './Indisponible';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 const AMORCES = [
-  'Fatigué, rien de compliqué',
-  'Envie de rire',
-  'Envie d\'avoir peur',
-  'À deux',
-  'Entre potes',
-  'Un truc beau et lent',
+  tr('Fatigué, rien de compliqué'),
+  tr('Envie de rire'),
+  tr('Envie d\'avoir peur'),
+  tr('À deux'),
+  tr('Entre potes'),
+  tr('Un truc beau et lent'),
 ];
 
 export default function VibePure({ compact = false }) {
@@ -53,7 +54,7 @@ export default function VibePure({ compact = false }) {
       await requestService.create({ tmdbId: x.tmdbId, mediaType: x.type, title: x.title, year: x.year, poster: x.poster });
       setDemandes((s) => new Set(s).add(clef(x)));
     } catch (e) {
-      setMotTout(e.message || 'Demande impossible');
+      setMotTout(e.message || tr('Demande impossible'));
     }
   };
 
@@ -73,8 +74,8 @@ export default function VibePure({ compact = false }) {
     }
     setEnvoiTout(false);
     setMotTout(rate
-      ? `${ok} demande${ok > 1 ? 's' : ''} envoyée${ok > 1 ? 's' : ''}, ${rate} en échec.`
-      : `${ok} demande${ok > 1 ? 's' : ''} envoyée${ok > 1 ? 's' : ''} — tu seras prévenu quand c'est prêt.`);
+      ? tr('{0} demande{1} envoyée{2}, {3} en échec.', [ok, ok > 1 ? 's' : '', ok > 1 ? 's' : '', rate])
+      : tr('{0} demande{1} envoyée{2} — tu seras prévenu quand c\'est prêt.', [ok, ok > 1 ? 's' : '', ok > 1 ? 's' : '']));
   };
 
   // Nouvelle recherche → on repart d'une liste propre
@@ -84,9 +85,9 @@ export default function VibePure({ compact = false }) {
   useEffect(() => {
     if (etat !== 'cherche') return;
     const etapes = [
-      'On lit ta bibliothèque…',
-      'On cherche ce qui colle à ton humeur…',
-      'On vérifie que tout existe bien…',
+      tr('On lit ta bibliothèque…'),
+      tr('On cherche ce qui colle à ton humeur…'),
+      tr('On vérifie que tout existe bien…'),
     ];
     let i = 0;
     setEtape(etapes[0]);
@@ -106,7 +107,7 @@ export default function VibePure({ compact = false }) {
         body: JSON.stringify({ humeur: q }),
       });
       const d = await r.json();
-      if (!r.ok) throw new Error(d.error || 'Indisponible');
+      if (!r.ok) throw new Error(d.error || tr('Indisponible'));
       setRes(d); setEtat('ok');
     } catch (e) {
       setErreur(e.message); setEtat('erreur');
@@ -121,7 +122,7 @@ export default function VibePure({ compact = false }) {
       <section className={compact ? '' : 'mb-10'}>
         <div className="flex items-center gap-2.5 mb-3">
           <Sparkles size={18} className="text-white/55" />
-          <h2 className="p-title text-[17px] md:text-[20px]">Dis-moi ta soirée</h2>
+          <h2 className="p-title text-[17px] md:text-[20px]">{tr('Dis-moi ta soirée')}</h2>
         </div>
         <Indisponible feature="assistant" className="max-w-xl" />
       </section>
@@ -133,11 +134,11 @@ export default function VibePure({ compact = false }) {
       {!compact && (
         <div className="flex items-center gap-2.5 mb-1.5">
           <Sparkles size={18} className="text-white/55" />
-          <h2 className="p-title text-[17px] md:text-[20px]">Dis-moi ta soirée</h2>
+          <h2 className="p-title text-[17px] md:text-[20px]">{tr('Dis-moi ta soirée')}</h2>
         </div>
       )}
       <p className="text-[13px] p-dim mb-3.5">
-        Ton humeur, ta journée, avec qui tu es — et on te propose quelque chose.
+        {tr('Ton humeur, ta journée, avec qui tu es — et on te propose quelque chose.')}
       </p>
 
       <div className="relative max-w-xl">
@@ -146,11 +147,11 @@ export default function VibePure({ compact = false }) {
           value={humeur}
           onChange={(e) => setHumeur(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && chercher()}
-          placeholder="Journée pourrie, envie de rien de compliqué…"
+          placeholder={tr('Journée pourrie, envie de rien de compliqué…')}
           className="w-full h-[52px] bg-white/[0.06] border border-white/10 rounded-2xl pl-4 pr-14 text-[14.5px] outline-none focus:border-white/30 transition-colors"
         />
         <button onClick={() => chercher()} disabled={humeur.trim().length < 2 || etat === 'cherche'}
-          aria-label="Proposer"
+          aria-label={tr('Proposer')}
           className="absolute right-2 top-1/2 -translate-y-1/2 w-9 h-9 rounded-full bg-white text-black flex items-center justify-center disabled:opacity-30 transition-opacity">
           {etat === 'cherche' ? <Loader2 size={16} className="animate-spin" /> : <ArrowUp size={17} />}
         </button>
@@ -183,7 +184,7 @@ export default function VibePure({ compact = false }) {
 
           {res.surNova?.length > 0 && (
             <>
-              <p className="p-label mb-2.5">À lancer maintenant</p>
+              <p className="p-label mb-2.5">{tr('À lancer maintenant')}</p>
               <div className="p-rail gap-3 md:gap-4 pb-1 -mx-1 px-1">
                 {res.surNova.map((x) => (
                   <button key={x.id} onClick={() => navigate(`/title/${x.id}`)}
@@ -208,14 +209,14 @@ export default function VibePure({ compact = false }) {
 
           {res.surNova?.length === 0 && (
             <p className="text-[13px] p-dim mb-4">
-              Rien dans ta bibliothèque ne colle vraiment à ça. Mais voilà des pistes :
+              {tr('Rien dans ta bibliothèque ne colle vraiment à ça. Mais voilà des pistes :')}
             </p>
           )}
 
           {res.aDemander?.length > 0 && (
             <div className="mt-7">
               <div className="flex items-center gap-2 mb-2.5">
-                <p className="p-label !mb-0">Pas encore sur Nova</p>
+                <p className="p-label !mb-0">{tr('Pas encore sur Nova')}</p>
               </div>
 
               {/* Demander la sélection entière : le bouton déroule la liste,
@@ -224,12 +225,12 @@ export default function VibePure({ compact = false }) {
               <div className="flex items-stretch gap-1.5 mb-3.5">
                 <button onClick={() => setListeOuverte((o) => !o)}
                   className="flex-1 md:flex-none h-10 px-4 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[13.5px] font-medium transition-colors inline-flex items-center justify-center gap-2">
-                  Demander les titres conseillés
+                  {tr('Demander les titres conseillés')}
                   <ChevronDown size={15} className={`transition-transform ${listeOuverte ? 'rotate-180' : ''}`} />
                 </button>
                 <button onClick={demanderTout} disabled={toutEnvoye || envoiTout}
-                  title={toutEnvoye ? 'Tout est demandé' : 'Tout demander d\'un coup'}
-                  aria-label="Tout demander"
+                  title={toutEnvoye ? tr('Tout est demandé') : tr('Tout demander d\'un coup')}
+                  aria-label={tr('Tout demander')}
                   className="w-10 h-10 shrink-0 rounded-full bg-white text-black flex items-center justify-center hover:opacity-90 active:scale-95 transition-all disabled:opacity-40">
                   {envoiTout ? <Loader2 size={16} className="animate-spin" /> : toutEnvoye ? <Check size={16} /> : <Plus size={17} />}
                 </button>
@@ -252,7 +253,7 @@ export default function VibePure({ compact = false }) {
                           <p className="text-[11.5px] p-faint leading-snug line-clamp-2 mt-0.5">{x.pourquoi}</p>
                         </div>
                         <button onClick={() => demanderUn(x)} disabled={fait}
-                          aria-label={fait ? 'Déjà demandé' : `Demander ${x.title}`}
+                          aria-label={fait ? tr('Déjà demandé') : tr('Demander {0}', [x.title])}
                           className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center transition-colors ${
                             fait ? 'bg-white/[0.06] text-white/40' : 'bg-white/10 text-white hover:bg-white/20'
                           }`}>

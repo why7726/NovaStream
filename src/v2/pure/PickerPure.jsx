@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, Check } from 'lucide-react';
 
+import { tr } from '../../i18n';
 /* Sélecteur "Pure" — remplace le <select> natif, dont l'apparence est
    imposée par le système (boîte grise, ronds bleus, « Effectué »).
 

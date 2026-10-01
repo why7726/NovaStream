@@ -4,6 +4,8 @@
    notes, classification, versions CAM.
    Une rangée n'est publiée que si elle contient assez de titres. */
 
+import { tr } from '../../i18n';
+
 const MIN_ITEMS = 6;
 const MAX_ROW = 30;
 
@@ -68,9 +70,12 @@ const shuffle = (arr) => {
   return a;
 };
 
+/* Le titre est traduit ICI, à l'affichage : les genres, eux, restent
+   regroupés sous leur clé française (sinon « Comédie » et « Comedy »
+   feraient deux rangées). */
 const row = (title, items, opts = {}) => {
   if (!items || items.length < (opts.min || MIN_ITEMS)) return null;
-  return { title, items: items.slice(0, MAX_ROW), variant: opts.variant || 'poster' };
+  return { title: tr(title), items: items.slice(0, MAX_ROW), variant: opts.variant || 'poster' };
 };
 
 /**
@@ -150,7 +155,7 @@ export function buildCategories(items = [], opts = {}) {
   while (mi < moods.length) push(moods[mi++]);
 
   // Si la bibliothèque est minuscule, au moins un fourre-tout
-  if (!rows.length) push(row(`Tous les ${kindWord}`, pool, { min: 1 }));
+  if (!rows.length) push(row(tr('Tous les {0}', [tr(kindWord)]), pool, { min: 1 }));
 
   return rows;
 }

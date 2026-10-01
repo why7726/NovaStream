@@ -74,7 +74,7 @@ const SCHEMA = {
   required: ['surNova', 'aDecouvrir'],
 };
 
-function consigne(humeur, liste) {
+function consigne(humeur, liste, langue = 'fr') {
   return `Tu conseilles un film ou une série à un ami pour sa soirée.
 
 SON HUMEUR : « ${humeur} »
@@ -95,12 +95,15 @@ Réponds en JSON :
 
 Pour chaque titre, "pourquoi" fait UNE phrase courte (moins de 110 caractères)
 qui dit en quoi ça colle à SON humeur. Pas de résumé du film : il l'a déjà.
-Écris en français, sur un ton simple et direct, sans superlatifs.`;
+${langue === 'en'
+    ? 'Write "ambiance" and every "pourquoi" in ENGLISH, in a simple and direct tone, without superlatives. Keep every title EXACTLY as written in the list (do not translate titles).'
+    : 'Écris en français, sur un ton simple et direct, sans superlatifs.'}`;
 }
 
 /** Appelle l'IA configurée et renvoie l'objet brut (déjà en JSON). */
-export async function demanderAuModele(humeur, liste) {
-  const res = await ia.demander(consigne(humeur, liste), SCHEMA);
+/** @param langue 'fr' | 'en' — langue des phrases rédigées par l'IA */
+export async function demanderAuModele(humeur, liste, langue = 'fr') {
+  const res = await ia.demander(consigne(humeur, liste, langue), SCHEMA);
   // Les modèles hors Gemini n'ont pas de schéma imposé : on sécurise la forme.
   return {
     ambiance: typeof res?.ambiance === 'string' ? res.ambiance : '',

@@ -5,6 +5,7 @@ import favoriteService from '../../services/favoriteService';
 import progressService from '../../services/progressService';
 import GridPure from './GridPure';
 
+import { tr } from '../../i18n';
 /* Favoris "Pure" — un titre, un compte, une grille. */
 export default function FavoritesPure() {
   const navigate = useNavigate();
@@ -37,7 +38,7 @@ export default function FavoritesPure() {
   return (
     <div className="min-h-screen px-5 md:px-8 pt-20 md:pt-24 pb-10 max-w-[1400px] mx-auto">
       <div className="flex items-baseline gap-3 mb-6">
-        <h1 className="p-display text-[28px] md:text-[40px]">Favoris</h1>
+        <h1 className="p-display text-[28px] md:text-[40px]">{tr('Favoris')}</h1>
         {!loading && <span className="text-[13px] p-faint">{items.length}</span>}
       </div>
 
@@ -49,9 +50,9 @@ export default function FavoritesPure() {
         <GridPure items={items} watchedIds={watchedIds} camIds={camIds} />
       ) : (
         <div className="py-24 text-center">
-          <p className="text-[15px] p-dim mb-1">Aucun favori.</p>
-          <p className="text-[13px] p-faint mb-7">Touche le cœur sur une fiche pour l'ajouter ici.</p>
-          <button onClick={() => navigate('/')} className="p-btn p-btn-ghost">Parcourir le catalogue</button>
+          <p className="text-[15px] p-dim mb-1">{tr('Aucun favori.')}</p>
+          <p className="text-[13px] p-faint mb-7">{tr('Touche le cœur sur une fiche pour l\'ajouter ici.')}</p>
+          <button onClick={() => navigate('/')} className="p-btn p-btn-ghost">{tr('Parcourir le catalogue')}</button>
         </div>
       )}
     </div>

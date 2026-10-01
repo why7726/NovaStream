@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import authService from '../../services/authService';
 import FooterV2 from '../components/FooterV2';
 
+import { tr, locale } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* ── Wrapped — personal viewing stats, Spotify-Wrapped style ────────── */
@@ -14,7 +15,7 @@ const fmtHours = (sec) => {
   const m = Math.round((sec % 3600) / 60);
   if (h >= 100) return `${h} h`;
   if (h > 0) return `${h} h ${String(m).padStart(2, '0')}`;
-  return `${m} min`;
+  return tr('{0} min', [m]);
 };
 
 const rise = (delay = 0) => ({
@@ -72,8 +73,8 @@ export default function WrappedV2() {
   if (error) {
     return (
       <div className="min-h-[80vh] flex flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold">Impossible de charger tes stats</h1>
-        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-white transition-colors">Retour</button>
+        <h1 className="text-2xl font-bold">{tr('Impossible de charger tes stats')}</h1>
+        <button onClick={() => navigate(-1)} className="text-sm text-gray-500 hover:text-white transition-colors">{tr('Retour')}</button>
       </div>
     );
   }
@@ -86,64 +87,64 @@ export default function WrappedV2() {
   }
 
   const hasData = stats.totalSeconds > 60;
-  const since = stats.firstPlay ? new Date(stats.firstPlay).toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' }) : null;
+  const since = stats.firstPlay ? new Date(stats.firstPlay).toLocaleDateString(locale(), { month: 'long', year: 'numeric' }) : null;
   const badge = stats.nightOwlPct >= 35
-    ? { emoji: '🌙', title: 'Couche-tard certifié', sub: `${stats.nightOwlPct}% de tes lectures démarrent après 22 h` }
+    ? { emoji: '🌙', title: tr('Couche-tard certifié'), sub: tr('{0}% de tes lectures démarrent après 22 h', [stats.nightOwlPct]) }
     : stats.episodesWatched > stats.moviesCompleted * 3
-      ? { emoji: '📺', title: 'Dévoreur de séries', sub: 'Les épisodes s\'enchaînent, les saisons tremblent' }
-      : { emoji: '🎬', title: 'Cinéphile maison', sub: 'Le grand écran, c\'est chez toi' };
+      ? { emoji: '📺', title: tr('Dévoreur de séries'), sub: tr('Les épisodes s\'enchaînent, les saisons tremblent') }
+      : { emoji: '🎬', title: tr('Cinéphile maison'), sub: tr('Le grand écran, c\'est chez toi') };
 
   return (
     <div className="pt-24 md:pt-28">
       <div className="px-5 md:px-12 max-w-5xl mx-auto">
         <button onClick={() => navigate(-1)}
           className="flex items-center gap-2 px-4 py-2 rounded-full glass-panel text-sm font-semibold text-white/85 hover:text-white transition-colors mb-10">
-          <ArrowLeft size={15} /> Retour
+          <ArrowLeft size={15} /> {tr('Retour')}
         </button>
 
         {/* hero */}
         <motion.div initial={{ opacity: 0, y: 30 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
           className="text-center mb-12 md:mb-16">
-          <p className="v2-eyebrow mb-3 flex items-center justify-center gap-2"><Sparkles size={13} /> Nova Wrapped</p>
+          <p className="v2-eyebrow mb-3 flex items-center justify-center gap-2"><Sparkles size={13} /> {tr('Nova Wrapped')}</p>
           <h1 className="text-4xl md:text-6xl font-black tracking-tight text-glow mb-3">
-            {stats.username}, ton histoire NovaStream
+            {stats.username}{tr(', ton histoire NovaStream')}
           </h1>
-          {since && <p className="text-white/50 text-sm md:text-base">Depuis {since}</p>}
+          {since && <p className="text-white/50 text-sm md:text-base">{tr('Depuis')} {since}</p>}
         </motion.div>
 
         {!hasData ? (
           <div className="text-center text-white/50 py-20">
-            <p className="text-lg font-bold mb-2">Pas encore assez de visionnage…</p>
-            <p className="text-sm">Lance quelques films et reviens voir tes stats !</p>
+            <p className="text-lg font-bold mb-2">{tr('Pas encore assez de visionnage…')}</p>
+            <p className="text-sm">{tr('Lance quelques films et reviens voir tes stats !')}</p>
           </div>
         ) : (
           <div className="grid md:grid-cols-2 gap-4 md:gap-6 pb-4">
             {/* total time — full width */}
             <div className="md:col-span-2">
-              <StatCard icon={<Clock size={13} />} label="Temps de visionnage total"
+              <StatCard icon={<Clock size={13} />} label={tr('Temps de visionnage total')}
                 value={fmtHours(stats.totalSeconds)}
-                sub={`Soit ${Math.round(stats.totalSeconds / 60).toLocaleString('fr-FR')} minutes devant NovaStream`}
+                sub={tr('Soit {0} minutes devant NovaStream', [Math.round(stats.totalSeconds / 60).toLocaleString(locale())])}
                 gradient="linear-gradient(135deg, #4c1d95 0%, #1e1b4b 55%, #0f0f23 100%)" />
             </div>
 
-            <StatCard icon={<Film size={13} />} label="Films terminés" value={stats.moviesCompleted}
-              sub={`${stats.distinctTitles} titres lancés au total`} delay={0.05}
+            <StatCard icon={<Film size={13} />} label={tr('Films terminés')} value={stats.moviesCompleted}
+              sub={tr('{0} titres lancés au total', [stats.distinctTitles])} delay={0.05}
               gradient="linear-gradient(135deg, #9f1239 0%, #4c0519 60%, #1c0509 100%)" />
 
-            <StatCard icon={<Tv size={13} />} label="Épisodes vus" value={stats.episodesWatched}
-              sub={`Répartis sur ${stats.distinctShows} série${stats.distinctShows > 1 ? 's' : ''}`} delay={0.1}
+            <StatCard icon={<Tv size={13} />} label={tr('Épisodes vus')} value={stats.episodesWatched}
+              sub={tr('Répartis sur {0} série{1}', [stats.distinctShows, stats.distinctShows > 1 ? 's' : ''])} delay={0.1}
               gradient="linear-gradient(135deg, #155e75 0%, #082f49 60%, #04141f 100%)" />
 
             {/* top shows */}
             {stats.topShows.length > 0 && (
-              <StatCard icon={<Trophy size={13} />} label="Tes séries de l'année" delay={0.05}
+              <StatCard icon={<Trophy size={13} />} label={tr('Tes séries de l\'année')} delay={0.05}
                 gradient="linear-gradient(135deg, #92400e 0%, #451a03 60%, #1a0a02 100%)">
                 <RankList items={stats.topShows.slice(0, 3)} render={(s, i) => (
                   <div className="flex items-center gap-3 min-w-0 flex-1">
                     {s.poster && <img src={s.poster} alt="" className="w-9 h-[52px] object-cover rounded-md ring-1 ring-white/15" />}
                     <div className="min-w-0">
                       <p className={`font-bold truncate ${i === 0 ? 'text-base' : 'text-sm text-white/80'}`}>{s.title}</p>
-                      <p className="text-[11px] text-white/50">{s.episodes} épisode{s.episodes > 1 ? 's' : ''} · {fmtHours(s.seconds)}</p>
+                      <p className="text-[11px] text-white/50">{s.episodes} {tr('épisode')}{s.episodes > 1 ? 's' : ''} · {fmtHours(s.seconds)}</p>
                     </div>
                   </div>
                 )} />
@@ -152,7 +153,7 @@ export default function WrappedV2() {
 
             {/* top genres */}
             {stats.topGenres.length > 0 && (
-              <StatCard icon={<Sparkles size={13} />} label="Tes genres favoris" delay={0.1}
+              <StatCard icon={<Sparkles size={13} />} label={tr('Tes genres favoris')} delay={0.1}
                 gradient="linear-gradient(135deg, #115e59 0%, #042f2e 60%, #021413 100%)">
                 <RankList items={stats.topGenres.slice(0, 3)} render={(g, i) => (
                   <div className="flex items-baseline justify-between gap-3 min-w-0 flex-1">
@@ -165,7 +166,7 @@ export default function WrappedV2() {
 
             {/* top actors */}
             {stats.topActors.length > 0 && (
-              <StatCard icon={<User size={13} />} label="Tes acteurs les plus vus" delay={0.05}
+              <StatCard icon={<User size={13} />} label={tr('Tes acteurs les plus vus')} delay={0.05}
                 gradient="linear-gradient(135deg, #581c87 0%, #2e1065 60%, #120524 100%)">
                 <RankList items={stats.topActors.slice(0, 3)} render={(a, i) => (
                   <button onClick={() => navigate(`/actor/${encodeURIComponent(a.name)}`)}
@@ -178,16 +179,16 @@ export default function WrappedV2() {
             )}
 
             {/* habits */}
-            <StatCard icon={<CalendarDays size={13} />} label="Tes habitudes" delay={0.1}
+            <StatCard icon={<CalendarDays size={13} />} label={tr('Tes habitudes')} delay={0.1}
               gradient="linear-gradient(135deg, #1e3a8a 0%, #172554 60%, #0a0f24 100%)">
               <div className="mt-2 space-y-3">
                 {stats.busiestDay && (
-                  <p className="text-sm text-white/80">Jour préféré : <span className="font-black text-white capitalize">{stats.busiestDay}</span></p>
+                  <p className="text-sm text-white/80">{tr('Jour préféré :')} <span className="font-black text-white capitalize">{stats.busiestDay}</span></p>
                 )}
-                <p className="text-sm text-white/80">{stats.sessions} session{stats.sessions > 1 ? 's' : ''} de lecture lancée{stats.sessions > 1 ? 's' : ''}</p>
+                <p className="text-sm text-white/80">{stats.sessions} {tr('session')}{stats.sessions > 1 ? 's' : ''} {tr('de lecture lancée')}{stats.sessions > 1 ? 's' : ''}</p>
                 {stats.nightOwlPct > 0 && (
                   <p className="text-sm text-white/80 flex items-center gap-1.5">
-                    <Moon size={13} className="text-indigo-300" /> {stats.nightOwlPct}% de lectures nocturnes (après 22 h)
+                    <Moon size={13} className="text-indigo-300" /> {stats.nightOwlPct}{tr('% de lectures nocturnes (après 22 h)')}
                   </p>
                 )}
               </div>

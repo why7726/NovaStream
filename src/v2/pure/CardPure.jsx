@@ -5,6 +5,7 @@ import plexService from '../../services/plexService';
 import { isNew } from './catalog';
 import { useLangBadges } from './langBadges';
 
+import { tr } from '../../i18n';
 /* Carte "Pure" — l'affiche, un coin arrondi, un titre discret.
    Pas de tilt, pas de halo : un simple grossissement de 3,5 % au survol. */
 export default function CardPure({
@@ -48,7 +49,7 @@ export default function CardPure({
           <span className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {isCam && (
               <span className="px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">
-                CAM
+                {tr('CAM')}
               </span>
             )}
             {lang && (
@@ -60,7 +61,7 @@ export default function CardPure({
         ) : isNew(item) && (
           // Ajouté il y a moins de 7 jours — un simple point, pas une pastille criarde
           <span className="absolute top-2 left-2 flex items-center gap-1 text-[9.5px] font-semibold tracking-[0.06em] text-white/90 drop-shadow-[0_1px_3px_rgba(0,0,0,0.9)]">
-            <span className="w-1.5 h-1.5 rounded-full bg-white" /> NOUVEAU
+            <span className="w-1.5 h-1.5 rounded-full bg-white" /> {tr('NOUVEAU')}
           </span>
         )}
         {watched && (

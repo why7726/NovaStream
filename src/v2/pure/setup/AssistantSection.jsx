@@ -3,18 +3,19 @@ import { api } from './api';
 import { refreshFeatures } from '../../lib/features';
 import { Carte, Champ, Bouton, Message, Pastille } from './ui';
 
+import { tr } from '../../../i18n';
 /* L'IA de l'assistant « Dis-moi ta soirée » : chacun branche la sienne.
    En ligne (clé API) ou locale (Ollama, LM Studio — rien ne sort de chez
    soi). Le modèle est facultatif : sans choix, Nova en prend un rapide
    parmi ceux que le fournisseur propose. */
 
 const IA = [
-  { id: 'gemini', nom: 'Gemini', par: 'Google', cle: 'GEMINI_API_KEY', aide: 'https://aistudio.google.com/apikey', note: 'Le palier gratuit suffit.' },
+  { id: 'gemini', nom: 'Gemini', par: 'Google', cle: 'GEMINI_API_KEY', aide: 'https://aistudio.google.com/apikey', note: tr('Le palier gratuit suffit.') },
   { id: 'openai', nom: 'ChatGPT', par: 'OpenAI', cle: 'OPENAI_API_KEY', aide: 'https://platform.openai.com/api-keys' },
   { id: 'claude', nom: 'Claude', par: 'Anthropic', cle: 'ANTHROPIC_API_KEY', aide: 'https://console.anthropic.com/settings/keys' },
   { id: 'grok', nom: 'Grok', par: 'xAI', cle: 'XAI_API_KEY', aide: 'https://console.x.ai' },
-  { id: 'ollama', nom: 'Ollama', par: 'sur ta machine', url: 'OLLAMA_URL', defaut: 'http://localhost:11434', aide: 'https://ollama.com/download', note: 'Gratuit et privé. Installe Ollama puis un modèle (ex. « ollama pull llama3.2 »). En Docker, remplace localhost par l\'IP de la machine.' },
-  { id: 'lmstudio', nom: 'LM Studio', par: 'sur ta machine', url: 'LMSTUDIO_URL', defaut: 'http://localhost:1234', aide: 'https://lmstudio.ai', note: 'Gratuit et privé. Charge un modèle puis active le serveur local (onglet Developer). En Docker, remplace localhost par l\'IP de la machine.' },
+  { id: 'ollama', nom: 'Ollama', par: tr('sur ta machine'), url: 'OLLAMA_URL', defaut: 'http://localhost:11434', aide: 'https://ollama.com/download', note: tr('Gratuit et privé. Installe Ollama puis un modèle (ex. « ollama pull llama3.2 »). En Docker, remplace localhost par l\'IP de la machine.') },
+  { id: 'lmstudio', nom: 'LM Studio', par: tr('sur ta machine'), url: 'LMSTUDIO_URL', defaut: 'http://localhost:1234', aide: 'https://lmstudio.ai', note: tr('Gratuit et privé. Charge un modèle puis active le serveur local (onglet Developer). En Docker, remplace localhost par l\'IP de la machine.') },
 ];
 
 export default function AssistantSection({ reglages, features, onChange }) {
@@ -59,7 +60,7 @@ export default function AssistantSection({ reglages, features, onChange }) {
     try {
       await api('/api/settings', { method: 'PUT', body: { reglages: aEnvoyer() } });
       setSaisie({});
-      setMsg({ ok: true, texte: `Enregistré — l'assistant utilise ${ia.nom}.` });
+      setMsg({ ok: true, texte: tr('Enregistré — l\'assistant utilise {0}.', [ia.nom]) });
       refreshFeatures();
       onChange();
     } catch (e) { setMsg({ ok: false, texte: e.message }); }
@@ -69,9 +70,9 @@ export default function AssistantSection({ reglages, features, onChange }) {
   const pret = ia.url || saisie[ia.cle] || r(ia.cle).defini;
 
   return (
-    <Carte id="assistant" titre="Assistant « Dis-moi ta soirée »"
-      sousTitre="Une humeur, et l'IA propose des films de ta bibliothèque. Choisis celle que tu veux : en ligne avec une clé, ou installée sur ta machine."
-      badge={<Pastille actif={!!features?.assistant} texteActif={`Actif · ${IA.find((x) => x.id === enregistre)?.nom || ''}`} texteInactif="Désactivé" />}>
+    <Carte id="assistant" titre={tr('Assistant « Dis-moi ta soirée »')}
+      sousTitre={tr('Une humeur, et l\'IA propose des films de ta bibliothèque. Choisis celle que tu veux : en ligne avec une clé, ou installée sur ta machine.')}
+      badge={<Pastille actif={!!features?.assistant} texteActif={tr('Actif · {0}', [IA.find((x) => x.id === enregistre)?.nom || ''])} texteInactif={tr('Désactivé')} />}>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 mb-5">
         {IA.map((x) => {
@@ -82,7 +83,7 @@ export default function AssistantSection({ reglages, features, onChange }) {
               className={`text-left p-3 rounded-xl border transition-colors ${on ? 'bg-white text-black border-white' : 'bg-white/[0.04] border-white/[0.06] hover:bg-white/[0.08]'}`}>
               <span className="flex items-center justify-between gap-2">
                 <span className="text-[14px] font-semibold">{x.nom}</span>
-                {configuree && <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-emerald-600' : 'bg-emerald-400'}`} title="Configurée" />}
+                {configuree && <span className={`w-1.5 h-1.5 rounded-full ${on ? 'bg-emerald-600' : 'bg-emerald-400'}`} title={tr('Configurée')} />}
               </span>
               <span className={`block text-[11.5px] mt-0.5 ${on ? 'text-black/55' : 'text-white/40'}`}>{x.par}</span>
             </button>
@@ -92,44 +93,44 @@ export default function AssistantSection({ reglages, features, onChange }) {
 
       <div className="grid md:grid-cols-2 gap-3">
         {ia.cle && (
-          <Champ label={`Clé API ${ia.nom}`} secret aide={ia.aide} note={ia.note}
-            placeholder={r(ia.cle).defini ? `${r(ia.cle).apercu} (enregistrée)` : ''}
+          <Champ label={tr('Clé API {0}', [ia.nom])} secret aide={ia.aide} note={ia.note}
+            placeholder={r(ia.cle).defini ? tr('{0} (enregistrée)', [r(ia.cle).apercu]) : ''}
             valeur={saisie[ia.cle] || ''} onChange={(v) => setSaisie((s) => ({ ...s, [ia.cle]: v }))} />
         )}
         {ia.url && (
-          <Champ label={`Adresse de ${ia.nom}`} aide={ia.aide} note={ia.note} placeholder={ia.defaut}
+          <Champ label={tr('Adresse de {0}', [ia.nom])} aide={ia.aide} note={ia.note} placeholder={ia.defaut}
             valeur={saisie[ia.url] !== undefined ? saisie[ia.url] : r(ia.url).valeur || ''}
             onChange={(v) => setSaisie((s) => ({ ...s, [ia.url]: v }))} />
         )}
         <label className="block">
-          <span className="block text-[12px] font-medium text-white/55 mb-1.5">Modèle</span>
+          <span className="block text-[12px] font-medium text-white/55 mb-1.5">{tr('Modèle')}</span>
           {modeles.length > 0 ? (
             <select value={modeleActuel} onChange={(e) => setSaisie((s) => ({ ...s, IA_MODELE: e.target.value }))}
               className="w-full h-11 bg-black/25 border border-white/[0.08] rounded-xl px-3 text-[13.5px] text-white focus:outline-none focus:border-white/25">
-              <option value="">Automatique (conseillé)</option>
+              <option value="">{tr('Automatique (conseillé)')}</option>
               {modeles.map((m) => <option key={m} value={m}>{m}</option>)}
             </select>
           ) : (
             <input value={modeleActuel} onChange={(e) => setSaisie((s) => ({ ...s, IA_MODELE: e.target.value }))}
-              placeholder="Automatique — « Tester » affiche la liste"
+              placeholder={tr('Automatique — « Tester » affiche la liste')}
               className="w-full h-11 bg-black/25 border border-white/[0.08] rounded-xl px-3.5 text-[13.5px] text-white placeholder:text-white/25 focus:outline-none focus:border-white/25" />
           )}
         </label>
       </div>
 
       <div className="flex flex-wrap items-center gap-2 mt-4">
-        <Bouton onClick={enregistrer} disabled={occupe || !pret}>Enregistrer</Bouton>
-        <Bouton variante="doux" onClick={tester} disabled={occupe || !pret}>{occupe ? '…' : 'Tester'}</Bouton>
+        <Bouton onClick={enregistrer} disabled={occupe || !pret}>{tr('Enregistrer')}</Bouton>
+        <Bouton variante="doux" onClick={tester} disabled={occupe || !pret}>{occupe ? '…' : tr('Tester')}</Bouton>
         {features?.assistant && (
           <Bouton variante="discret" disabled={occupe} onClick={async () => {
             await api('/api/settings', { method: 'PUT', body: { reglages: { IA_FOURNISSEUR: null, IA_MODELE: null, ...Object.fromEntries(IA.map((x) => [x.cle || x.url, null])) } } });
-            setMsg({ ok: true, texte: 'Assistant désactivé.' }); refreshFeatures(); onChange();
-          }}>Désactiver</Bouton>
+            setMsg({ ok: true, texte: tr('Assistant désactivé.') }); refreshFeatures(); onChange();
+          }}>{tr('Désactiver')}</Bouton>
         )}
       </div>
       {msg && <Message ok={msg.ok} className="mt-3">{msg.texte}</Message>}
       <p className="text-[11.5px] text-white/30 mt-4 leading-relaxed">
-        Seuls les titres, années et genres de ta bibliothèque sont envoyés à l'IA — jamais qui regarde quoi. Chaque proposition est revérifiée : un titre inventé n'est jamais affiché.
+        {tr('Seuls les titres, années et genres de ta bibliothèque sont envoyés à l\'IA — jamais qui regarde quoi. Chaque proposition est revérifiée : un titre inventé n\'est jamais affiché.')}
       </p>
     </Carte>
   );

@@ -1,5 +1,6 @@
 import React, { useRef, useCallback } from 'react';
 
+import { tr } from '../../i18n';
 // Lightweight GPU-friendly 3D tilt wrapper.
 // - Writes rotation/glow to CSS variables (no React re-render per frame).
 // - Pointer-fine devices only; on touch it stays flat (saves battery + avoids jank).

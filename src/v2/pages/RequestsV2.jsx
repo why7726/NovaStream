@@ -32,7 +32,7 @@ function Progression({ id }) {
 
   if (!p || p.percent == null) return null;
   const eta = p.eta && p.eta > 0
-    ? (p.eta > 3600 ? `${Math.round(p.eta / 3600)} h` : `${Math.max(1, Math.round(p.eta / 60))} min`)
+    ? (p.eta > 3600 ? `${Math.round(p.eta / 3600)} h` : tr('{0} min', [Math.max(1, Math.round(p.eta / 60))]))
     : null;
 
   return (
@@ -41,7 +41,7 @@ function Progression({ id }) {
         <div className="h-full bg-white transition-all duration-700" style={{ width: `${p.percent}%` }} />
       </div>
       <p className="text-[10.5px] text-white/45 mt-1">
-        {p.percent} % téléchargé{eta ? ` · ${eta} restantes` : ''}{p.source === 'manuel' ? ' · ajout manuel' : ''}
+        {p.percent} {tr('% téléchargé')}{eta ? tr(' · {0} restantes', [eta]) : ''}{p.source === 'manuel' ? tr(' · ajout manuel') : ''}
       </p>
     </div>
   );
@@ -50,6 +50,7 @@ import { buildIndex, findLocal } from '../pure/available';
 import PickerPure from '../pure/PickerPure';
 import VibePure from '../pure/VibePure';
 
+import { tr } from '../../i18n';
 /* Vignette d'un résultat TMDB — la même pour la recherche et pour les thèmes.
    Trois états : déjà sur Nova (on y va), déjà demandé, ou à demander. */
 function Vignette({ r, local, done, onOuvrir, onVoir }) {
@@ -64,11 +65,11 @@ function Vignette({ r, local, done, onOuvrir, onVoir }) {
             <span className="w-9 h-9 rounded-full bg-white/15 backdrop-blur-md flex items-center justify-center">
               <Play size={15} fill="white" className="ml-0.5" />
             </span>
-            <span className="text-[10.5px] font-semibold text-white">Déjà sur Nova</span>
+            <span className="text-[10.5px] font-semibold text-white">{tr('Déjà sur Nova')}</span>
           </div>
         ) : done ? (
           <div className="absolute inset-0 bg-black/55 flex items-center justify-center">
-            <span className="flex items-center gap-1 text-[11px] font-semibold text-white"><Check size={13} /> Demandé</span>
+            <span className="flex items-center gap-1 text-[11px] font-semibold text-white"><Check size={13} /> {tr('Demandé')}</span>
           </div>
         ) : (
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
@@ -83,10 +84,10 @@ function Vignette({ r, local, done, onOuvrir, onVoir }) {
 }
 
 const STATUS = {
-  pending: { label: 'En attente', cls: 'bg-white/[0.08] text-white/70 border-white/15' },
-  approved: { label: 'Approuvée', cls: 'bg-white/[0.14] text-white border-white/20' },
-  added: { label: 'Ajoutée', cls: 'bg-white text-black border-white' },
-  declined: { label: 'Refusée', cls: 'bg-white/[0.05] text-white/40 border-white/10' },
+  pending: { label: tr('En attente'), cls: 'bg-white/[0.08] text-white/70 border-white/15' },
+  approved: { label: tr('Approuvée'), cls: 'bg-white/[0.14] text-white border-white/20' },
+  added: { label: tr('Ajoutée'), cls: 'bg-white text-black border-white' },
+  declined: { label: tr('Refusée'), cls: 'bg-white/[0.05] text-white/40 border-white/10' },
 };
 
 export default function RequestsV2() {
@@ -166,9 +167,9 @@ export default function RequestsV2() {
     <div className="min-h-screen px-4 md:px-12 pt-24 md:pt-28 pb-16 max-w-6xl mx-auto">
       <div className="flex items-center gap-2.5 mb-1">
         <Sparkles size={22} className="text-white/60" />
-        <h1 className="p-display text-[28px] md:text-[40px]">Demander un contenu</h1>
+        <h1 className="p-display text-[28px] md:text-[40px]">{tr('Demander un contenu')}</h1>
       </div>
-      <p className="text-gray-400 text-sm mb-6">Cherche un film ou une série absent de Nova et demande-le à l'admin.</p>
+      <p className="text-gray-400 text-sm mb-6">{tr('Cherche un film ou une série absent de Nova et demande-le à l\'admin.')}</p>
 
       {/* L'assistant d'humeur, avant la recherche : c'est le cas le plus
           fréquent — on ne sait pas quoi regarder, pas quoi chercher. */}
@@ -180,7 +181,7 @@ export default function RequestsV2() {
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Rechercher un film, une série…"
+          placeholder={tr('Rechercher un film, une série…')}
           autoFocus
           className="w-full bg-white/[0.06] border border-white/10 rounded-2xl pl-11 pr-11 py-3.5 text-sm md:text-base outline-none focus:border-white/30 transition-colors"
         />
@@ -195,9 +196,9 @@ export default function RequestsV2() {
       {q.trim() && (
         <div className="mb-12">
           {searching ? (
-            <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 size={16} className="animate-spin" /> Recherche…</div>
+            <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 size={16} className="animate-spin" /> {tr('Recherche…')}</div>
           ) : results.length === 0 ? (
-            <p className="text-gray-500 text-sm">Aucun résultat.</p>
+            <p className="text-gray-500 text-sm">{tr('Aucun résultat.')}</p>
           ) : (
             <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
               {results.map((r) => (
@@ -218,9 +219,9 @@ export default function RequestsV2() {
       {!q.trim() && (
         <div className="mb-12">
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-            <h2 className="text-lg md:text-xl font-bold">Parcourir par thème</h2>
+            <h2 className="text-lg md:text-xl font-bold">{tr('Parcourir par thème')}</h2>
             <div className="p-glass rounded-full p-1 flex items-center text-[12.5px] font-medium">
-              {[['movie', 'Films'], ['tv', 'Séries']].map(([v, label]) => (
+              {[['movie', tr('Films')], ['tv', tr('Séries')]].map(([v, label]) => (
                 <button key={v} onClick={() => setThemeType(v)}
                   className={`px-3.5 h-8 rounded-full transition-colors ${themeType === v ? 'bg-white text-black' : 'text-white/60 hover:text-white'}`}>
                   {label}
@@ -232,11 +233,11 @@ export default function RequestsV2() {
           <div className="flex flex-wrap gap-2 mb-5">
             {themeType === 'movie' && (
               <button onClick={() => ouvrirTheme('horreurplus')}
-                title="Les films de la sélection Horreur + qui ne sont pas encore sur Nova"
+                title={tr('Les films de la sélection Horreur + qui ne sont pas encore sur Nova')}
                 className={`h-9 px-4 rounded-full text-[13px] font-medium transition-colors ${
                   theme === 'horreurplus' ? 'bg-white text-black' : 'bg-white/[0.08] text-white/75 hover:bg-white/[0.14]'
                 }`}>
-                Horreur +
+                {tr('Horreur +')}
               </button>
             )}
             {genres.map((g) => (
@@ -251,9 +252,9 @@ export default function RequestsV2() {
 
           {theme && (
             themeLoading && themeItems.length === 0 ? (
-              <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 size={16} className="animate-spin" /> Chargement…</div>
+              <div className="flex items-center gap-2 text-gray-400 text-sm"><Loader2 size={16} className="animate-spin" /> {tr('Chargement…')}</div>
             ) : themeItems.length === 0 ? (
-              <p className="text-gray-500 text-sm">Rien à proposer ici.</p>
+              <p className="text-gray-500 text-sm">{tr('Rien à proposer ici.')}</p>
             ) : (
               <>
                 <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 md:gap-4">
@@ -269,7 +270,7 @@ export default function RequestsV2() {
                   <div className="flex justify-center mt-5">
                     <button onClick={() => ouvrirTheme(theme, themePage + 1)} disabled={themeLoading}
                       className="h-10 px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[13.5px] font-medium transition-colors disabled:opacity-50">
-                      {themeLoading ? 'Chargement…' : 'Voir plus'}
+                      {themeLoading ? 'Chargement…' : tr('Voir plus')}
                     </button>
                   </div>
                 )}
@@ -281,17 +282,17 @@ export default function RequestsV2() {
 
       {/* Requests list */}
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg md:text-xl font-bold">{isAdmin && adminView ? 'Toutes les demandes' : 'Mes demandes'}</h2>
+        <h2 className="text-lg md:text-xl font-bold">{isAdmin && adminView ? tr('Toutes les demandes') : tr('Mes demandes')}</h2>
         {isAdmin && (
           <button onClick={() => setAdminView((v) => !v)}
             className="text-xs font-bold px-3 py-1.5 rounded-full bg-white/[0.06] border border-white/10 hover:bg-white/12 transition-colors">
-            {adminView ? '→ Voir les miennes' : '→ Voir toutes (admin)'}
+            {adminView ? tr('→ Voir les miennes') : tr('→ Voir toutes (admin)')}
           </button>
         )}
       </div>
 
       {requests.length === 0 ? (
-        <p className="text-gray-500 text-sm">Aucune demande pour l'instant.</p>
+        <p className="text-gray-500 text-sm">{tr('Aucune demande pour l\'instant.')}</p>
       ) : (
         <div className="space-y-2.5">
           {requests.map((r) => {
@@ -302,36 +303,36 @@ export default function RequestsV2() {
                   ? <img src={r.poster} alt="" className="w-11 h-16 rounded-lg object-cover shrink-0" />
                   : <div className="w-11 h-16 rounded-lg bg-white/10 shrink-0" />}
                 <div className="min-w-0 flex-1">
-                  <p className="font-bold text-sm truncate">{r.title || 'Sans titre'} {r.year ? <span className="text-gray-500 font-normal">({r.year})</span> : null}</p>
+                  <p className="font-bold text-sm truncate">{r.title || tr('Sans titre')} {r.year ? <span className="text-gray-500 font-normal">({r.year})</span> : null}</p>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
                     {findLocal(localIndex, { title: r.title, year: r.year, type: r.mediaType === 'tv' ? 'tv' : 'movie' })
-                      ? <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border bg-white text-black border-white">Disponible</span>
+                      ? <span className="text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border bg-white text-black border-white">{tr('Disponible')}</span>
                       : <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full border ${st.cls}`}>{st.label}</span>}
-                    <span className="text-[10px] text-gray-500">{r.mediaType === 'movie' ? 'Film' : 'Série'}</span>
-                    {isAdmin && adminView && r.username && <span className="text-[10px] text-white/50">par {r.username}</span>}
+                    <span className="text-[10px] text-gray-500">{r.mediaType === 'movie' ? tr('Film') : tr('Série')}</span>
+                    {isAdmin && adminView && r.username && <span className="text-[10px] text-white/50">{tr('par')} {r.username}</span>}
                   </div>
                 </div>
                 {r.status === 'approved' && <div className="w-full order-last basis-full"><Progression id={r.id} /></div>}
                 {isAdmin && adminView ? (
                   <div className="flex items-center gap-1.5 shrink-0">
                     <PickerPure
-                      title="Statut de la demande"
-                      label="Statut"
+                      title={tr('Statut de la demande')}
+                      label={tr('Statut')}
                       value={r.status}
                       options={[
-                        { value: 'pending', label: 'En attente' },
-                        { value: 'approved', label: 'Approuvée' },
-                        { value: 'added', label: 'Ajoutée' },
-                        { value: 'declined', label: 'Refusée' },
+                        { value: 'pending', label: tr('En attente') },
+                        { value: 'approved', label: tr('Approuvée') },
+                        { value: 'added', label: tr('Ajoutée') },
+                        { value: 'declined', label: tr('Refusée') },
                       ]}
                       onPick={(v) => updateStatus(r.id, v)}
                     />
-                    <button onClick={() => remove(r.id)} title="Supprimer" className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-red-500/20 hover:text-red-300 flex items-center justify-center transition-colors">
+                    <button onClick={() => remove(r.id)} title={tr('Supprimer')} className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-red-500/20 hover:text-red-300 flex items-center justify-center transition-colors">
                       <Trash2 size={14} />
                     </button>
                   </div>
                 ) : (
-                  <button onClick={() => remove(r.id)} title="Annuler ma demande" className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-red-500/20 hover:text-red-300 flex items-center justify-center transition-colors shrink-0">
+                  <button onClick={() => remove(r.id)} title={tr('Annuler ma demande')} className="w-8 h-8 rounded-lg bg-white/[0.06] hover:bg-red-500/20 hover:text-red-300 flex items-center justify-center transition-colors shrink-0">
                     <Trash2 size={14} />
                   </button>
                 )}
