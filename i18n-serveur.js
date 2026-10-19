@@ -171,6 +171,7 @@ const EN = {
   'Indique au moins une version avec sa date': 'Enter at least one version with its date',
   'Introuvable après 14 jours': 'Not found after 14 days',
   'Chemin vide': 'Empty path',
+  'Dossier introuvable sur le serveur : {0}': 'Folder not found on the server: {0}',
   'Test inconnu': 'Unknown test',
 
   // Séances à plusieurs, notifications, TV

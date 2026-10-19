@@ -7,6 +7,7 @@ import ServeurSection from './ServeurSection';
 import BibliothequesSection from './BibliothequesSection';
 import ClesSection from './ClesSection';
 import AssistantSection from './AssistantSection';
+import LocalesSection from './LocalesSection';
 import APropos from './APropos';
 
 import { tr } from '../../../i18n';
@@ -122,6 +123,7 @@ export default function SettingsPure() {
       <div className="space-y-4">
         <ServeurSection reglages={reglages} features={features} onChange={charger} />
         <BibliothequesSection serveurRelie={features.serveur} />
+        <LocalesSection />
         <h2 className="text-[13px] font-semibold uppercase tracking-[0.08em] text-white/35 pt-6 pb-1 px-1">{tr('Services optionnels')}</h2>
         <AssistantSection reglages={reglages} features={features} onChange={charger} />
         <ClesSection reglages={reglages} features={features} onChange={charger} />

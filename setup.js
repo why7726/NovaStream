@@ -11,6 +11,7 @@
       qu'elles portent sur le serveur.
    ══════════════════════════════════════════════════════════════════ */
 import http from 'node:http';
+import fs from 'node:fs';
 import * as config from './config.js';
 import * as plexLink from './plexLink.js';
 import * as ia from './ia.js';
@@ -119,7 +120,7 @@ const TESTS = {
  * @param {import('express').Express} app
  * @param {{ db, bcrypt, signerJeton: (user) => string, authMiddleware, adminMiddleware, logActivity }} deps
  */
-export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut }) {
+export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut, locales }) {
   const adminExiste = () => !!db.prepare('SELECT 1 FROM users WHERE isAdmin = 1 LIMIT 1').get();
 
   // Ce que la page d'accueil doit savoir AVANT toute connexion.
@@ -279,7 +280,9 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
     try {
       const { masquees, exclues } = config.bibliotheques();
       const toutes = ordonner(await sectionsPlex()).filter((l) => !exclues.includes(l.key));
-      res.json({ libraries: toutes.map((l) => ({ ...l, masquee: masquees.includes(l.key) })) });
+      // + les bibliothèques locales visibles par CETTE personne (+18 seulement si autorisée)
+      const locs = locales ? (await locales.sections()).map((l) => ({ ...l, locale: true, masquee: false })) : [];
+      res.json({ libraries: [...toutes.map((l) => ({ ...l, masquee: masquees.includes(l.key) })), ...locs] });
     } catch (e) {
       res.status(502).json({ error: 'Serveur multimédia injoignable', libraries: [] });
     }
@@ -294,6 +297,31 @@ export function installer(app, { db, bcrypt, signerJeton, authMiddleware, adminM
     } catch (e) {
       res.status(502).json({ error: 'Serveur multimédia injoignable', libraries: [] });
     }
+  });
+
+  /* ── Bibliothèques locales et accès au contenu +18 ── */
+  app.get('/api/settings/locales', authMiddleware, adminMiddleware, async (req, res) => {
+    const utilisateurs = db.prepare('SELECT id, username, isAdmin, adulte FROM users ORDER BY isAdmin DESC, username').all()
+      .map((u) => ({ id: u.id, username: u.username, isAdmin: !!u.isAdmin, adulte: !!u.isAdmin || !!u.adulte }));
+    res.json({ locales: locales ? await locales.resume() : [], utilisateurs });
+  });
+
+  app.put('/api/settings/locales', authMiddleware, adminMiddleware, async (req, res) => {
+    const liste = Array.isArray(req.body?.locales) ? req.body.locales : null;
+    if (!liste) return res.status(400).json({ error: 'Paramètres invalides' });
+    for (const b of liste) {
+      if (!b.chemin || !fs.existsSync(String(b.chemin))) return res.status(400).json({ error: `Dossier introuvable sur le serveur : ${b.chemin || '(vide)'}` });
+    }
+    config.setBibliothequesLocales(liste);
+    res.json({ ok: true, locales: locales ? await locales.resume() : [] });
+  });
+
+  // Qui a accès au contenu +18 (l'administrateur l'a toujours).
+  app.put('/api/settings/acces-adulte/:id', authMiddleware, adminMiddleware, (req, res) => {
+    const u = db.prepare('SELECT id, isAdmin FROM users WHERE id = ?').get(req.params.id);
+    if (!u) return res.status(404).json({ error: 'Utilisateur introuvable' });
+    db.prepare('UPDATE users SET adulte = ? WHERE id = ?').run(req.body?.adulte ? 1 : 0, u.id);
+    res.json({ ok: true });
   });
 
   app.put('/api/settings/libraries', authMiddleware, adminMiddleware, async (req, res) => {

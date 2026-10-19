@@ -8,6 +8,7 @@ Tes films et séries, tes amis, ta maison — sans abonnement.
 - Comptes sur invitation, favoris, historique, « Reprendre », notifications
 - **Plex ou Jellyfin**, au choix, en un clic dans l'assistant
 - Avec Plex : connexion du compte Plex de chaque utilisateur (progression synchronisée dans les deux sens)
+- **Dossiers lus par Nova**, hors de Plex ou Jellyfin, avec une option **contenu +18** : avertissement, et seuls les comptes autorisés par l'admin le voient. Pour les autres il n'existe pas, même par la recherche ou un lien direct. Lecture sans ré-encodage de la vidéo
 - Bibliothèques **privées** : décoche une bibliothèque et elle n'existe plus pour Nova (menu, recherche, recommandations, lien direct — tout est bloqué côté serveur)
 - **Français ou anglais** : chaque compte choisit sa langue (préférences, ou dès le message de bienvenue)
 - Assistant « Dis-moi ta soirée » avec **l'IA de ton choix** : Gemini, ChatGPT, Claude, Grok, ou en local avec Ollama / LM Studio

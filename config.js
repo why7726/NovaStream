@@ -191,6 +191,25 @@ export function serveurType() {
   return null;
 }
 
+/* ── Bibliothèques locales : dossiers lus directement par Nova (voir local.js) ──
+   [{ id, nom, chemin, adulte }] — `adulte` : réservée aux comptes autorisés. */
+export function bibliothequesLocales() {
+  return Array.isArray(fichier.locales) ? fichier.locales : [];
+}
+export function setBibliothequesLocales(liste) {
+  fichier = {
+    ...fichier,
+    locales: (liste || []).map((b) => ({
+      id: String(b.id || Math.random().toString(36).slice(2, 10)),
+      nom: String(b.nom || '').trim().slice(0, 60) || 'Bibliothèque',
+      chemin: String(b.chemin || '').trim(),
+      adulte: !!b.adulte,
+    })),
+  };
+  ecrireFichier();
+  for (const fn of abonnes) { try { fn(); } catch (e) { console.error('[Config]', e.message); } }
+}
+
 /* ── Les fonctions optionnelles et ce qui les active ── */
 export function features() {
   return {

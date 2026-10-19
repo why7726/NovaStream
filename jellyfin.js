@@ -506,7 +506,7 @@ export function creerJellyfin({ db, url, token, userId }) {
 
     if (methode !== 'GET' && methode !== 'HEAD') return res.status(403).json({ error: 'Méthode non autorisée' });
     const json = await plexJson(cheminPlex);
-    return res.json(filtrer(json, chemin));
+    return res.json(await filtrer(json, chemin));
   }
 
   async function timeline(q) {

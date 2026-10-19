@@ -45,8 +45,13 @@ export default function CardPure({
 
         {/* Faits sur le contenu, en haut à gauche : CAM puis la version.
             « Nouveau » ne s'affiche que s'il n'y a rien d'autre à dire. */}
-        {(isCam || lang) ? (
+        {(isCam || lang || item.adulte) ? (
           <span className="absolute top-2 left-2 flex flex-col items-start gap-1">
+            {item.adulte && (
+              <span className="px-1.5 py-[3px] rounded-md bg-red-600/85 backdrop-blur-md text-[9px] font-bold tracking-[0.06em] text-white">
+                18+
+              </span>
+            )}
             {isCam && (
               <span className="px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">
                 {tr('CAM')}

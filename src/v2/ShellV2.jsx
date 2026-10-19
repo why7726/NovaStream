@@ -6,6 +6,7 @@ import NavPure from './pure/NavPure';
 import HomePure from './pure/HomePure';
 import InstallPure from './pure/InstallPure';
 import { useLibraries } from './lib/libraries';
+import GardeAdulte from './pure/GardeAdulte';
 
 import { tr } from '../i18n';
 const DetailsPure = React.lazy(() => import('./pure/DetailsPure'));
@@ -50,7 +51,17 @@ function LibraryPage() {
   const section = toutes.find((l) => String(l.key) === String(key));
   if (loading && !section) return <Loader />;
   if (!section) return <Navigate to="/" replace />;
-  return <HomePure key={section.key} section={section} />;
+  return <GardeAdulte adulte={!!section.adulte}><HomePure key={section.key} section={section} /></GardeAdulte>;
+}
+
+// Fiche et lecture : avertissement si le titre vient d'une bibliothèque +18.
+function FicheGardee() {
+  const { id } = useParams();
+  return <GardeAdulte key={id} id={id}><DetailsPure /></GardeAdulte>;
+}
+function LectureGardee() {
+  const { id } = useParams();
+  return <GardeAdulte key={id} id={id}><Player /></GardeAdulte>;
 }
 
 /* Anciennes adresses (/movies, /shows, /animes) : on renvoie vers la
@@ -142,7 +153,7 @@ export default function ShellV2({ user, handleAuth, serveurManquant }) {
 
             <Route path="/favorites" element={<Protected user={user}><FavoritesPure /></Protected>} />
             <Route path="/history" element={<Protected user={user}><HistoryPure /></Protected>} />
-            <Route path="/title/:id" element={<Protected user={user}><DetailsPure /></Protected>} />
+            <Route path="/title/:id" element={<Protected user={user}><FicheGardee /></Protected>} />
             <Route path="/actor/:name" element={<Protected user={user}><ActorPageV2 /></Protected>} />
             <Route path="/wrapped" element={<Protected user={user}><WrappedV2 /></Protected>} />
             <Route path="/requests" element={<Protected user={user}><RequestsV2 /></Protected>} />
@@ -150,7 +161,7 @@ export default function ShellV2({ user, handleAuth, serveurManquant }) {
             <Route path="/tonight" element={<Protected user={user}><TonightPure /></Protected>} />
             <Route path="/connect" element={<Protected user={user}><ConnectPure /></Protected>} />
             <Route path="/explorer" element={<Protected user={user}><DiscoverPure /></Protected>} />
-            <Route path="/play/:id" element={<Protected user={user}><Player /></Protected>} />
+            <Route path="/play/:id" element={<Protected user={user}><LectureGardee /></Protected>} />
             <Route path="/admin" element={<AdminOnly user={user}><Admin /></AdminOnly>} />
             <Route path="/reglages" element={<AdminOnly user={user}><SettingsPure /></AdminOnly>} />
             <Route path="/calendrier" element={<AdminOnly user={user}><CalendrierPure /></AdminOnly>} />

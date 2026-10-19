@@ -27,6 +27,7 @@ import * as setup from './setup.js';
 import * as calendrier from './calendrier.js';
 import { creerFiltrePrive } from './prive.js';
 import { creerJellyfin } from './jellyfin.js';
+import { creerLocales } from './local.js';
 import { contexte, langue, langueDe, langueTmdb, versAnglais } from './i18n-serveur.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,9 +46,37 @@ function lireConfig() {
      que déclenchent les utilisateurs (lecture, transcodage, progression) passe
      par lui : côté Plex, les séances apparaissent au nom de ce compte et non à
      celui de l'administrateur. Les tâches internes gardent le jeton admin. */
-  PLEX_STREAM_TOKEN = config.get('PLEX_NOVA_TOKEN') || PLEX_TOKEN;
+  // Repli conservé tant que le jeton partagé reste refusé (voir verifierJetonPartage).
+  PLEX_STREAM_TOKEN = (jetonPartageRefuse ? '' : config.get('PLEX_NOVA_TOKEN')) || PLEX_TOKEN;
 }
+var jetonPartageRefuse = false;
 lireConfig();
+
+/* Le jeton du compte partagé peut être révoqué côté Plex (mot de passe changé,
+   appareil retiré…). Sans lui, TOUS les comptes non reliés à Plex ne voient
+   plus rien. On le vérifie au démarrage puis toutes les 30 min ; s'il est
+   refusé, on se rabat sur le jeton administrateur (les lectures apparaissent
+   alors sous le compte admin dans Plex) et on le signale dans le journal. */
+async function verifierJetonPartage() {
+  const partage = config.get('PLEX_NOVA_TOKEN');
+  if (!partage || !PLEX_URL || config.serveurType() !== 'plex') return;
+  try {
+    const r = await fetch(`${PLEX_URL}/library/sections?X-Plex-Token=${partage}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+    if (r.status === 401) {
+      if (!jetonPartageRefuse) console.warn('[Plex] Le jeton du compte partagé (PLEX_NOVA_TOKEN) est REFUSÉ par Plex — repli sur le compte administrateur. Génère un nouveau jeton pour ce compte.');
+      jetonPartageRefuse = true;
+      PLEX_STREAM_TOKEN = PLEX_TOKEN;
+    } else if (r.ok && jetonPartageRefuse) {
+      console.log('[Plex] Le jeton du compte partagé est de nouveau accepté.');
+      jetonPartageRefuse = false;
+      PLEX_STREAM_TOKEN = partage;
+    }
+  } catch { /* Plex injoignable : on ne change rien */ }
+}
+setTimeout(verifierJetonPartage, 3000);
+setInterval(verifierJetonPartage, 30 * 60 * 1000);
+// Un nouveau jeton saisi dans les réglages est revérifié tout de suite.
+config.onChange(() => { verifierJetonPartage(); });
 config.onChange(lireConfig);
 
 /* Bibliothèques privées (décochées dans les réglages) : filtrées de toutes
@@ -110,7 +139,8 @@ app.use((req, res, next) => {
       return envoyer(corps);
     };
   }
-  contexte.run({ langue: l }, next);
+  // `req` sert à savoir QUI demande (accès au contenu +18, voir accesAdulte).
+  contexte.run({ langue: l, req }, next);
 });
 
 /* ─── Compression ────────────────────────────────────────────────────
@@ -233,6 +263,39 @@ jelly = creerJellyfin({
   userId: () => config.get('JELLYFIN_USER_ID'),
 });
 config.onChange(() => jelly.oublier());
+
+/* Contenu +18 : la personne qui fait la requête en cours y a-t-elle droit ?
+   Administrateur, ou case « accès +18 » cochée dans les réglages. Calculé une
+   fois par requête. Sans requête (tâches de fond) : non — le contenu +18
+   n'entre ainsi jamais dans les caches, recommandations ou l'assistant. */
+function accesAdulte() {
+  const st = contexte.getStore();
+  const req = st?.req;
+  if (!req) return false;
+  if (st.adulte !== undefined) return st.adulte;
+  let ok = false;
+  try {
+    const jeton = (req.headers.authorization || '').replace('Bearer ', '') || req.query?.nova;
+    const d = jeton ? jwt.verify(jeton, JWT_SECRET, { algorithms: ['HS256'] }) : null;
+    if (d && !d.guest && d.id != null) {
+      const u = db.prepare('SELECT isAdmin, adulte FROM users WHERE id = ?').get(d.id);
+      ok = !!(u && (u.isAdmin || u.adulte));
+    }
+  } catch { /* jeton invalide : pas d'accès */ }
+  st.adulte = ok;
+  return ok;
+}
+
+// Bibliothèques locales (dossiers lus par Nova, hors du serveur multimédia) — voir local.js.
+const locales = creerLocales({
+  db,
+  dossierDonnees: config.DATA_DIR,
+  ffmpeg: process.env.FFMPEG_PATH || ffmpegStatic,
+  bibliotheques: () => config.bibliothequesLocales(),
+  acces: () => ({ adulte: accesAdulte() }),
+});
+config.onChange(() => locales.oublier());
+setTimeout(() => locales.charger(true).catch((e) => console.warn('[Local]', e.message)), 8000);
 db.pragma('wal_autocheckpoint = 1000'); // keep the -wal file from growing unbounded
 
 // Flush WAL & close cleanly on shutdown (prevents a multi-MB stale -wal file)
@@ -452,6 +515,8 @@ try { db.exec('ALTER TABLE users ADD COLUMN tokenVersion INTEGER NOT NULL DEFAUL
 // les nouveaux sont créés avec 0 pour qu'il s'affiche une fois.
 try { db.exec('ALTER TABLE users ADD COLUMN langue TEXT'); } catch (e) { /* already exists */ }
 try { db.exec('ALTER TABLE users ADD COLUMN bienvenueVue INTEGER NOT NULL DEFAULT 1'); } catch (e) { /* already exists */ }
+// Accès au contenu +18 (bibliothèques locales marquées adulte) — accordé par l'administrateur.
+try { db.exec('ALTER TABLE users ADD COLUMN adulte INTEGER NOT NULL DEFAULT 0'); } catch (e) { /* already exists */ }
 
 // A real-user token stays valid only while its `tv` claim matches the user's
 // current tokenVersion. Bumping tokenVersion instantly revokes every token
@@ -538,7 +603,7 @@ app.get('/api/ping', (req, res) => res.json({ status: 'ok', time: new Date() }))
 
 // Assistant de premier démarrage, réglages, bibliothèques, fonctions actives.
 setup.installer(app, {
-  db, bcrypt, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut,
+  db, bcrypt, authMiddleware, adminMiddleware, logActivity, prive, plexJsonBrut, locales,
   signerJeton: (u) => jwt.sign({ id: u.id, username: u.username, email: u.email, isAdmin: u.isAdmin, tv: u.tokenVersion || 0 }, JWT_SECRET, { expiresIn: '30d' }),
 });
 
@@ -626,6 +691,12 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
 // Get metadata with external ID extraction
 app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
   try {
+    // Bibliothèque locale (voir local.js) : 404 pour qui n'y a pas accès.
+    if (locales.estLocal(req.params.id)) {
+      const j = await locales.plexJson(`/library/metadata/${req.params.id}`);
+      if (!j?.MediaContainer?.Metadata?.length) return res.status(404).json({ error: 'Introuvable' });
+      return res.json(j);
+    }
     if (prive.cheminInterdit(`/library/metadata/${req.params.id}`)) return res.status(404).json({ error: 'Introuvable' });
     let brut;
     if (estJellyfin()) brut = await jelly.plexJson(`/library/metadata/${req.params.id}`);
@@ -2471,6 +2542,8 @@ async function fetchOrigLang({ ratingKey, tmdbId, isShow, title, year }) {
 /* Lecture brute du serveur multimédia, au format Plex — y compris quand c'est
    un Jellyfin (traduit). Sans filtre : réservé à prive.js et à plexJson. */
 async function plexJsonBrut(pathname) {
+  // Éléments d'une bibliothèque locale : jamais demandés au serveur multimédia.
+  if (locales.concerne(pathname)) return (await locales.plexJson(pathname)) || { MediaContainer: { size: 0, Metadata: [] } };
   if (estJellyfin()) return jelly.plexJson(pathname);
   const sep = pathname.includes('?') ? '&' : '?';
   const r = await fetch(`${PLEX_URL}${pathname}${sep}X-Plex-Token=${PLEX_TOKEN}`, { headers: { Accept: 'application/json' } });
@@ -3068,7 +3141,8 @@ app.get('/api/subtitles/embedded/:ratingKey/:streamId', authMiddleware, async (r
     if (fs.existsSync(cache)) return envoyer(fs.readFileSync(cache, 'utf8'));
 
     // Jellyfin convertit lui-même la piste en WebVTT : pas besoin de ffmpeg.
-    if (estJellyfin()) {
+    // (Sauf fichier d'une bibliothèque locale : extrait ci-dessous comme pour Plex.)
+    if (estJellyfin() && !locales.estLocal(ratingKey)) {
       if (prive.cheminInterdit(`/library/metadata/${ratingKey}`)) return res.status(404).send('');
       const vtt = await jelly.sousTitreVtt(streamId);
       if (!vtt) return res.status(404).send('');
@@ -3218,6 +3292,11 @@ const apiCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500; // hard cap to prevent unbounded memory growth
 
+// Clé de cache : le chemin + le compte Plex utilisé (jamais le jeton lui-même).
+function cleCache(plexPath, req) {
+  return `${plexPath}|${crypto.createHash('sha1').update(String(tokenPour(req))).digest('hex').slice(0, 12)}`;
+}
+
 function getCached(key) {
   const entry = apiCache.get(key);
   if (!entry) return null;
@@ -3279,6 +3358,20 @@ app.get('/plex-transcode/start', proxyAuth, async (req, res) => {
     // Build the query params from the client request
     const clientParams = new URLSearchParams(req.query);
     if (prive.cheminInterdit(clientParams.get('path') || '')) return res.status(404).json({ error: 'Introuvable' });
+
+    // Bibliothèque locale : vidéo copiée telle quelle, seul le son est converti
+    // (piste choisie). Jamais de ré-encodage de l'image. Voir local.js.
+    const rkLocal = (clientParams.get('path') || '').match(/\/library\/metadata\/(\d+)/)?.[1];
+    if (rkLocal && locales.estLocal(rkLocal)) {
+      const r = await locales.remballer(rkLocal, locales.indexPiste(clientParams.get('audioStreamID')));
+      if (!r?.playlist) return res.status(404).json({ error: 'Introuvable' });
+      res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+      res.setHeader('Cache-Control', 'no-cache, no-store');
+      return res.send(r.playlist.split('\n').map((ligne) => {
+        const l = ligne.trim();
+        return !l || l.startsWith('#') ? ligne : avecJeton(`/localhls/${r.cle}/${l}`, req.query.nova);
+      }).join('\n'));
+    }
 
     // Jellyfin : même demande, transcodeur HLS de Jellyfin (via /jfhls).
     if (estJellyfin()) {
@@ -4218,6 +4311,54 @@ app.use('/jfhls', proxyAuth, async (req, res) => {
   }
 });
 
+/* ── Bibliothèques locales dans le proxy ───────────────────────────────
+   Images (captures de la vidéo), fichier vidéo (lecture directe, avec Range),
+   fiches et listes : tout est servi par local.js, rien ne part vers Plex. */
+async function servirLocal(req, res, plexPath) {
+  const [chemin, qs = ''] = plexPath.split('?');
+  const q = new URLSearchParams(qs);
+  let m = chemin.match(/^\/library\/metadata\/(\d+)\/(thumb|art)/)
+    || (chemin === '/photo/:/transcode' ? (q.get('url') || '').match(/\/library\/metadata\/(\d+)\/(thumb|art)/) : null);
+  if (m) {
+    const f = await locales.image(m[1], m[2]);
+    if (!f) return res.status(404).end();
+    res.setHeader('Cache-Control', 'private, max-age=86400');
+    return res.sendFile(f);
+  }
+  if ((m = chemin.match(/^\/library\/parts\/(\d+)/))) {
+    if ((req.method || 'GET').toUpperCase() === 'PUT') return res.json({});   // choix de pistes : géré au remballage
+    const t = await locales.trouver(m[1]);
+    const e = t && (t.episode || t.film);
+    if (!e || !locales.visible(t.lib)) return res.status(404).end();
+    const type = /\.mkv$/i.test(e.fichier) ? 'video/x-matroska' : /\.webm$/i.test(e.fichier) ? 'video/webm' : 'video/mp4';
+    return res.sendFile(e.fichier, { headers: { 'Content-Type': type, 'Cache-Control': 'private, no-transform' } });
+  }
+  if (/^\/:\/(timeline|scrobble|unscrobble)$/.test(chemin)) return res.json({});   // Nova tient sa propre progression
+  const json = await locales.plexJson(plexPath);
+  if (!json || (/^\/library\/metadata\/\d+$/.test(chemin) && !json.MediaContainer?.Metadata?.length)) {
+    return res.status(404).json({ error: 'Introuvable' });
+  }
+  return res.json(json);
+}
+
+// Liste des sections et recherche : on y ajoute les bibliothèques locales VISIBLES
+// par la personne — APRÈS le cache, qui est commun à tous les comptes.
+const A_FUSIONNER = /^\/library\/sections\/?(\?|$)|^\/hubs\/search(\?|$)/;
+async function fusionnerLocal(buffer, plexPath) {
+  try {
+    const [chemin, qs] = plexPath.split('?');
+    return Buffer.from(JSON.stringify(await locales.fusionner(JSON.parse(buffer.toString('utf8')), chemin, qs)));
+  } catch { return buffer; }
+}
+
+app.get('/localhls/:cle/:nom', proxyAuth, (req, res) => {
+  const f = locales.fichierHls(req.params.cle, req.params.nom);
+  if (!f) return res.status(404).end();
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Content-Type', /\.m3u8$/.test(f) ? 'application/vnd.apple.mpegurl' : 'video/mp2t');
+  return res.sendFile(f);
+});
+
 app.use('/plex', proxyAuth, async (req, res) => {
   try {
     // Strip our own `nova` auth param so it is never forwarded to Plex.
@@ -4235,8 +4376,14 @@ app.use('/plex', proxyAuth, async (req, res) => {
     // Contenu d'une bibliothèque privée : il n'existe pas (fiche, image, fichier).
     if (prive.cheminInterdit(plexPath)) return res.status(404).json({ error: 'Introuvable' });
 
+    // Bibliothèque locale (dossier lu par Nova) : jamais transmise au serveur multimédia.
+    if (locales.concerne(plexPath)) return await servirLocal(req, res, plexPath);
+
     // Serveur Jellyfin : la requête « Plex » est traduite (voir jellyfin.js).
-    if (estJellyfin()) return await jelly.servirProxy(req, res, plexPath, (j, c) => prive.filtrerJson(j, c));
+    if (estJellyfin()) {
+      return await jelly.servirProxy(req, res, plexPath,
+        (j, c) => locales.fusionner(prive.filtrerJson(j, c), c, plexPath.split('?')[1]));
+    }
 
     const separator = plexPath.includes('?') ? '&' : '?';
     // Compte Plex relié → on parle à Plex EN SON NOM : la séance s'affiche à son
@@ -4255,11 +4402,12 @@ app.use('/plex', proxyAuth, async (req, res) => {
 
     // Never cache transcode/HLS requests
     if (!isRangeRequest && !isTranscode) {
-      const cached = getCached(plexPath);
+      const cached = getCached(cleCache(plexPath, req));
       if (cached) {
         res.status(cached.status);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('X-Cache', 'HIT');
+        if (A_FUSIONNER.test(plexPath) && String(cached.contentType).includes('json')) return res.send(await fusionnerLocal(cached.body, plexPath));
         return res.send(cached.body);
       }
     }
@@ -4362,14 +4510,16 @@ app.use('/plex', proxyAuth, async (req, res) => {
       try { buffer = Buffer.from(JSON.stringify(prive.filtrerJson(JSON.parse(buffer.toString('utf8')), plexPath.split('?')[0]))); }
       catch { /* JSON illisible : on le laisse tel quel */ }
     }
-    if (buffer.length < 5 * 1024 * 1024 && !isTranscode) {
-      setCached(plexPath, { time: Date.now(), status: response.status, contentType, body: buffer });
+    // Seules les réponses RÉUSSIES vont en cache (une erreur passagère ne doit pas
+    // durer 5 min), et une entrée par compte Plex : chacun a sa progression.
+    if (response.ok && buffer.length < 5 * 1024 * 1024 && !isTranscode) {
+      setCached(cleCache(plexPath, req), { time: Date.now(), status: response.status, contentType, body: buffer });
     }
     res.status(response.status);
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('X-Cache', 'MISS');
     if (contentType.startsWith('image/')) res.setHeader('Cache-Control', 'public, max-age=86400');
-    res.send(buffer);
+    res.send(A_FUSIONNER.test(plexPath) && contentType.includes('json') && response.ok ? await fusionnerLocal(buffer, plexPath) : buffer);
   } catch (err) {
     // Chemin que la traduction Jellyfin ne connaît pas, ou titre introuvable.
     if (err.statut === 404) { if (!res.headersSent) res.status(404).json({ error: 'Introuvable' }); return; }

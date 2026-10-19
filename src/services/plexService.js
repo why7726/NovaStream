@@ -878,7 +878,9 @@ const plexService = {
       parentTitle: item.parentTitle,
       libraryTitle: item.librarySectionTitle,
       librarySectionID: item.librarySectionID,
-      genres: item.Genre ? item.Genre.map(g => g.tag) : []
+      genres: item.Genre ? item.Genre.map(g => g.tag) : [],
+      // Bibliothèque locale marquée +18 (voir local.js côté serveur)
+      adulte: !!item.adulte || item.contentRating === '18+',
     };
   }
 };

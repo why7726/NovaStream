@@ -23,6 +23,7 @@ export default function HeroPure({ movies = [] }) {
   useEffect(() => {
     let on = true;
     movies.forEach(async (m) => {
+      if (m.adulte) return;   // dossier local : pas de logo TMDB (homonymes)
       try {
         const type = m.type === 'movie' ? 'movie' : 'tv';
         const title = m.grandparentTitle || m.parentTitle || m.title;
