@@ -20,9 +20,10 @@ import { tr } from '../../i18n';
 const HOME = { id: 'home', label: tr('Accueil'), path: '/', icon: Home };
 const FAVS = { id: 'favorites', label: tr('Favoris'), path: '/favorites', icon: Heart };
 const ICONES = { movie: Film, show: Tv, anime: Sparkles };
-// La barre du téléphone n'a de place que pour trois bibliothèques ; les
-// suivantes passent dans le menu du compte.
-const MAX_MOBILE = 3;
+// La barre du téléphone tient cinq onglets : Accueil, jusqu'à quatre
+// bibliothèques, et Favoris s'il reste la place (sinon il est dans le menu du
+// compte). Les bibliothèques au-delà passent aussi dans ce menu.
+const MAX_MOBILE = 4;
 
 function MenuRow({ icon: Icon, children, onClick, tone = '' }) {
   return (
@@ -79,7 +80,7 @@ export default function NavPure() {
     id: `lib-${l.key}`, label: l.title, path: `/bibliotheque/${l.key}`, icon: ICONES[libraryKind(l)] || Film,
   }));
   const items = [HOME, ...libItems, FAVS];
-  const mobileItems = [HOME, ...libItems.slice(0, MAX_MOBILE), FAVS];
+  const mobileItems = [HOME, ...libItems.slice(0, MAX_MOBILE), ...(libItems.length < MAX_MOBILE ? [FAVS] : [])];
   const horsBarre = libItems.slice(MAX_MOBILE);
   const active = items.find((i) => i.path === pathname)?.id || (pathname === '/' ? 'home' : null);
   const initial = user?.username?.charAt(0).toUpperCase();
