@@ -24,6 +24,7 @@ import fs from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { spawn } from 'child_process';
+import { langue } from './i18n-serveur.js';
 
 const DECALAGE = 90_000_000;
 const EXT_VIDEO = /\.(mkv|mp4|m4v|webm|mov|avi|ts)$/i;
@@ -94,9 +95,10 @@ function capture(ffmpeg, fichier, secondes, sortie, filtre) {
 const LANGUES = { jpn: 'Japonais', eng: 'English', fra: 'Français', fre: 'Français', spa: 'Español', ger: 'Deutsch', kor: '한국어', chi: '中文' };
 
 /**
- * @param deps { db, dossierDonnees, ffmpeg, bibliotheques: () => [{id, nom, chemin, adulte}], acces: () => { adulte: bool } }
+ * @param deps { db, dossierDonnees, ffmpeg, bibliotheques: () => [{id, nom, chemin, adulte}], acces: () => { adulte: bool },
+ *               tmdb: (chemin, params) => Promise<json> — facultatif, pour les vraies affiches et résumés }
  */
-export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces }) {
+export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces, tmdb }) {
   db.exec('CREATE TABLE IF NOT EXISTS local_ids (n INTEGER PRIMARY KEY AUTOINCREMENT, cle TEXT UNIQUE NOT NULL)');
   const lireNum = db.prepare('SELECT n FROM local_ids WHERE cle = ?');
   const lireCle = db.prepare('SELECT cle FROM local_ids WHERE n = ?');
@@ -119,6 +121,98 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
     clearTimeout(ecritureSondes);
     ecritureSondes = setTimeout(() => { try { fs.writeFileSync(FICHIER_SONDES, JSON.stringify(sondes)); } catch {} }, 2000);
   };
+
+  /* ── Fiches TMDB : affiche, fond, résumé, genres, titres et images des
+     épisodes. Cherchées en arrière-plan (FR + EN), gardées sur disque. Le
+     contenu adulte n'apparaît dans TMDB qu'avec include_adult=true. Sans
+     correspondance, on garde les captures de la vidéo. ── */
+  const FICHIER_TMDB = path.join(CACHE, 'tmdb.json');
+  let fiches = {};
+  try { fiches = JSON.parse(fs.readFileSync(FICHIER_TMDB, 'utf8')); } catch { /* premier passage */ }
+  const sauverFiches = () => { try { fs.writeFileSync(FICHIER_TMDB, JSON.stringify(fiches)); } catch {} };
+  const normal = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, ' ').trim();
+  let enrichissement = null;
+
+  async function chercherFiche(type, titre, adulte) {
+    const r = await tmdb(`/search/${type}`, { query: titre, include_adult: String(!!adulte), language: 'fr-FR' });
+    const res = r.results || [];
+    const t = normal(titre);
+    const choisi = res.find((x) => [x.name, x.title, x.original_name, x.original_title].some((n) => normal(n) === t)) || res[0];
+    if (!choisi) return { aucune: Date.now() };
+    const details = async (l) => tmdb(`/${type}/${choisi.id}`, { language: l });
+    const [fr, en] = await Promise.all([details('fr-FR'), details('en-US')]);
+    const fiche = {
+      id: choisi.id, type, poster: fr.poster_path || en.poster_path, fond: fr.backdrop_path || en.backdrop_path,
+      annee: Number(String(fr.first_air_date || fr.release_date || '').slice(0, 4)) || undefined,
+      date: fr.first_air_date || fr.release_date || undefined,
+      note: fr.vote_average ? Math.round(fr.vote_average * 10) / 10 : undefined,
+      studio: (fr.production_companies || fr.networks || [])[0]?.name,
+      fr: { titre: fr.name || fr.title, resume: fr.overview, genres: (fr.genres || []).map((g) => g.name) },
+      en: { titre: en.name || en.title, resume: en.overview, genres: (en.genres || []).map((g) => g.name) },
+      saisons: {},
+    };
+    if (type === 'tv') {
+      for (const s of fr.seasons || []) {
+        const [sfr, sen] = await Promise.all([
+          tmdb(`/tv/${choisi.id}/season/${s.season_number}`, { language: 'fr-FR' }).catch(() => ({})),
+          tmdb(`/tv/${choisi.id}/season/${s.season_number}`, { language: 'en-US' }).catch(() => ({})),
+        ]);
+        fiche.saisons[s.season_number] = {
+          poster: s.poster_path,
+          episodes: Object.fromEntries((sfr.episodes || []).map((e) => {
+            const een = (sen.episodes || []).find((x) => x.episode_number === e.episode_number) || {};
+            return [e.episode_number, { image: e.still_path, date: e.air_date, fr: { titre: e.name, resume: e.overview }, en: { titre: een.name, resume: een.overview } }];
+          })),
+        };
+      }
+    }
+    return fiche;
+  }
+
+  /** Complète les fiches manquantes (une seule passe à la fois ; un échec réessaie après 12 h). */
+  function enrichir(libs) {
+    if (!tmdb || enrichissement) return;
+    enrichissement = (async () => {
+      for (const lib of libs) {
+        const items = [...lib.series.map((s) => ['tv', s.titre]), ...lib.films.map((f) => ['movie', f.titre])];
+        for (const [type, titre] of items) {
+          const cle = `${type}:${normal(titre)}`;
+          const f = fiches[cle];
+          if (f && !(f.aucune || f.erreur)) continue;
+          if (f && Date.now() - (f.aucune || f.erreur) < 12 * 3600000) continue;
+          try { fiches[cle] = await chercherFiche(type, titre, lib.adulte); }
+          catch { fiches[cle] = { erreur: Date.now() }; }
+          sauverFiches();
+        }
+      }
+    })().finally(() => { enrichissement = null; });
+  }
+
+  const ficheDe = (type, titre) => { const f = fiches[`${type}:${normal(titre)}`]; return f && f.id ? f : null; };
+  const texte = (bloc) => (bloc ? (langue() === 'en' ? bloc.en : bloc.fr) || bloc.fr || {} : {});
+  /** Champs Plex tirés de la fiche TMDB (résumé, année, genres, note). */
+  function champsFiche(f) {
+    if (!f) return {};
+    const t = texte(f);
+    return {
+      summary: t.resume || undefined, year: f.annee, originallyAvailableAt: f.date, rating: f.note, studio: f.studio,
+      Genre: (t.genres || []).map((g) => ({ tag: g })),
+    };
+  }
+
+  /** Télécharge une image TMDB une fois, puis la sert depuis le cache. */
+  async function imageTmdb(chemin, taille) {
+    if (!chemin) return null;
+    const sortie = path.join(CACHE, 'images', `tmdb-${taille}-${chemin.replace(/[^\w.]/g, '')}`);
+    if (fs.existsSync(sortie)) return sortie;
+    try {
+      const r = await fetch(`https://image.tmdb.org/t/p/${taille}${chemin}`, { signal: AbortSignal.timeout(15000) });
+      if (!r.ok) return null;
+      fs.mkdirSync(path.dirname(sortie), { recursive: true });
+      fs.writeFileSync(sortie, Buffer.from(await r.arrayBuffer()));
+      return sortie;
+    } catch { return null; }
+  }
 
   /* ── Catalogue : une lecture du dossier par minute au plus ── */
   let catalogue = { at: 0, libs: [] };
@@ -171,6 +265,7 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
       });
     }
     catalogue = { at: Date.now(), libs };
+    enrichir(libs);
     return libs;
   }
 
@@ -195,7 +290,8 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
   }
 
   /* ── Mise au format Plex ── */
-  const imagePath = (id, sorte) => `/library/metadata/${id}/${sorte}/1`;
+  // Le dernier segment change quand une fiche TMDB arrive : le navigateur ne ressert pas l'ancienne capture.
+  const imagePath = (id, sorte, fiche) => `/library/metadata/${id}/${sorte}/${fiche?.id || 1}`;
   function pistesPlex(e) {
     return (e.pistes || []).map((p) => ({
       id: num(`piste:${e.fichier}:${p.index}`),
@@ -227,32 +323,41 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
 
   function plexSerie(lib, s) {
     const nb = s.saisons.reduce((n, x) => n + x.episodes.length, 0);
+    const f = ficheDe('tv', s.titre);
     return {
-      ratingKey: String(s.id), key: `/library/metadata/${s.id}/children`, type: 'show', title: s.titre,
-      thumb: imagePath(s.id, 'thumb'), art: imagePath(s.id, 'art'), addedAt: s.ajoute,
-      childCount: s.saisons.length, leafCount: nb, Genre: [], Guid: [], ...commun(lib),
+      Genre: [], Guid: [], ...champsFiche(f),
+      ratingKey: String(s.id), key: `/library/metadata/${s.id}/children`, type: 'show', title: texte(f).titre || s.titre,
+      thumb: imagePath(s.id, 'thumb', f), art: imagePath(s.id, 'art', f), addedAt: s.ajoute,
+      childCount: s.saisons.length, leafCount: nb, ...commun(lib),
     };
   }
   function plexSaison(lib, s, sa) {
+    const f = ficheDe('tv', s.titre);
     return {
-      ratingKey: String(sa.id), key: `/library/metadata/${sa.id}/children`, type: 'season', title: `Saison ${sa.numero}`, index: sa.numero,
-      parentRatingKey: String(s.id), parentTitle: s.titre, thumb: imagePath(s.id, 'thumb'), parentThumb: imagePath(s.id, 'thumb'),
-      art: imagePath(s.id, 'art'), leafCount: sa.episodes.length, ...commun(lib),
+      ratingKey: String(sa.id), key: `/library/metadata/${sa.id}/children`, type: 'season', title: `${langue() === 'en' ? 'Season' : 'Saison'} ${sa.numero}`, index: sa.numero,
+      parentRatingKey: String(s.id), parentTitle: texte(f).titre || s.titre, thumb: imagePath(sa.id, 'thumb', f), parentThumb: imagePath(s.id, 'thumb', f),
+      art: imagePath(s.id, 'art', f), leafCount: sa.episodes.length, summary: texte(f).resume || undefined, ...commun(lib),
     };
   }
   function plexEpisode(lib, s, sa, e) {
+    const f = ficheDe('tv', s.titre);
+    const fe = f?.saisons?.[sa.numero]?.episodes?.[e.numero];
+    const te = texte(fe);
     return {
-      ratingKey: String(e.id), key: `/library/metadata/${e.id}`, type: 'episode', title: e.titre, index: e.numero, parentIndex: sa.numero,
-      parentRatingKey: String(sa.id), grandparentRatingKey: String(s.id), parentTitle: `Saison ${sa.numero}`, grandparentTitle: s.titre,
-      thumb: imagePath(e.id, 'thumb'), parentThumb: imagePath(s.id, 'thumb'), grandparentThumb: imagePath(s.id, 'thumb'), art: imagePath(s.id, 'art'),
+      ratingKey: String(e.id), key: `/library/metadata/${e.id}`, type: 'episode', title: te.titre || e.titre, index: e.numero, parentIndex: sa.numero,
+      summary: te.resume || undefined, originallyAvailableAt: fe?.date,
+      parentRatingKey: String(sa.id), grandparentRatingKey: String(s.id), parentTitle: `${langue() === 'en' ? 'Season' : 'Saison'} ${sa.numero}`, grandparentTitle: texte(f).titre || s.titre,
+      thumb: imagePath(e.id, 'thumb', f), parentThumb: imagePath(sa.id, 'thumb', f), grandparentThumb: imagePath(s.id, 'thumb', f), art: imagePath(s.id, 'art', f),
       duration: e.duree, addedAt: e.ajoute, Media: mediaPlex(e), ...commun(lib),
     };
   }
-  function plexFilm(lib, f) {
+  function plexFilm(lib, fi) {
+    const f = ficheDe('movie', fi.titre);
     return {
-      ratingKey: String(f.id), key: `/library/metadata/${f.id}`, type: 'movie', title: f.titre,
-      thumb: imagePath(f.id, 'thumb'), art: imagePath(f.id, 'art'), duration: f.duree, addedAt: f.ajoute,
-      Genre: [], Guid: [], Media: mediaPlex(f), ...commun(lib),
+      Genre: [], Guid: [], ...champsFiche(f),
+      ratingKey: String(fi.id), key: `/library/metadata/${fi.id}`, type: 'movie', title: texte(f).titre || fi.titre,
+      thumb: imagePath(fi.id, 'thumb', f), art: imagePath(fi.id, 'art', f), duration: fi.duree, addedAt: fi.ajoute,
+      Media: mediaPlex(fi), ...commun(lib),
     };
   }
   const conteneur = (Metadata, extra = {}) => ({ MediaContainer: { size: Metadata.length, Metadata, ...extra } });
@@ -308,8 +413,10 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
     if (q.length < 2) return [];
     const out = [];
     for (const lib of await libsVisibles()) {
-      for (const s of lib.series) if (s.titre.toLowerCase().includes(q)) out.push(plexSerie(lib, s));
-      for (const f of lib.films) if (f.titre.toLowerCase().includes(q)) out.push(plexFilm(lib, f));
+      const trouve = (type, titre) => [titre, ...['fr', 'en'].map((l) => ficheDe(type, titre)?.[l]?.titre)]
+        .some((x) => x && x.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').includes(q));
+      for (const s of lib.series) if (trouve('tv', s.titre)) out.push(plexSerie(lib, s));
+      for (const f of lib.films) if (trouve('movie', f.titre)) out.push(plexFilm(lib, f));
     }
     return out;
   }
@@ -350,6 +457,18 @@ export function creerLocales({ db, dossierDonnees, ffmpeg, bibliotheques, acces 
   async function image(n, sorte) {
     const t = await trouver(n);
     if (!t || !visible(t.lib)) return null;
+    // La fiche TMDB d'abord : vraie affiche, vrai fond, image propre à l'épisode.
+    const f = t.serie ? ficheDe('tv', t.serie.titre) : ficheDe('movie', t.film.titre);
+    if (f) {
+      const sa = t.saison || (t.episode && t.serie.saisons.find((x) => x.episodes.includes(t.episode)));
+      const fs_ = sa ? f.saisons?.[sa.numero] : null;
+      const chemin = sorte === 'art' ? f.fond
+        : t.type === 'episode' ? fs_?.episodes?.[t.episode.numero]?.image
+          : t.type === 'season' ? (fs_?.poster || f.poster) : f.poster;
+      const taille = sorte === 'art' ? 'w1280' : t.type === 'episode' ? 'w780' : 'w500';
+      const telechargee = await imageTmdb(chemin, taille);
+      if (telechargee) return telechargee;
+    }
     // Une image fournie dans le dossier (poster.jpg, folder.jpg…) passe avant la capture.
     const dossierSerie = t.serie ? path.dirname((t.serie.premier || {}).fichier || '') : null;
     if (t.type !== 'episode' && dossierSerie && dossierSerie !== t.lib.chemin) {

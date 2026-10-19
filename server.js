@@ -293,6 +293,7 @@ const locales = creerLocales({
   ffmpeg: process.env.FFMPEG_PATH || ffmpegStatic,
   bibliotheques: () => config.bibliothequesLocales(),
   acces: () => ({ adulte: accesAdulte() }),
+  tmdb: (chemin, params) => (TMDB_TOKEN ? tmdbGet(chemin, params) : Promise.reject(new Error('TMDB non configuré'))),
 });
 config.onChange(() => locales.oublier());
 setTimeout(() => locales.charger(true).catch((e) => console.warn('[Local]', e.message)), 8000);
