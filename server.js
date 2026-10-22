@@ -28,6 +28,7 @@ import * as calendrier from './calendrier.js';
 import { creerFiltrePrive } from './prive.js';
 import { creerJellyfin } from './jellyfin.js';
 import { creerLocales } from './local.js';
+import { creerRemux } from './remux.js';
 import { contexte, langue, langueDe, langueTmdb, versAnglais } from './i18n-serveur.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -303,6 +304,9 @@ const locales = creerLocales({
   tmdb: (chemin, params) => (TMDB_TOKEN ? tmdbGet(chemin, params) : Promise.reject(new Error('TMDB non configuré'))),
 });
 config.onChange(() => locales.oublier());
+
+// Remballage Nova (vidéo copiée, son converti) — voir remux.js
+const remux = creerRemux({ ffmpeg: process.env.FFMPEG_PATH || ffmpegStatic, dossier: path.join(config.DATA_DIR, 'remux') });
 setTimeout(() => locales.charger(true).catch((e) => console.warn('[Local]', e.message)), 8000);
 db.pragma('wal_autocheckpoint = 1000'); // keep the -wal file from growing unbounded
 
@@ -3037,7 +3041,7 @@ db.exec(`CREATE TABLE IF NOT EXISTS playback_stats (
 )`);
 
 app.post('/api/playback-method', authMiddleware, (req, res) => {
-  const m = req.body?.method === 'direct' ? 'direct' : 'transcode';
+  const m = ['direct', 'remux'].includes(req.body?.method) ? req.body.method : 'transcode';
   try {
     db.prepare('INSERT INTO playback_stats (userId, mediaId, method) VALUES (?, ?, ?)')
       .run(req.user.id, String(req.body?.mediaId || ''), m);
@@ -3373,6 +3377,50 @@ function setCached(key, value) {
    peut PAS envoyer d'en-tête `Authorization`. Sans jeton dans l'URL, le proxy
    répond 401, `loadedmetadata` n'arrive jamais et l'écran de chargement tourne
    dans le vide — c'est exactement ce qui bloquait la lecture sur iPhone. */
+/* Remballage : fichier d'origine sur le disque, piste audio choisie. Renvoie
+   la playlist, ou null s'il faut laisser faire Plex. */
+async function demarrerRemux(req, ratingKey, params) {
+  const session = params.get('session');
+  if (!remux.sur(session)) return null;
+  const adresse = (nom) => avecJeton(`/remux/${session}/${nom}`, req.query.nova);
+  // Rechargement de la playlist en cours de lecture : réponse immédiate.
+  const requete = `${ratingKey}|${params.get('audioStreamID') || ''}|${Math.floor(Number(params.get('offset')) || 0)}`;
+  if (remux.meme(session, req.user.id, requete)) return remux.playlist(session, adresse);
+  const meta = (await plexJson(`/library/metadata/${ratingKey}`))?.MediaContainer?.Metadata?.[0];
+  const media = meta?.Media?.[0];
+  const part = media?.Part?.[0];
+  if (!part?.file || !fs.existsSync(part.file)) return null;
+  const audios = (part.Stream || []).filter((x) => x.streamType === 2);
+  const voulu = params.get('audioStreamID');
+  const audio = (voulu && audios.find((a) => String(a.id) === String(voulu))) || audios.find((a) => a.selected) || audios[0];
+  if (!audio || !Number.isInteger(audio.index)) return null;
+  const debut = Date.now();
+  const ok = await remux.demarrer({
+    id: session, userId: req.user.id, fichier: part.file, requete,
+    indexAudio: audio.index, codecAudio: (audio.codec || '').toLowerCase(), codecVideo: (media.videoCodec || '').toLowerCase(),
+    offset: Number(params.get('offset')) || 0,
+  });
+  if (!ok) return null;
+  if (Date.now() - debut > 300) console.log(`[Remux] ${meta.title} : prêt en ${Date.now() - debut} ms (${media.videoCodec}, audio ${audio.codec})`);
+  return remux.playlist(session, adresse);
+}
+
+app.get('/remux/:session/:nom', proxyAuth, (req, res) => {
+  const { session, nom } = req.params;
+  if (!remux.appartient(session, req.user.id)) return res.status(404).end();
+  res.setHeader('Cache-Control', 'no-cache, no-store');
+  if (nom === 'index.m3u8') {
+    const p = remux.playlist(session, (n) => avecJeton(`/remux/${session}/${n}`, req.query.nova));
+    if (!p) return res.status(404).end();
+    res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+    return res.send(p);
+  }
+  const f = remux.fichier(session, nom);
+  if (!f) return res.status(404).end();
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  return res.sendFile(f, { headers: { 'Content-Type': nom.endsWith('.mp4') || nom.endsWith('.m4s') ? 'video/mp4' : 'application/octet-stream' } });
+});
+
 function avecJeton(url, nova) {
   if (!nova) return url;
   return url + (url.includes('?') ? '&' : '?') + 'nova=' + encodeURIComponent(nova);
@@ -3420,6 +3468,23 @@ app.get('/plex-transcode/start', proxyAuth, async (req, res) => {
         const l = ligne.trim();
         return !l || l.startsWith('#') ? ligne : avecJeton(`/localhls/${r.cle}/${l}`, req.query.nova);
       }).join('\n'));
+    }
+
+    /* Remballage Nova : demandé par le lecteur quand l'IMAGE est lisible telle
+       quelle par le navigateur et que seul le son pose problème. Si le fichier
+       n'est pas lisible depuis ce serveur (Plex sur une autre machine…), on
+       continue simplement vers le transcodeur de Plex. */
+    const veutRemux = clientParams.get('remux') === '1';
+    clientParams.delete('remux');
+    if (veutRemux && !estJellyfin() && rkLocal) {
+      try {
+        const playlist = await demarrerRemux(req, rkLocal, clientParams);
+        if (playlist) {
+          res.setHeader('Content-Type', 'application/vnd.apple.mpegurl');
+          res.setHeader('Cache-Control', 'no-cache, no-store');
+          return res.send(playlist);
+        }
+      } catch (e) { console.warn('[Remux] repli sur Plex :', e.message); }
     }
 
     // Jellyfin : même demande, transcodeur HLS de Jellyfin (via /jfhls).
@@ -4410,6 +4475,11 @@ app.get('/localhls/:cle/:nom', proxyAuth, (req, res) => {
 
 app.use('/plex', proxyAuth, async (req, res) => {
   try {
+    // Le lecteur arrête sa session : si c'était un remballage Nova, on coupe ffmpeg.
+    if (/^\/video\/:\/transcode\/universal\/stop\b/.test(req.url)) {
+      const sid = new URLSearchParams(req.url.split('?')[1] || '').get('session');
+      if (sid && remux.appartient(sid, req.user.id)) { remux.arreter(sid); return res.json({ ok: true }); }
+    }
     // Strip our own `nova` auth param so it is never forwarded to Plex.
     let plexPath = req.url.replace(/([?&])nova=[^&]*(&|$)/, (m, p1, p2) => (p1 === '?' && p2 === '&') ? '?' : (p2 === '&' ? p1 : ''));
 

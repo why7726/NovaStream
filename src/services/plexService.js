@@ -191,7 +191,7 @@ const plexService = {
   /**
    * Build a transcode URL for HLS playback
    */
-  getTranscodeUrl(ratingKey, { audioStreamID, subtitleStreamID, quality } = {}) {
+  getTranscodeUrl(ratingKey, { audioStreamID, subtitleStreamID, quality, offset, remux } = {}) {
     const base = getProxyBase();
     
     // Default quality: 1080p High
@@ -235,6 +235,15 @@ const plexService = {
       'X-Plex-Client-Profile-Extra': `append-transcode-target-audio-codec(type=audioProfile&context=universal&protocol=hls&audioCodec=aac);add-limitation(scope=videoTranscode&type=upperBound&name=video.bitrate&value=${bitrate});add-limitation(scope=videoTranscode&type=upperBound&name=video.width&value=${width});add-limitation(scope=videoTranscode&type=upperBound&name=video.height&value=${height});`
     });
 
+    /* Reprise : Plex démarre son transcodeur DIRECTEMENT au bon endroit. Sans
+       ça, il part du début, le lecteur réclame le segment de la reprise, et Plex
+       doit tout relancer là-bas : mesuré 10,5 s pour reprendre à 30 min, contre
+       5,4 s avec offset. Le découpage de la playlist ne change pas (mêmes
+       segments, même numérotation) : hls.js garde sa position de départ. */
+    if (offset > 0) params.set('offset', String(Math.floor(offset)));
+    // Remballage Nova possible (voir remux.js côté serveur) : le serveur décide,
+    // et repasse à Plex s'il ne peut pas lire le fichier.
+    if (remux) params.set('remux', '1');
     if (audioStreamID) params.set('audioStreamID', audioStreamID);
     if (subtitleStreamID) params.set('subtitleStreamID', subtitleStreamID);
     else params.set('subtitleStreamID', '0');
@@ -260,7 +269,7 @@ const plexService = {
    * - If the selected audio track is browser-compatible → Direct Play (no CPU load)
    * - If the selected audio needs transcoding → HLS via Plex Universal Transcoder
    */
-  getPlaybackUrl(ratingKey, mediaInfo, { audioStreamID, subtitleStreamID, quality } = {}) {
+  getPlaybackUrl(ratingKey, mediaInfo, { audioStreamID, subtitleStreamID, quality, offset } = {}) {
     // Find the selected audio stream to check its codec
     const audioStreams = mediaInfo?.audioStreams || [];
     let selectedStream = null;
@@ -314,10 +323,27 @@ const plexService = {
       console.log(`[Plex] Video ${mediaInfo?.videoCodec}/${mediaInfo?.container} non lisible ici → transcodage`);
     }
 
+    /* Remballage Nova : l'image est lisible ici, seul le SON coince (EAC3, AC3,
+       DTS… ou VF rangée en 2e piste). Le serveur copie alors la vidéo telle
+       quelle et ne convertit que le son : démarrage quasi instantané, qualité
+       d'origine. C'était le cas d'un tiers des lectures, toutes ré-encodées
+       par Plex jusqu'ici. Pas sur Safari (son lecteur HLS est celui du système). */
+    const safari = typeof navigator !== 'undefined' && /^((?!chrome|android|crios|edg).)*safari/i.test(navigator.userAgent);
+    const mse = typeof window !== 'undefined' && typeof window.MediaSource !== 'undefined';
+    const remballable = !videoNeedsTranscode && isOriginalQuality && !wantsSubtitles && (audioNeedsTranscode || !audioIsFirstTrack) && !safari && mse;
+    if (remballable) {
+      return {
+        url: this.getTranscodeUrl(ratingKey, { audioStreamID: audioStreamID ?? chosenAudioId, subtitleStreamID: 0, quality, offset, remux: true }),
+        isHLS: true,
+        method: 'remux',
+        sousTitreALivrer: sousTitreLivrable ? { ratingKey, streamId: subtitleStreamID, langue: subChoisi.language } : null,
+      };
+    }
+
     if (audioNeedsTranscode || videoNeedsTranscode || !isOriginalQuality || !audioIsFirstTrack || wantsSubtitles) {
       // Audio ou vidéo incompatible, ou qualité réduite → transcodeur Plex (HLS)
       return {
-        url: this.getTranscodeUrl(ratingKey, { audioStreamID, subtitleStreamID, quality }),
+        url: this.getTranscodeUrl(ratingKey, { audioStreamID, subtitleStreamID, quality, offset }),
         isHLS: true,
         method: 'transcode'
       };

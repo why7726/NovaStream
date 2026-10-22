@@ -162,6 +162,7 @@ function PlayerV2() {
     const v = videoRef.current;
     const playback = plexService.getPlaybackUrl(id, mediaRef.current, {
       audioStreamID: selectedAudio, subtitleStreamID: selectedSubtitle, quality: selectedQuality,
+      offset: v?.currentTime || 0,
     });
     try {
       await castMedia({
@@ -244,6 +245,56 @@ function PlayerV2() {
   // `loadPlayback` est défini plus bas ; on y accède par une référence pour
   // éviter une dépendance circulaire entre les deux fonctions.
   const loadPlaybackRef = useRef(null);
+  const remuxRef = useRef(false);
+
+  /* Remballage Nova : la playlist commence au point de départ (avant : un
+     « trou ») et grandit pendant que le serveur avance. Un saut AVANT le
+     départ, ou plus loin que ce qui est déjà prêt, relance le remballage à
+     cet endroit — exactement comme Plex quand on saute pendant un transcodage.
+
+     On intercepte la DEMANDE de déplacement (currentTime = …) sur la balise
+     elle-même : au-delà de la partie prête, le navigateur rabote la valeur
+     avant même l'événement « seeking », la cible serait déjà perdue. Tous les
+     déplacements du lecteur (barre, ±10 s, flèches, saut de générique)
+     passent par là. */
+  useEffect(() => {
+    const video = videoRef.current;
+    if (!video) return undefined;
+    const natif = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+    if (!natif?.set) return undefined;
+    const horsDeLaPartiePrete = (t) => {
+      const hls = hlsRef.current;
+      if (!remuxRef.current || !hls || relanceEnCoursRef.current) return false;
+      const details = hls.levels?.[Math.max(0, hls.currentLevel)]?.details;
+      const vrais = (details?.fragments || []).filter((f) => !f.gap);
+      if (!vrais.length) return false;
+      const debutPret = vrais[0].start;
+      const finPrete = vrais[vrais.length - 1].start + vrais[vrais.length - 1].duration;
+      return t < debutPret - 0.5 || (details.live && t > finPrete + 1);
+    };
+    Object.defineProperty(video, 'currentTime', {
+      configurable: true,
+      get() { return natif.get.call(this); },
+      set(t) {
+        if (Number.isFinite(t) && horsDeLaPartiePrete(t)) {
+          relanceEnCoursRef.current = true;
+          resumeTimeRef.current = t;
+          lastShownTimeRef.current = t;
+          setCurrentTime(t);
+          setHlsReady(false);
+          destroyHLS();
+          plexService.stopTranscodeSession().finally(() => {
+            loadPlaybackRef.current?.();
+            relanceEnCoursRef.current = false;
+          });
+          return;
+        }
+        natif.set.call(this, t);
+      },
+    });
+    return () => { delete video.currentTime; };   // retour au comportement d'origine
+    // `loading` : la balise <video> n'existe qu'une fois l'écran de chargement passé.
+  }, [destroyHLS, loading, error]);
 
   const loadHLSStream = useCallback(async (url) => {
     const video = videoRef.current;
@@ -303,7 +354,8 @@ function PlayerV2() {
         manifestLoadingTimeOut: 10000,
         levelLoadingTimeOut: 10000,
         fragLoadingTimeOut: 20000,
-        startPosition: resumeAt > 0 ? resumeAt : -1,
+        // Remballage : playlist « qui grandit » → départ explicite, pas au bord du direct
+        startPosition: resumeAt > 0 ? resumeAt : (remuxRef.current ? 0 : -1),
         // The Plex proxy now requires auth — attach the JWT to every HLS request
         // (manifests + .ts segments all flow through hls.js).
         xhrSetup: (xhr) => {
@@ -355,18 +407,26 @@ function PlayerV2() {
     const playback = plexService.getPlaybackUrl(mediaData.id, mediaData, {
       audioStreamID: audioId,
       subtitleStreamID: subId,
-      quality: quality || selectedQuality
+      quality: quality || selectedQuality,
+      offset: resumeTimeRef.current,   // reprise / changement de piste : Plex démarre là
     });
     setPlaybackMethod(playback.isHLS ? 'hls' : 'direct');
+    remuxRef.current = playback.method === 'remux';
+    dernierSautRef.current = Date.now();
     /* On dit au serveur COMMENT on lit : c'est la seule façon de savoir si le
        travail sur les codecs et les sous-titres évite vraiment des
        transcodages (tableau de bord admin). */
     fetch(`${apiBase}/api/playback-method`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', ...authHeaders() },
-      body: JSON.stringify({ mediaId: mediaData.id, method: playback.isHLS ? 'transcode' : 'direct' }),
+      body: JSON.stringify({ mediaId: mediaData.id, method: playback.method === 'remux' ? 'remux' : playback.isHLS ? 'transcode' : 'direct' }),
     }).catch(() => {});
-    if (playback.isHLS) loadHLSStream(playback.url);
+    if (playback.isHLS) {
+      loadHLSStream(playback.url);
+      // Remballage : la vidéo n'est pas ré-encodée, le sous-titre texte arrive à part.
+      setSousTitreIntegre(null);
+      if (playback.sousTitreALivrer) chargerSousTitreIntegre(playback.sousTitreALivrer);
+    }
     else {
       destroyHLS();
       if (videoRef.current) videoRef.current.src = playback.url;
@@ -868,7 +928,13 @@ function PlayerV2() {
 
   useEffect(() => { coupuresRef.current = 0; dejaAllegeRef.current = false; setCoupures(0); }, [id]);
 
+  /* Une attente juste après un saut (ou un nouveau chargement) est normale :
+     la partie visée n'est pas encore là. Elle ne dit rien du réseau — sans ce
+     filtre, quatre sauts dans la barre suffisaient à faire baisser la qualité. */
+  const dernierSautRef = useRef(0);
   const surAttenteDonnees = () => {
+    const v = videoRef.current;
+    if (v?.seeking || Date.now() - dernierSautRef.current < 4000) return;
     coupuresRef.current += 1;
     setCoupures(coupuresRef.current);
   };
@@ -1559,6 +1625,7 @@ function PlayerV2() {
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
         onWaiting={surAttenteDonnees}
+        onSeeking={() => { dernierSautRef.current = Date.now(); }}
         onEnded={() => { if (siblings.next && !autoNextCancelledRef.current && !isNavigating) handleNextEpisode(); }}
         /* Un appui sur l'image ne met PLUS en pause : il fait apparaître ou
            disparaître les commandes. Mettre en pause d'un simple clic est trop
