@@ -117,18 +117,23 @@ const plexService = {
     else if (usage === 'still') taille = faible ? [320, 180] : [480, 270];
     else if (usage === 'backdrop') taille = faible ? [780, 440] : [1280, 720];
 
+    /* Images : AUCUN jeton dans l'adresse — le cookie « média » du serveur les
+       authentifie. L'adresse d'une affiche reste donc la même d'une visite à
+       l'autre et le navigateur la garde en cache (avant : un nouveau jeton à
+       chaque ouverture du site → plus de 100 affiches retéléchargées). Les
+       invités d'une séance n'ont pas ce cookie : eux gardent le jeton. */
+    const img = (u) => (authService.getUser()?.guest ? this._withToken(u) : u);
     if (taille) {
       const [width, height] = taille;
-      return this._withToken(
-        `${base}/plex/photo/:/transcode?width=${width}&height=${height}&minSize=1&upscale=1&url=${encodeURIComponent(path)}`
-      );
+      return img(`${base}/plex/photo/:/transcode?width=${width}&height=${height}&minSize=1&upscale=1&url=${encodeURIComponent(path)}`);
     }
 
     // Logos et fichiers : servis tels quels.
     if (path.startsWith('http')) {
-      return this._withToken(`${base}/plex/photo/:/transcode?width=300&height=300&minSize=1&upscale=1&url=${encodeURIComponent(path)}`);
+      return img(`${base}/plex/photo/:/transcode?width=300&height=300&minSize=1&upscale=1&url=${encodeURIComponent(path)}`);
     }
-    return this._withToken(`${base}/plex${path}`);
+    // 'raw' = un FICHIER vidéo : jeton conservé (lecteurs natifs, Chromecast…)
+    return usage === 'raw' ? this._withToken(`${base}/plex${path}`) : img(`${base}/plex${path}`);
   },
 
   // ═══════════════════════════════════════════════════════════

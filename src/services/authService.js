@@ -129,6 +129,8 @@ const authService = {
     }
     this._media = { token: null, exp: 0 };
     if (this._mediaTimer) { clearInterval(this._mediaTimer); this._mediaTimer = null; }
+    // Le cookie « média » (images) part aussi : sur un PC partagé, plus rien ne reste.
+    try { fetch(`${getBase()}/api/auth/logout`, { method: 'POST', keepalive: true }); } catch {}
     localStorage.removeItem('nova_token');
     localStorage.removeItem('nova_user');
   }

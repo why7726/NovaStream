@@ -579,12 +579,17 @@ function proxyAuth(req, res, next) {
   const header = req.headers['authorization'];
   let token = header ? header.replace('Bearer ', '') : null;
   if (!token && req.query.nova) token = req.query.nova;
+  // Cookie média : uniquement pour LIRE (images, fichiers), jamais pour agir.
+  const lecture = ['GET', 'HEAD'].includes((req.method || 'GET').toUpperCase());
+  let depuisCookie = false;
+  if (!token && lecture) { token = lireCookieMedia(req); depuisCookie = !!token; }
   if (!token) return res.status(401).json({ error: 'Token requis' });
   try {
     req.user = jwt.verify(token, JWT_SECRET, { algorithms: ['HS256'] });
   } catch {
     return res.status(401).json({ error: 'Token invalide' });
   }
+  if (depuisCookie && !req.user.mediaScope) return res.status(401).json({ error: 'Token invalide' });
   if (!checkTokenVersion(req.user)) return res.status(401).json({ error: 'Session révoquée' });
 
   // Restricted tokens (leak-prone or account-less) may only READ:
@@ -786,6 +791,7 @@ app.post('/api/auth/register', (req, res) => {
 
     // Generate token
     const token = jwt.sign({ id: result.lastInsertRowid, username, email, isAdmin, tv: 0 }, JWT_SECRET, { expiresIn: '30d' });
+    poserCookieMedia(req, res, result.lastInsertRowid, 0);
 
     res.json({ token, user: { id: result.lastInsertRowid, username, email, isAdmin, langue: null, bienvenueVue: 0 } });
   } catch (err) {
@@ -839,12 +845,34 @@ app.post('/api/auth/login', loginRateLimit, (req, res) => {
     logActivity(user.id, 'login');
 
     const token = jwt.sign({ id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin, tv: user.tokenVersion || 0 }, JWT_SECRET, { expiresIn: '30d' });
+    poserCookieMedia(req, res, user.id, user.tokenVersion);
 
     res.json({ token, user: { id: user.id, username: user.username, email: user.email, isAdmin: user.isAdmin, avatar: user.avatar || null, langue: user.langue || null, bienvenueVue: user.bienvenueVue } });
   } catch (err) {
     console.error('Login error:', err);
     res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+/* Cookie « média » : authentifie les IMAGES sans jeton dans leur adresse.
+   Les adresses restent donc identiques d'une visite à l'autre (le navigateur
+   peut garder les affiches en cache) et aucun jeton ne traîne dans un
+   historique, un journal ou un en-tête Referer. HttpOnly (illisible par la
+   page), SameSite=Strict (jamais envoyé depuis un autre site), lecture seule
+   (mediaScope), révoqué comme le reste par « déconnecter tous les appareils ». */
+const COOKIE_MEDIA = 'nova_media';
+function poserCookieMedia(req, res, userId, tv) {
+  const jeton = jwt.sign({ id: userId, mediaScope: true, tv: tv || 0 }, JWT_SECRET, { expiresIn: '30d' });
+  const https = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+  res.append('Set-Cookie', `${COOKIE_MEDIA}=${jeton}; Path=/; Max-Age=${30 * 24 * 3600}; HttpOnly; SameSite=Strict${https ? '; Secure' : ''}`);
+}
+function lireCookieMedia(req) {
+  const m = String(req.headers.cookie || '').match(/(?:^|;\s*)nova_media=([^;]+)/);
+  return m ? m[1] : null;
+}
+app.post('/api/auth/logout', (req, res) => {
+  res.append('Set-Cookie', `${COOKIE_MEDIA}=; Path=/; Max-Age=0; HttpOnly; SameSite=Strict`);
+  res.json({ ok: true });
 });
 
 // Short-lived, read-only "media token" for URL params (?nova=) — so the 30-day
@@ -876,8 +904,10 @@ app.get('/api/auth/me', authMiddleware, (req, res) => {
   if (req.user.guest) {
     return res.json({ user: { id: null, username: req.user.username || 'Invité', email: null, isAdmin: false, avatar: null, guest: true, sessionId: req.user.sessionId } });
   }
-  const user = db.prepare('SELECT id, username, email, isAdmin, avatar, langue, bienvenueVue FROM users WHERE id = ?').get(req.user.id);
+  const user = db.prepare('SELECT id, username, email, isAdmin, avatar, langue, bienvenueVue, tokenVersion FROM users WHERE id = ?').get(req.user.id);
   if (!user) return res.status(401).json({ error: 'Utilisateur introuvable' });
+  poserCookieMedia(req, res, user.id, user.tokenVersion);
+  delete user.tokenVersion;
   res.json({ user });
 });
 
@@ -4526,6 +4556,7 @@ app.use('/plex', proxyAuth, async (req, res) => {
         res.status(cached.status);
         res.setHeader('Content-Type', cached.contentType);
         res.setHeader('X-Cache', 'HIT');
+        if (String(cached.contentType).startsWith('image/')) res.setHeader('Cache-Control', 'private, max-age=604800');
         if (A_FUSIONNER.test(plexPath) && String(cached.contentType).includes('json')) return res.send(await fusionnerLocal(cached.body, plexPath));
         return res.send(cached.body);
       }
@@ -4637,7 +4668,8 @@ app.use('/plex', proxyAuth, async (req, res) => {
     res.status(response.status);
     if (contentType) res.setHeader('Content-Type', contentType);
     res.setHeader('X-Cache', 'MISS');
-    if (contentType.startsWith('image/')) res.setHeader('Cache-Control', 'public, max-age=86400');
+    // Affiches : gardées une semaine par le navigateur (« private » : elles sont derrière une connexion).
+    if (contentType.startsWith('image/')) res.setHeader('Cache-Control', 'private, max-age=604800');
     res.send(A_FUSIONNER.test(plexPath) && contentType.includes('json') && response.ok ? await fusionnerLocal(buffer, plexPath) : buffer);
   } catch (err) {
     // Chemin que la traduction Jellyfin ne connaît pas, ou titre introuvable.
