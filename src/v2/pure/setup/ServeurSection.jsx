@@ -3,6 +3,7 @@ import { Check, Loader2, AlertCircle, ChevronDown } from 'lucide-react';
 import { api, signalerInstallation } from './api';
 import { refreshLibraries } from '../../lib/libraries';
 import { Carte, Champ, Bouton, Message } from './ui';
+import ComptePartage from './ComptePartage';
 
 import { tr } from '../../../i18n';
 /* Relier le serveur multimédia.
@@ -214,6 +215,8 @@ export default function ServeurSection({ reglages, features, onChange }) {
               <p className="text-[12px] text-white/45 leading-relaxed">
                 {tr('Facultatif : le jeton d\'un compte Plex géré dédié à Nova. Les lectures de tes utilisateurs apparaîtront sous ce compte plutôt que sous le tien, et ta propre reprise de lecture reste intacte.')}
               </p>
+              <ComptePartage onChange={onChange} />
+              <p className="text-[12px] text-white/35 pt-2">{tr('Ou colle un jeton à la main :')}</p>
               <Champ label={tr('Jeton du compte Plex dédié')} secret placeholder={reglages?.PLEX_NOVA_TOKEN?.apercu || tr('non défini')}
                 valeur={jetonNova} onChange={setJetonNova} />
               <div className="flex gap-2">

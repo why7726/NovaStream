@@ -71,6 +71,7 @@ export const REGLAGES = {
   PLEX_URL:               { groupe: 'serveur' },
   PLEX_TOKEN:             { groupe: 'serveur', secret: true },
   PLEX_NOVA_TOKEN:        { groupe: 'serveur', secret: true },
+  PLEX_NOVA_USER_ID:      { groupe: 'serveur' },   // compte géré du Plex Home dont vient PLEX_NOVA_TOKEN
   TMDB_TOKEN:             { groupe: 'tmdb', secret: true },
   OPENSUBTITLES_API_KEY:  { groupe: 'soustitres', secret: true },
   OPENSUBTITLES_USER:     { groupe: 'soustitres' },

@@ -172,6 +172,13 @@ const EN = {
   'Introuvable après 14 jours': 'Not found after 14 days',
   'Chemin vide': 'Empty path',
   'Dossier introuvable sur le serveur : {0}': 'Folder not found on the server: {0}',
+  'Aucun compte partagé choisi': 'No shared account selected',
+  'Serveur Plex non relié': 'No Plex server connected',
+  'Ton serveur Plex refuse ce compte — partage-lui tes bibliothèques dans Plex': 'Your Plex server refuses this account — share your libraries with it in Plex',
+  'plex.tv ne répond pas': 'plex.tv is not responding',
+  'Code PIN refusé par Plex': 'PIN code rejected by Plex',
+  'Ce compte est protégé par un code PIN': 'This account is protected by a PIN code',
+  'Plex n\'a pas renvoyé de jeton': 'Plex did not return a token',
   'Test inconnu': 'Unknown test',
 
   // Séances à plusieurs, notifications, TV

@@ -57,12 +57,19 @@ lireConfig();
    plus rien. On le vérifie au démarrage puis toutes les 30 min ; s'il est
    refusé, on se rabat sur le jeton administrateur (les lectures apparaissent
    alors sous le compte admin dans Plex) et on le signale dans le journal. */
+let derniereReparation = 0;
 async function verifierJetonPartage() {
   const partage = config.get('PLEX_NOVA_TOKEN');
   if (!partage || !PLEX_URL || config.serveurType() !== 'plex') return;
   try {
     const r = await fetch(`${PLEX_URL}/library/sections?X-Plex-Token=${partage}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
     if (r.status === 401) {
+      // Compte géré connu : Nova se répare seul (au plus une tentative par heure).
+      if (config.get('PLEX_NOVA_USER_ID') && Date.now() - derniereReparation > 3600000) {
+        derniereReparation = Date.now();
+        try { await regenererJetonPartage(); console.log('[Plex] Jeton du compte partagé refusé — un nouveau a été obtenu automatiquement.'); return; }
+        catch (e) { console.warn('[Plex] Régénération automatique impossible :', e.message); }
+      }
       if (!jetonPartageRefuse) console.warn('[Plex] Le jeton du compte partagé (PLEX_NOVA_TOKEN) est REFUSÉ par Plex — repli sur le compte administrateur. Génère un nouveau jeton pour ce compte.');
       jetonPartageRefuse = true;
       PLEX_STREAM_TOKEN = PLEX_TOKEN;
@@ -1312,6 +1319,41 @@ function lireMachineId() {
 }
 lireMachineId();
 config.onChange(lireMachineId);
+
+/* ── Jeton du compte partagé : régénéré depuis le compte administrateur ──
+   Le compte partagé est un compte GÉRÉ du Plex Home (sans mot de passe) :
+   l'admin peut lui obtenir un jeton neuf, sans rien copier à la main. Le
+   jeton n'est jamais renvoyé au navigateur. */
+async function regenererJetonPartage(id, pin) {
+  const compte = id || config.get('PLEX_NOVA_USER_ID');
+  if (!compte) throw new Error('Aucun compte partagé choisi');
+  if (!PLEX_TOKEN || !PLEX_URL) throw new Error('Serveur Plex non relié');
+  const jeton = await plexLink.jetonCompteGere(PLEX_TOKEN, compte, MACHINE_ID, pin);
+  const r = await fetch(`${PLEX_URL}/library/sections?X-Plex-Token=${jeton}`, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+  if (!r.ok) throw new Error('Ton serveur Plex refuse ce compte — partage-lui tes bibliothèques dans Plex');
+  config.setReglages({ PLEX_NOVA_TOKEN: jeton, PLEX_NOVA_USER_ID: String(compte) });
+}
+
+app.get('/api/settings/plex-partage', authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    res.json({
+      comptes: await plexLink.comptesGeres(PLEX_TOKEN),
+      choisi: config.get('PLEX_NOVA_USER_ID') || null,
+      defini: !!config.get('PLEX_NOVA_TOKEN'),
+      refuse: jetonPartageRefuse,
+    });
+  } catch (e) { res.status(502).json({ error: 'plex.tv ne répond pas' }); }
+});
+
+app.post('/api/settings/plex-partage', authMiddleware, adminMiddleware, async (req, res) => {
+  const id = String(req.body?.id || '');
+  const pin = req.body?.pin ? String(req.body.pin) : null;
+  if (!/^d{1,15}$/.test(id) || (pin && !/^d{4}$/.test(pin))) return res.status(400).json({ error: 'Requête invalide' });
+  try {
+    await regenererJetonPartage(id, pin);
+    res.json({ ok: true });
+  } catch (e) { res.status(400).json({ error: e.message }); }
+});
 
 const lienDe = (userId) => db.prepare('SELECT * FROM plex_links WHERE userId = ?').get(userId);
 

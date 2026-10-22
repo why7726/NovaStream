@@ -98,6 +98,39 @@ export async function serveursDuCompte(token) {
     }));
 }
 
+/* ── Compte partagé « NovaStream » : un compte GÉRÉ du Plex Home ──
+   Un compte géré n'a pas de mot de passe : impossible de s'y connecter
+   pour lire son jeton. Le compte administrateur, lui, peut « passer » sur
+   ce compte (comme le sélecteur d'utilisateur de Plex) et en obtenir un.
+   ⚠️ L'API v2 répond 404 pour ce changement : c'est l'adresse v1. */
+
+/** Comptes gérés du Plex Home de l'administrateur → [{ id, nom, protege }] */
+export async function comptesGeres(tokenAdmin) {
+  const d = await json(`${PLEX_TV}/api/v2/home/users`, { headers: { 'X-Plex-Token': tokenAdmin } });
+  return (d.users || [])
+    .filter((u) => !u.admin && (u.restricted || u.restrictionProfile))
+    .map((u) => ({ id: String(u.id), nom: u.title || u.username || '', protege: !!u.protected }));
+}
+
+/** Nouveau jeton, propre au serveur `machineId`, pour le compte géré `id`. */
+export async function jetonCompteGere(tokenAdmin, id, machineId, pin) {
+  const qs = pin ? `?pin=${encodeURIComponent(pin)}` : '';
+  const r = await fetch(`${PLEX_TV}/api/home/users/${encodeURIComponent(id)}/switch${qs}`, {
+    method: 'POST', headers: { ...entetes(), 'X-Plex-Token': tokenAdmin }, signal: AbortSignal.timeout(15000),
+  });
+  if (r.status === 401 || r.status === 403) throw new Error(pin ? 'Code PIN refusé par Plex' : 'Ce compte est protégé par un code PIN');
+  if (!r.ok) throw new Error(`plex.tv ${r.status}`);
+  const txt = await r.text();
+  let jetonCompte;
+  try { const j = JSON.parse(txt); jetonCompte = j.authToken || j.authenticationToken || j.user?.authToken || j.user?.authenticationToken; }
+  catch { jetonCompte = (txt.match(/authenticationToken="([^"]+)"/) || [])[1]; }
+  if (!jetonCompte) throw new Error('Plex n\'a pas renvoyé de jeton');
+  // Le serveur attend le jeton d'accès propre à ce serveur, pas celui du compte.
+  const list = await json(`${PLEX_TV}/api/v2/resources?includeHttps=1`, { headers: { 'X-Plex-Token': jetonCompte } });
+  const serveur = (Array.isArray(list) ? list : []).find((x) => (x.provides || '').includes('server') && (!machineId || x.clientIdentifier === machineId));
+  return serveur?.accessToken || jetonCompte;
+}
+
 /* ── Lecture de l'état de visionnage sur le serveur, avec SON jeton ──
    `unwatched=0` liste ce qui est vu ; `viewOffset` porte la reprise. Sur une
    bibliothèque de séries, il faut interroger les ÉPISODES (type=4) : c'est
@@ -166,4 +199,4 @@ export async function etatDeVisionnage(plexUrl, token) {
   return { vus: [...vus.values()], enCours: [...enCours.values()] };
 }
 
-export default { setClientId, demarrerPin, jetonDuPin, compteDe, aAccesAuServeur, serveursDuCompte, etatDeVisionnage };
+export default { setClientId, demarrerPin, jetonDuPin, compteDe, aAccesAuServeur, serveursDuCompte, comptesGeres, jetonCompteGere, etatDeVisionnage };

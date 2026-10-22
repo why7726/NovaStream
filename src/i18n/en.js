@@ -787,4 +787,13 @@ export default {
   "Pour les comptes non cochés, ce contenu n'existe pas : pas d'onglet, rien dans la recherche, et ses titres sont bloqués par le serveur même avec un lien direct.": "For unchecked accounts, this content doesn't exist: no tab, nothing in search, and its titles are blocked by the server even with a direct link.",
   "administrateur": "administrator",
   "Autorisé": "Allowed",
+  "Nouveau jeton enregistré — le compte « {0} » est actif.": "New token saved — the “{0}” account is active.",
+  "Aucun compte géré dans ton Plex Home. Crée-en un dans Plex (Paramètres → Plex Home), puis reviens ici.": "No managed account in your Plex Home. Create one in Plex (Settings → Plex Home), then come back here.",
+  "Plex refuse le jeton actuel : Nova passe par ton compte en attendant.": "Plex rejects the current token: Nova uses your account in the meantime.",
+  "Compte partagé (Plex Home)": "Shared account (Plex Home)",
+  "actuel": "current",
+  "Code PIN de ce compte": "PIN code for this account",
+  "Régénérer le jeton": "Regenerate token",
+  "Utiliser ce compte": "Use this account",
+  "Ou colle un jeton à la main :": "Or paste a token manually:",
 };
