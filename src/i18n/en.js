@@ -796,4 +796,11 @@ export default {
   "Régénérer le jeton": "Regenerate token",
   "Utiliser ce compte": "Use this account",
   "Ou colle un jeton à la main :": "Or paste a token manually:",
+  "Ce titre n'a pas de fichier à lire.": "This title has no file to play.",
+  "Lecture dans le lecteur NovaStream": "Playing in the NovaStream player",
+  "Retour ou Q pour revenir · N pour l'épisode suivant": "Backspace or Q to come back · N for the next episode",
+  "Arrêter": "Stop",
+  "Épisode suivant dans {0} s": "Next episode in {0} s",
+  "Lire maintenant": "Play now",
+  "Lire dans la fenêtre": "Play in the window",
 };

@@ -1,0 +1,77 @@
+{
+  "name": "novastream-desktop",
+  "productName": "NovaStream",
+  "version": "0.1.0",
+  "description": "NovaStream pour Windows — lecture native (AV1, HEVC, HDR, DTS, sous-titres ASS) avec mpv",
+  "main": "main.js",
+  "author": "why7726",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "mpv": "node scripts/telecharger-mpv.mjs",
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^45.0.0",
+    "electron-builder": "^26.15.3"
+  },
+  "build": {
+    "appId": "io.github.why7726.novastream",
+    "productName": "NovaStream",
+    "copyright": "Copyright © why7726 — MIT",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "lecteur.js",
+      "accueil.html",
+      "icone.png",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "vendor/mpv",
+        "to": "mpv",
+        "filter": [
+          "**/*",
+          "!installer/**",
+          "!*.bat",
+          "!doc/**"
+        ]
+      },
+      {
+        "from": "mpv-config",
+        "to": "mpv-config"
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "icone.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "NovaStream",
+      "multiLanguageInstaller": true,
+      "installerLanguages": [
+        "fr_FR",
+        "en_US"
+      ],
+      "artifactName": "NovaStream-Setup-${version}.exe",
+      "deleteAppDataOnUninstall": false
+    }
+  }
+}

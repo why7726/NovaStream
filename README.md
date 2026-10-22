@@ -69,6 +69,24 @@ Tes données (`data/`) sont conservées.
 
 ---
 
+## Application Windows (lecture native)
+
+`desktop/` contient l'application de bureau : l'interface Nova dans une fenêtre, et **mpv** pour la vidéo.
+Les fichiers sont lus **tels quels, sans transcodage** : AV1, HEVC, HDR, DTS / TrueHD, sous-titres ASS,
+décodés par la carte graphique. La reprise, l'historique et l'épisode suivant restent ceux de Nova.
+
+```bash
+cd desktop
+npm install
+npm run mpv      # télécharge mpv pour Windows dans desktop/vendor/
+npm start        # lance l'application
+npm run dist     # fabrique desktop/dist/NovaStream-Setup-<version>.exe
+```
+
+Au premier lancement, l'application demande l'adresse du serveur Nova. Raccourcis du lecteur :
+Espace (pause), ← → (±5 s), A (audio), S (sous-titres), N (épisode suivant), Retour ou Q (revenir à Nova).
+L'installateur n'est pas signé : Windows affiche un avertissement SmartScreen au premier lancement.
+
 ## Installation sans Docker
 
 Prérequis : Node.js 20 ou plus récent.

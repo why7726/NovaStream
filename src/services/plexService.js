@@ -740,7 +740,10 @@ const plexService = {
         languageCode: s.languageCode || s.languageTag,
         codec: s.codec,
         displayTitle: s.displayTitle || s.language || 'Unknown',
-        selected: s.selected
+        selected: s.selected,
+        // Fichier à côté de la vidéo (.srt…) : Plex le sert à cette adresse.
+        // Le lecteur natif de l'application de bureau le charge à part.
+        key: s.key || null,
       }));
 
       // Store the primary audio codec for transcode decision
@@ -874,6 +877,7 @@ const plexService = {
       parentRatingKey: item.parentRatingKey,
       grandparentRatingKey: item.grandparentRatingKey,
       index: item.index,
+      parentIndex: item.parentIndex,
       grandparentTitle: item.grandparentTitle,
       parentTitle: item.parentTitle,
       libraryTitle: item.librarySectionTitle,

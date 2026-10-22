@@ -35,3 +35,6 @@ dist/
 Thumbs.db
 desktop.ini
 .claude/settings.local.json
+
+# Application de bureau : mpv téléchargé par « npm run mpv », installateurs générés
+desktop/vendor/

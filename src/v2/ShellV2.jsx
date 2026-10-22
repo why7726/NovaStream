@@ -22,6 +22,7 @@ const PreferencesPure = React.lazy(() => import('./pure/preferences/PreferencesP
 const ActorPageV2 = React.lazy(() => import('./pages/ActorPageV2'));
 const WrappedV2 = React.lazy(() => import('./pages/WrappedV2'));
 const Player = React.lazy(() => import('./pages/PlayerV2'));
+const LecteurNatif = React.lazy(() => import('./pages/LecteurNatif'));
 const WatchInvite = React.lazy(() => import('./pages/WatchInvite'));
 const WatchRoom = React.lazy(() => import('./pages/WatchRoom'));
 const RequestsV2 = React.lazy(() => import('./pages/RequestsV2'));
@@ -59,9 +60,21 @@ function FicheGardee() {
   const { id } = useParams();
   return <GardeAdulte key={id} id={id}><DetailsPure /></GardeAdulte>;
 }
+// Séance à plusieurs en cours ? (même clé que lib/watchParty.js, lue ici sans
+// charger socket.io dans la coquille du site)
+const enSeance = () => { try { return !!JSON.parse(localStorage.getItem('nova_watch_current')); } catch { return false; } };
+
+// Application de bureau : lecture native (mpv), sauf en séance à plusieurs,
+// qui a besoin du lecteur web pour se synchroniser. Repli possible en cas d'échec.
 function LectureGardee() {
   const { id } = useParams();
-  return <GardeAdulte key={id} id={id}><Player /></GardeAdulte>;
+  const [repli, setRepli] = React.useState(false);
+  const natif = typeof window !== 'undefined' && !!window.novaDesktop && !enSeance() && !repli;
+  return (
+    <GardeAdulte key={id} id={id}>
+      {natif ? <LecteurNatif key={id} surRepli={() => setRepli(true)} /> : <Player />}
+    </GardeAdulte>
+  );
 }
 
 /* Anciennes adresses (/movies, /shows, /animes) : on renvoie vers la
