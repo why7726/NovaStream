@@ -1,7 +1,7 @@
 {
   "name": "novastream-desktop",
   "productName": "NovaStream",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "NovaStream pour Windows — lecture native (AV1, HEVC, HDR, DTS, sous-titres ASS) avec mpv",
   "main": "main.js",
   "author": "why7726",

@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import authService from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
@@ -27,7 +28,7 @@ export default function HeroPure({ movies = [] }) {
       try {
         const type = m.type === 'movie' ? 'movie' : 'tv';
         const title = m.grandparentTitle || m.parentTitle || m.title;
-        const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${type}/${encodeURIComponent(title)}`);
+        const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${type}/${encodeURIComponent(title)}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
         if (!r.ok) return;
         const a = await r.json();
         if (a.logo && on) setLogos((p) => ({ ...p, [m.id]: a.logo }));

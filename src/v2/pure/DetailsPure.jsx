@@ -124,7 +124,7 @@ export default function DetailsPure() {
         // Contenu d'un dossier local (+18…) : pas de TMDB — chercher par le seul titre
         // ramènerait les images d'une autre œuvre du même nom.
         if (!data.adulte) try {
-          const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${data.type === 'movie' ? 'movie' : 'tv'}/${encodeURIComponent(data.tmdbId || data.title)}`);
+          const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${data.type === 'movie' ? 'movie' : 'tv'}/${encodeURIComponent(data.tmdbId || data.title)}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
           if (r.ok) {
             const a = await r.json();
             if (a.poster) data.poster = a.poster;

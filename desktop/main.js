@@ -72,10 +72,14 @@ function creerFenetre() {
     if (/^https?:/i.test(url)) shell.openExternal(url);
     return { action: 'deny' };
   });
+  // La page ne peut aller que sur le serveur choisi. Jamais vers un fichier
+  // local : seul le processus principal ouvre l'écran d'accueil (loadFile),
+  // et cet écran-là est le seul à pouvoir changer de serveur.
   wc.on('will-navigate', (e, url) => {
     const srv = origineServeur();
-    if (url.startsWith('file:')) return;
-    if (!srv || new URL(url).origin !== srv) { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); }
+    let origine = null;
+    try { origine = new URL(url).origin; } catch {}
+    if (!srv || origine !== srv) { e.preventDefault(); if (/^https?:/i.test(url)) shell.openExternal(url); }
   });
   // Serveur injoignable : retour à l'écran d'accueil, avec le message.
   wc.on('did-fail-load', (e, code, description, url, principal) => {
@@ -125,8 +129,10 @@ function depuisServeur(e) {
   const srv = origineServeur();
   try { return !!srv && new URL(e.senderFrame.url).origin === srv; } catch { return false; }
 }
+// L'écran d'accueil livré avec l'application, et lui seul (pas n'importe quel fichier local).
+const ACCUEIL = require('node:url').pathToFileURL(path.join(__dirname, 'accueil.html')).href;
 function depuisAccueil(e) {
-  try { return new URL(e.senderFrame.url).protocol === 'file:'; } catch { return false; }
+  try { const u = new URL(e.senderFrame.url); u.search = ''; u.hash = ''; return u.href === ACCUEIL; } catch { return false; }
 }
 
 ipcMain.handle('nova:infos', () => ({ version: app.getVersion(), mpv: !!lecteur.cheminMpv(RESSOURCES), serveur: origineServeur() }));

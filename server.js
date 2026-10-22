@@ -160,6 +160,41 @@ app.use((req, res, next) => {
    donc le flux vidéo n'est pas touché. */
 app.use(compression({ threshold: 1024 }));
 
+/* ─── En-têtes de sécurité ─────────────────────────────────────────
+   · nosniff : le navigateur ne « devine » jamais le type d'un fichier ;
+   · frame-ancestors / X-Frame-Options : Nova ne peut pas être affiché dans
+     la page d'un autre site (piège à clics) ;
+   · Referrer-Policy : les adresses de Nova ne partent pas vers les sites tiers ;
+   · HSTS : derrière HTTPS uniquement — le navigateur n'essaiera plus le HTTP ;
+   · CSP en mode OBSERVATION (Report-Only) : elle signale sans rien bloquer,
+     le temps de vérifier qu'aucune fonction (bandes-annonces, Chromecast,
+     images TMDB) n'en pâtit. À passer en Content-Security-Policy ensuite. */
+app.disable('x-powered-by');
+const CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://www.gstatic.com https://www.youtube.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "img-src 'self' data: blob: https:",
+  "media-src 'self' data: blob: https:",
+  "connect-src 'self' https: wss: ws:",
+  "frame-src https://www.youtube.com https://www.youtube-nocookie.com",
+  "worker-src 'self' blob:",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "frame-ancestors 'self'",
+].join('; ');
+app.use((req, res, next) => {
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  res.setHeader('Referrer-Policy', 'same-origin');
+  res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+  res.setHeader('Content-Security-Policy-Report-Only', CSP);
+  const https = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
+  if (https) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
+  next();
+});
+
 // ─── CORS (reflect origin instead of blanket wildcard) ───────
 // The app is served SAME-ORIGIN (dist + API on the same host:port), so browsers
 // don't apply CORS to normal use. We only reflect an Origin for a small allowlist
@@ -283,8 +318,15 @@ function accesAdulte() {
   if (st.adulte !== undefined) return st.adulte;
   let ok = false;
   try {
-    const jeton = (req.headers.authorization || '').replace('Bearer ', '') || req.query?.nova;
-    const d = jeton ? jwt.verify(jeton, JWT_SECRET, { algorithms: ['HS256'] }) : null;
+    // L'identité déjà vérifiée par authMiddleware / proxyAuth (jeton révoqué
+    // compris) d'abord ; sinon le jeton de la requête — en-tête, ?nova= ou
+    // cookie média (les images n'ont plus de jeton dans leur adresse).
+    let d = req.user || null;
+    if (!d) {
+      const jeton = (req.headers.authorization || '').replace('Bearer ', '') || req.query?.nova || lireCookieMedia(req);
+      d = jeton ? jwt.verify(jeton, JWT_SECRET, { algorithms: ['HS256'] }) : null;
+      if (d && !checkTokenVersion(d)) d = null;
+    }
     if (d && !d.guest && d.id != null) {
       const u = db.prepare('SELECT isAdmin, adulte FROM users WHERE id = ?').get(d.id);
       ok = !!(u && (u.isAdmin || u.adulte));
@@ -536,9 +578,13 @@ try { db.exec('ALTER TABLE users ADD COLUMN adulte INTEGER NOT NULL DEFAULT 0');
 // tokens without an id are handled by their own mechanisms.
 function checkTokenVersion(decoded) {
   if (!decoded || decoded.guest || decoded.id == null) return true;
-  const row = db.prepare('SELECT tokenVersion FROM users WHERE id = ?').get(decoded.id);
+  const row = db.prepare('SELECT tokenVersion, isAdmin FROM users WHERE id = ?').get(decoded.id);
   if (!row) return false;
-  return (decoded.tv || 0) === (row.tokenVersion || 0);
+  if ((decoded.tv || 0) !== (row.tokenVersion || 0)) return false;
+  // Le statut admin vient de la BASE, pas du jeton : un admin à qui on retire
+  // ses droits les perd tout de suite, et pas au bout des 30 jours du jeton.
+  decoded.isAdmin = row.isAdmin ? 1 : 0;
+  return true;
 }
 
 // Helper: log a user activity row (timestamp stored as ISO 8601)
@@ -634,10 +680,11 @@ calendrier.installer(app, {
 });
 
 // TMDB Assets Proxy (Poster, Backdrop, Logo)
-app.get('/api/tmdb-v2/assets/:type/:idOrTitle', async (req, res) => {
+// Connexion obligatoire : sinon n'importe qui sur Internet se servait de la clé TMDB.
+app.get('/api/tmdb-v2/assets/:type/:idOrTitle', authMiddleware, async (req, res) => {
   try {
     const { type, idOrTitle } = req.params;
-    console.log(`[TMDB-V2] RECU: Type=${type}, Media=${idOrTitle}`);
+    if (String(idOrTitle).length > 200) return res.status(400).json({ error: 'Requête invalide' });
     
     const tmdbType = type === 'movie' ? 'movie' : 'tv';
     let tmdbId = idOrTitle;
@@ -2246,7 +2293,15 @@ app.post('/api/requests/:id/search', authMiddleware, adminMiddleware, async (req
   res.json({ ok: true });
 });
 
+// Une demande ne regarde que son auteur (et l'admin).
+function demandeVisible(req, id) {
+  if (req.user.isAdmin) return true;
+  const r = db.prepare('SELECT userId FROM content_requests WHERE id = ?').get(id);
+  return !!r && r.userId === req.user.id;
+}
+
 app.get('/api/requests/:id/search', authMiddleware, (req, res) => {
+  if (!demandeVisible(req, req.params.id)) return res.status(404).json({ error: 'Demande introuvable' });
   const s = db.prepare('SELECT * FROM request_search WHERE requestId = ?').get(req.params.id);
   if (!s) return res.json({ state: 'idle', releases: [] });
   res.json({ ...s, releases: s.releases ? JSON.parse(s.releases) : [], chosen: s.chosen ? JSON.parse(s.chosen) : null });
@@ -2255,6 +2310,7 @@ app.get('/api/requests/:id/search', authMiddleware, (req, res) => {
 // Ou en est le telechargement d'une demande approuvee ?
 app.get('/api/requests/:id/progress', authMiddleware, async (req, res) => {
   try {
+    if (!demandeVisible(req, req.params.id)) return res.status(404).json({ error: 'Demande introuvable' });
     const row = db.prepare(`SELECT r.id, r.title, r.year, r.status, s.state, s.arrKind, s.arrId, s.qbHash
       FROM content_requests r LEFT JOIN request_search s ON s.requestId = r.id WHERE r.id = ?`).get(req.params.id);
     if (!row) return res.status(404).json({ error: 'Demande introuvable' });
@@ -2790,15 +2846,18 @@ const crashHits = new Map();
 app.post('/api/client-error', (req, res) => {
   try {
     // garde-fou : 20 rapports par IP et par heure
-    const ip = req.ip || 'unknown';
+    const ip = clientIp(req);   // derrière Caddy, req.ip est le même pour tout le monde
     const now = Date.now();
+    if (crashHits.size > 5000) crashHits.clear();
     const h = crashHits.get(ip) || { n: 0, at: now };
     if (now - h.at > 3600000) { h.n = 0; h.at = now; }
     h.n += 1;
     crashHits.set(ip, h);
     if (h.n > 20) return res.status(429).json({ ok: false });
 
-    const clip = (v, n) => String(v == null ? '' : v).slice(0, n);
+    // Retours à la ligne et caractères de contrôle neutralisés : un rapport ne
+    // peut pas fabriquer de fausses lignes dans le journal du serveur.
+    const clip = (v, n) => String(v == null ? '' : v).slice(0, n).replace(/[\u0000-\u0008\u000b-\u001f\u007f]/g, '').replace(/\r?\n/g, ' ⏎ ');
     const { message, stack, componentStack, url, userAgent } = req.body || {};
     let who = 'anonyme';
     const token = (req.headers['authorization'] || '').replace('Bearer ', '');
