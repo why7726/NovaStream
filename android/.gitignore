@@ -1,0 +1,9 @@
+# Construction Android
+.gradle/
+build/
+app/build/
+local.properties
+# Clé de signature et ses mots de passe : JAMAIS dans le dépôt
+*.jks
+*.keystore
+signature.properties

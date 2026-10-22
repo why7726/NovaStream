@@ -87,6 +87,22 @@ Au premier lancement, l'application demande l'adresse du serveur Nova. Raccourci
 Espace (pause), ← → (±5 s), A (audio), S (sous-titres), N (épisode suivant), Retour ou Q (revenir à Nova).
 L'installateur n'est pas signé : Windows affiche un avertissement SmartScreen au premier lancement.
 
+## Application Android (APK, sans Play Store)
+
+`android/` contient l'application Android : l'interface Nova, et **ExoPlayer** (Media3) pour la vidéo, sur le
+fichier d'origine — décodeurs du téléphone d'abord, ceux de FFmpeg en secours (AC3, EAC3, DTS, TrueHD…).
+Elle parle à la page par un canal de messages dont l'origine est vérifiée, comme l'application Windows.
+
+```bash
+cd android
+# local.properties : sdk.dir=<dossier du SDK Android>   (JDK 17 requis)
+./gradlew assembleRelease   # → app/build/outputs/apk/release/app-release.apk
+```
+
+Signature : créer une clé (`keytool -genkeypair …`) et un fichier `android/signature.properties`
+(`fichier=`, `alias=`, `motDePasse=`) — tous deux ignorés par Git. Sans eux, seule la version de test se construit.
+Installation : ouvrir l'APK sur le téléphone et autoriser « sources inconnues » la première fois.
+
 ## Installation sans Docker
 
 Prérequis : Node.js 20 ou plus récent.

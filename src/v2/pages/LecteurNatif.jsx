@@ -147,7 +147,9 @@ export default function LecteurNatif({ surRepli }) {
             <p className="mt-4 text-[14px] text-white/55 flex items-center justify-center gap-2">
               <MonitorPlay size={16} /> {tr('Lecture dans le lecteur NovaStream')}
             </p>
-            <p className="mt-1.5 text-[12px] text-white/35">{tr('Retour ou Q pour revenir · N pour l\'épisode suivant')}</p>
+            {window.novaDesktop?.plateforme === 'windows' && (
+              <p className="mt-1.5 text-[12px] text-white/35">{tr('Retour ou Q pour revenir · N pour l\'épisode suivant')}</p>
+            )}
             <button onClick={() => window.novaDesktop.arreter()}
               className="mt-8 h-[44px] px-6 rounded-full bg-white/[0.08] hover:bg-white/[0.14] text-[14px] font-semibold inline-flex items-center gap-2 transition-colors">
               <Square size={14} /> {tr('Arrêter')}
