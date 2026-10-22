@@ -2172,7 +2172,7 @@ app.post('/api/bot/decide/:id', botAuth, async (req, res) => {
       db.prepare("UPDATE content_requests SET status = 'declined' WHERE id = ?").run(reqRow.id);
       if (search && search.arrId) await arr.removeIfAdded({ arrKind: search.arrKind, arrId: search.arrId, addedByNova: !!search.addedByNova });
       db.prepare("UPDATE request_search SET state = 'rejected', updatedAt = datetime('now') WHERE requestId = ?").run(reqRow.id);
-      pushToUser(reqRow.userId, { title: 'Demande refusee', body: `« ${reqRow.title} » n'a pas ete retenu.`, url: '/requests', tag: `req-${reqRow.id}` });
+      pushToUser(reqRow.userId, { title: 'Demande refusée', body: `« ${reqRow.title} » n'a pas été retenu.`, url: '/requests', tag: `req-${reqRow.id}` });
       return res.json({ ok: true, status: 'declined' });
     }
 
@@ -2185,7 +2185,7 @@ app.post('/api/bot/decide/:id', botAuth, async (req, res) => {
       db.prepare("UPDATE content_requests SET status = 'approved' WHERE id = ?").run(reqRow.id);
       db.prepare("UPDATE request_search SET state = 'grabbed', chosen = ?, updatedAt = datetime('now') WHERE requestId = ?")
         .run(JSON.stringify(pick), reqRow.id);
-      pushToUser(reqRow.userId, { title: 'Demande approuvee', body: `« ${reqRow.title} » est en cours de recuperation.`, url: '/requests', tag: `req-${reqRow.id}` });
+      pushToUser(reqRow.userId, { title: 'Demande approuvée', body: `« ${reqRow.title} » est en cours de récupération.`, url: '/requests', tag: `req-${reqRow.id}` });
       return res.json({ ok: true, status: 'approved', chosen: pick });
     }
 
@@ -2278,14 +2278,14 @@ async function pollImports() {
       db.prepare("UPDATE content_requests SET status = 'added' WHERE id = ?").run(row.id);
       db.prepare("UPDATE request_search SET state = 'imported', updatedAt = datetime('now') WHERE requestId = ?").run(row.id);
       console.log(`[qBit] « ${row.title} » telecharge manuellement -> demande marquee ajoutee`);
-      pushToUser(row.userId, { title: 'Ton film est la', body: `« ${row.title} » est disponible.`, url: '/', tag: `req-${row.id}` });
+      pushToUser(row.userId, { title: 'Ton film est là', body: `« ${row.title} » est disponible.`, url: '/', tag: `req-${row.id}` });
       continue;
     }
     if (row.arrId && await arr.isImported({ arrKind: row.arrKind, arrId: row.arrId })) {
       db.prepare("UPDATE content_requests SET status = 'added' WHERE id = ?").run(row.id);
       db.prepare("UPDATE request_search SET state = 'imported', updatedAt = datetime('now') WHERE requestId = ?").run(row.id);
       console.log(`[Arr] « ${row.title} » importe -> demande marquee ajoutee`);
-      pushToUser(row.userId, { title: 'Ton film est la', body: `« ${row.title} » est disponible sur Nova.`, url: '/', tag: `req-${row.id}` });
+      pushToUser(row.userId, { title: 'Ton film est là', body: `« ${row.title} » est disponible sur Nova.`, url: '/', tag: `req-${row.id}` });
     }
   }
 }
@@ -2981,7 +2981,7 @@ async function verifierSeriesSuivies() {
         for (const a of abonnes) {
           pushToUser(a.userId, {
             title: `Nouvel épisode — ${titre}`,
-            body: `S${dernier.parentIndex ?? '?'} ${langue() === 'en' ? 'E' : 'É'}${dernier.index ?? '?'} · ${dernier.title || ''}`,
+            body: `S${dernier.parentIndex ?? '?'} É${dernier.index ?? '?'} · ${dernier.title || ''}`,
             url: `/title/${s.ratingKey}`,
             tag: `ep-${dernier.ratingKey}`,
           });
@@ -3236,9 +3236,15 @@ try {
 }
 
 // Envoi à tous les appareils d'un utilisateur ; on nettoie les abonnements morts.
+// Les textes sont écrits en français et traduits ici, dans la langue du compte
+// qui reçoit (une notification part souvent d'une tâche de fond, sans requête).
 function pushToUser(userId, payload) {
   if (!vapid) return;
   const subs = db.prepare('SELECT * FROM push_subscriptions WHERE userId = ?').all(userId);
+  if (!subs.length) return;
+  if (db.prepare('SELECT langue FROM users WHERE id = ?').get(userId)?.langue === 'en') {
+    payload = { ...payload, title: versAnglais(payload.title), body: versAnglais(payload.body) };
+  }
   for (const s of subs) {
     webpush
       .sendNotification(
