@@ -371,7 +371,10 @@ export default function DetailsPure() {
                 <Heart size={18} fill={isFav ? 'currentColor' : 'none'} className={isFav ? 'text-white' : 'text-white/85'} />
               </button>
               <WatchTogetherButton media={movie} />
-              {movie.type === 'movie' && <BoutonTelecharger mediaId={movie.id} telecharges={telecharges} />}
+              {movie.type === 'movie'
+                ? <BoutonTelecharger mediaId={movie.id} telecharges={telecharges} />
+                : <BoutonTelecharger episodes={episodes} telecharges={telecharges}
+                    libelle={tr('Saison {0} · {1} épisodes', [(seasons.find((x) => x.id === season) || {}).index ?? '', episodes.length])} />}
             </div>
 
             {movie.type === 'movie' && versions && (

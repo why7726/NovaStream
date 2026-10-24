@@ -38,20 +38,25 @@ export function useTelechargements() {
   return liste;
 }
 
-export function ChoixQualite({ mediaId, onFerme }) {
+export function ChoixQualite({ mediaId, episodes = null, libelle = '', onFerme }) {
   const [media, setMedia] = useState(null);
   const [envoi, setEnvoi] = useState(null);
   const [msg, setMsg] = useState(null);
 
-  useEffect(() => { plexService.getMetadata(mediaId).then(setMedia).catch(() => setMsg({ ok: false, texte: tr('Titre introuvable') })); }, [mediaId]);
+  useEffect(() => {
+    const premier = mediaId || episodes?.[0]?.id;
+    if (premier) plexService.getMetadata(premier).then(setMedia).catch(() => setMsg({ ok: false, texte: tr('Titre introuvable') }));
+  }, [mediaId, episodes?.[0]?.id]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  const dureeS = media?.rawDuration ? media.rawDuration / 1000 : 0;
-  const taille = (q) => (q.id === 'original' ? media?.taille : q.kbps && dureeS ? (q.kbps * 1000 * dureeS) / 8 : null);
+  // Saison : tailles additionnées sur tous ses épisodes
+  const liste = episodes && episodes.length ? episodes : null;
+  const dureeS = liste ? liste.reduce((n, e) => n + (e.rawDuration || 0), 0) / 1000 : (media?.rawDuration ? media.rawDuration / 1000 : 0);
+  const tailleOrig = liste ? liste.reduce((n, e) => n + (e.taille || 0), 0) : media?.taille;
+  const taille = (q) => (q.id === 'original' ? tailleOrig || null : q.kbps && dureeS ? (q.kbps * 1000 * dureeS) / 8 : null);
+  const [avance, setAvance] = useState(null);
 
-  const choisir = async (q) => {
-    if (!media || envoi) return;
-    setEnvoi(q.id); setMsg(null);
-    try {
+  /** Envoie UN titre à l'application (sa fiche complète : pistes, sous-titres…). */
+  const envoyerUn = async (media, q) => {
       const origine = window.location.origin;
       const audios = media.audioStreams || [];
       const audio = pickAudioStream(audios, getAudioPref());
@@ -76,6 +81,19 @@ export function ChoixQualite({ mediaId, onFerme }) {
         dureeMs: media.rawDuration || 0,
         jeton: authService.getToken(),
       });
+  };
+
+  const choisir = async (q) => {
+    if (!media || envoi) return;
+    setEnvoi(q.id); setMsg(null);
+    try {
+      if (liste) {
+        for (let i = 0; i < liste.length; i++) {
+          setAvance(`${i + 1} / ${liste.length}`);
+          await envoyerUn(await plexService.getMetadata(liste[i].id), q);
+        }
+        setAvance(null);
+      } else await envoyerUn(media, q);
       setMsg({ ok: true, texte: q.id === 'original' ? tr('Téléchargement lancé.') : tr('Ajouté : le serveur prépare le fichier, puis le téléchargement démarre tout seul.') });
       setTimeout(onFerme, 1600);
     } catch (e) {
@@ -90,7 +108,7 @@ export function ChoixQualite({ mediaId, onFerme }) {
         <div className="flex items-start justify-between gap-3 mb-1">
           <div className="min-w-0">
             <p className="text-[17px] font-semibold">{tr('Télécharger')}</p>
-            <p className="text-[12.5px] text-white/45 truncate">{media ? media.title : tr('Chargement…')}</p>
+            <p className="text-[12.5px] text-white/45 truncate">{liste ? libelle || tr('{0} épisodes', [liste.length]) : media ? media.title : tr('Chargement…')}</p>
           </div>
           <button onClick={onFerme} aria-label={tr('Fermer')} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/60"><X size={17} /></button>
         </div>
@@ -113,6 +131,7 @@ export function ChoixQualite({ mediaId, onFerme }) {
             );
           })}
         </div>
+        {avance && <p className="mt-4 text-[13px] text-white/60">{tr('Ajout des épisodes… {0}', [avance])}</p>}
         {msg && <p className={`mt-4 text-[13px] ${msg.ok ? 'text-emerald-300/90' : 'text-red-300/90'}`}>{msg.texte}</p>}
       </div>
     </div>
@@ -120,9 +139,22 @@ export function ChoixQualite({ mediaId, onFerme }) {
 }
 
 /** Bouton rond (fiche d'un film) ou petite icône (ligne d'épisode). */
-export default function BoutonTelecharger({ mediaId, compact = false, telecharges = [] }) {
+export default function BoutonTelecharger({ mediaId, episodes = null, libelle = '', compact = false, telecharges = [] }) {
   const [ouvert, setOuvert] = useState(false);
-  if (!peutTelecharger() || !mediaId) return null;
+  if (!peutTelecharger() || (!mediaId && !episodes?.length)) return null;
+  // Saison : téléchargée quand tous ses épisodes le sont
+  if (episodes?.length) {
+    const faits = episodes.filter((e) => telecharges.some((x) => String(x.mediaId) === String(e.id))).length;
+    return (
+      <>
+        <button onClick={() => (faits === episodes.length ? window.novaDesktop.ouvrirTelechargements() : setOuvert(true))}
+          aria-label={tr('Télécharger')} title={tr('Télécharger la saison')} className="p-icon-btn">
+          {faits === episodes.length ? <Check size={18} strokeWidth={2.6} /> : <Download size={18} />}
+        </button>
+        {ouvert && <ChoixQualite episodes={episodes.filter((e) => !telecharges.some((x) => String(x.mediaId) === String(e.id)))} libelle={libelle} onFerme={() => setOuvert(false)} />}
+      </>
+    );
+  }
   const deja = telecharges.find((x) => String(x.mediaId) === String(mediaId));
   const ouvrir = (e) => {
     e.stopPropagation(); e.preventDefault();

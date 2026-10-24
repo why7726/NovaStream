@@ -815,4 +815,8 @@ export default {
   "Téléchargements": "Downloads",
   "Pour regarder sans connexion. Plus la qualité est basse, plus le fichier est léger.": "To watch offline. The lower the quality, the smaller the file.",
   "Le fichier tel quel": "The file as is",
+  "{0} épisodes": "{0} episodes",
+  "Ajout des épisodes… {0}": "Adding episodes… {0}",
+  "Télécharger la saison": "Download the season",
+  "Saison {0} · {1} épisodes": "Season {0} · {1} episodes",
 };

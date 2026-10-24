@@ -26,7 +26,9 @@ export const QUALITES = {
   '480p': { hauteur: 480, debit: 1500, libelle: '480p · 1,5 Mbps' },
 };
 const AUDIO_KBPS = 160;
-const MAX_PAR_UTILISATEUR = 4;      // titres en attente ou en préparation
+// Titres en attente ou en préparation par compte (une saison entière doit passer ;
+// la file reste traitée un par un, c'est seulement un garde-fou).
+const MAX_PAR_UTILISATEUR = 40;
 
 /**
  * @param deps { ffmpeg, dossier, maxGo }
