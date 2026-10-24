@@ -172,6 +172,7 @@ class TelechargementsActivity : ComponentActivity() {
             aid = if (original) e.optInt("aidOriginal").takeIf { it > 0 } else null,
             sid = if (original) e.optInt("sidOriginal") else sid,
             sousTitres = subs,
+            titreCourt = e.optString("titre"), detail = e.optString("sousTitre"),
         )
         val id = e.optString("mediaId")
         Lecture.surProgression = { p, d, _ -> Telechargements.maj(this, id) { it.put("positionMs", (p * 1000).toLong()).put("dureeMs", (d * 1000).toLong()).put("aSynchroniser", true) } }

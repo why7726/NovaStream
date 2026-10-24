@@ -13,6 +13,8 @@ data class Demande(
     val sousTitres: List<String>,
     val aPrecedent: Boolean = false,   // épisode avant / après : boutons du lecteur
     val aSuivant: Boolean = false,
+    val titreCourt: String = "",     // « Les Noces des Lucioles »
+    val detail: String = "",         // « S1 · É1 · Une gratitude indésirée »
 )
 
 /**

@@ -95,6 +95,9 @@ export default function LecteurNatif({ surRepli }) {
           titre, debut, aid, sid,
           // Le lecteur affiche « épisode précédent / suivant » seulement s'il y en a un
           aPrecedent: !!precedent, aSuivant: !!freres?.next,
+          // Lecteur Android : titre et ligne « série · épisode » affichés séparément
+          titreCourt: m.grandparentTitle || m.title,
+          detail: m.grandparentTitle ? `S${m.parentIndex ?? '?'} · É${m.index ?? '?'}${m.title ? ` · ${m.title}` : ''}` : (m.year ? String(m.year) : ''),
           sousTitres: externes.map((s) => `${origine}/plex${s.key}`),
         });
         if (!vivant) return;
