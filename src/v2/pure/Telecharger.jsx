@@ -1,4 +1,6 @@
 import React, { useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { Download, Check, X, Loader2 } from 'lucide-react';
 import plexService from '../../services/plexService';
 import authService from '../../services/authService';
@@ -14,11 +16,11 @@ export const peutTelecharger = () => typeof window !== 'undefined' && typeof win
 
 // Mêmes débits que telechargements.js (vidéo + 160 kbit/s de son)
 const QUALITES = [
-  { id: 'original', libelle: tr('Originale'), detail: tr('Le fichier tel quel — meilleure qualité') },
+  { id: 'original', libelle: tr('Originale'), detail: tr('Le fichier tel quel') },
   { id: '1080p', libelle: '1080p', detail: '8 Mbps', kbps: 8160 },
   { id: '720p-4', libelle: '720p', detail: '4 Mbps', kbps: 4160 },
-  { id: '720p-2', libelle: '720p', detail: tr('2 Mbps — bon compromis'), kbps: 2160 },
-  { id: '480p', libelle: '480p', detail: tr('1,5 Mbps — le plus léger'), kbps: 1660 },
+  { id: '720p-2', libelle: '720p', detail: tr('2 Mbps'), kbps: 2160 },
+  { id: '480p', libelle: '480p', detail: tr('1,5 Mbps'), kbps: 1660 },
 ];
 const TEXTE = /^(srt|subrip|ass|ssa|webvtt|vtt|mov_text|text)$/i;
 
@@ -101,40 +103,64 @@ export function ChoixQualite({ mediaId, episodes = null, libelle = '', onFerme }
     } finally { setEnvoi(null); }
   };
 
-  return (
-    <div className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/60" onClick={onFerme}>
-      <div onClick={(e) => e.stopPropagation()}
-        className="w-full sm:w-[420px] rounded-t-3xl sm:rounded-3xl bg-[#141416] border border-white/10 p-5 pb-[calc(20px+env(safe-area-inset-bottom))]">
-        <div className="flex items-start justify-between gap-3 mb-1">
-          <div className="min-w-0">
-            <p className="text-[17px] font-semibold">{tr('Télécharger')}</p>
-            <p className="text-[12.5px] text-white/45 truncate">{liste ? libelle || tr('{0} épisodes', [liste.length]) : media ? media.title : tr('Chargement…')}</p>
+  /* Toutes les qualités restent proposées : une version H.264 peut être plus
+     lourde qu'un original en AV1 (bien plus compact), mais c'est la seule que
+     lit un téléphone sans décodeur AV1. On le signale simplement. */
+  const proposees = QUALITES;
+  const plusLourd = (q) => q.id !== 'original' && tailleOrig && taille(q) && taille(q) >= tailleOrig;
+
+  /* Même présentation que le synopsis : portail vers <body> (sinon un
+     « position: fixed » reste piégé dans la page animée), panneau qui monte
+     du bas sur téléphone, avec sa poignée. */
+  return createPortal(
+    <div className="nova-v2 nova-pure">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+        transition={{ duration: 0.2 }} onClick={onFerme}
+        className="fixed inset-0 z-[140] bg-black/70 backdrop-blur-sm" />
+      <div className="fixed inset-0 z-[141] flex items-end md:items-center justify-center p-0 md:p-6 pointer-events-none">
+        <motion.div
+          initial={{ opacity: 0, y: 40 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 40 }}
+          transition={{ duration: 0.3, ease: [0.32, 0.72, 0, 1] }}
+          className="pointer-events-auto w-full md:max-w-[440px] max-h-[86vh] flex flex-col
+                     rounded-t-[22px] md:rounded-[22px] bg-[#141416]/95 backdrop-blur-2xl border border-white/10
+                     pb-[env(safe-area-inset-bottom)]">
+          <div className="md:hidden pt-2.5 pb-0.5 flex justify-center shrink-0">
+            <span className="w-9 h-1 rounded-full bg-white/25" />
           </div>
-          <button onClick={onFerme} aria-label={tr('Fermer')} className="w-8 h-8 rounded-full hover:bg-white/[0.08] flex items-center justify-center text-white/60"><X size={17} /></button>
-        </div>
-        <p className="text-[12px] text-white/40 mb-4">{tr('Pour regarder sans connexion. Plus la qualité est basse, plus le fichier est léger.')}</p>
-        <div className="space-y-1.5">
-          {QUALITES.map((q) => {
-            const t = taille(q);
-            return (
-              <button key={q.id} disabled={!media || !!envoi} onClick={() => choisir(q)}
-                className="w-full flex items-center justify-between gap-3 px-4 py-3 rounded-2xl bg-white/[0.05] hover:bg-white/[0.09] disabled:opacity-50 text-left transition-colors">
-                <span className="min-w-0">
-                  <span className="block text-[14.5px] font-medium">{q.libelle}</span>
-                  <span className="block text-[12px] text-white/45">{q.detail}</span>
-                </span>
-                <span className="shrink-0 text-[12.5px] text-white/55 flex items-center gap-2">
-                  {t ? `≈ ${enGo(t)}` : ''}
-                  {envoi === q.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
-                </span>
-              </button>
-            );
-          })}
-        </div>
-        {avance && <p className="mt-4 text-[13px] text-white/60">{tr('Ajout des épisodes… {0}', [avance])}</p>}
-        {msg && <p className={`mt-4 text-[13px] ${msg.ok ? 'text-emerald-300/90' : 'text-red-300/90'}`}>{msg.texte}</p>}
+          <div className="flex items-start gap-3 px-5 pt-3.5 pb-2 shrink-0">
+            <div className="flex-1 min-w-0">
+              <h2 className="p-title text-[18px] truncate">{tr('Télécharger')}</h2>
+              <p className="text-[12px] p-faint mt-0.5 truncate">{liste ? libelle || tr('{0} épisodes', [liste.length]) : media ? media.title : tr('Chargement…')}</p>
+            </div>
+            <button onClick={onFerme} aria-label={tr('Fermer')}
+              className="shrink-0 w-8 h-8 -mr-1 rounded-full flex items-center justify-center text-white/55 hover:text-white hover:bg-white/[0.08] transition-colors">
+              <X size={17} />
+            </button>
+          </div>
+          <div className="px-3 pb-4 overflow-y-auto no-scrollbar">
+            {proposees.map((q) => {
+              const t = taille(q);
+              return (
+                <button key={q.id} disabled={!media || !!envoi} onClick={() => choisir(q)}
+                  className="w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-xl hover:bg-white/[0.06] active:bg-white/[0.08] disabled:opacity-50 text-left transition-colors">
+                  <span className="min-w-0 flex items-baseline gap-2">
+                    <span className="text-[14.5px] font-medium">{q.libelle}</span>
+                    <span className="text-[12px] text-white/40 truncate">{q.detail}{plusLourd(q) ? ` · ${tr("plus lourd que l'original")}` : ''}</span>
+                  </span>
+                  <span className="shrink-0 text-[12.5px] text-white/50 flex items-center gap-2.5">
+                    {t ? `≈ ${enGo(t)}` : ''}
+                    {envoi === q.id ? <Loader2 size={15} className="animate-spin" /> : <Download size={15} />}
+                  </span>
+                </button>
+              );
+            })}
+            {avance && <p className="px-3 mt-2 text-[12.5px] text-white/60">{tr('Ajout des épisodes… {0}', [avance])}</p>}
+            {msg && <p className={`px-3 mt-2 text-[12.5px] ${msg.ok ? 'text-emerald-300/90' : 'text-red-300/90'}`}>{msg.texte}</p>}
+          </div>
+        </motion.div>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 

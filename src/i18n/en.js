@@ -819,4 +819,5 @@ export default {
   "Ajout des épisodes… {0}": "Adding episodes… {0}",
   "Télécharger la saison": "Download the season",
   "Saison {0} · {1} épisodes": "Season {0} · {1} episodes",
+  "plus lourd que l'original": "larger than the original",
 };
