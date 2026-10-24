@@ -219,6 +219,7 @@ class MainActivity : ComponentActivity() {
                     url = url, jeton = jeton, titre = d.optString("titre").take(300),
                     debutMs = (d.optDouble("debut", 0.0) * 1000).toLong().coerceAtLeast(0),
                     aid = Lecture.piste(d.opt("aid")), sid = Lecture.piste(d.opt("sid")), sousTitres = subs,
+                    aPrecedent = d.optBoolean("aPrecedent"), aSuivant = d.optBoolean("aSuivant"),
                 )
                 Lecture.surProgression = { p, du, pause ->
                     val o = JSONObject().put("type", "progression").put("donnees", JSONObject().put("position", p).put("duree", du).put("pause", pause))
@@ -346,4 +347,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Version affichée (sans dépendre de la génération de BuildConfig). */
-object BuildConfigLite { const val VERSION = "0.2.1" }
+object BuildConfigLite { const val VERSION = "0.2.2" }

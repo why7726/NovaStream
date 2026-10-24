@@ -61,6 +61,7 @@ export default function LecteurNatif({ surRepli }) {
         ]);
         if (!vivant) return;
         setSuivant(freres?.next || null);
+        const precedent = freres?.prev || null;
 
         // Pistes : mpv les numérote à partir de 1, par type, dans l'ordre du fichier.
         const audios = m.audioStreams || [];
@@ -92,6 +93,8 @@ export default function LecteurNatif({ surRepli }) {
           url: `${origine}/plex${m.partKey}`,
           jeton: authService.getToken(),
           titre, debut, aid, sid,
+          // Le lecteur affiche « épisode précédent / suivant » seulement s'il y en a un
+          aPrecedent: !!precedent, aSuivant: !!freres?.next,
           sousTitres: externes.map((s) => `${origine}/plex${s.key}`),
         });
         if (!vivant) return;
@@ -99,7 +102,8 @@ export default function LecteurNatif({ surRepli }) {
         // Position finale : un titre fini est enregistré à sa durée complète.
         enregistrer(m, fin.fini ? fin.duree : fin.position, fin.duree);
 
-        if ((fin.suivant || fin.fini) && freres?.next) {
+        if (fin.precedent && precedent) navigate(`/play/${precedent.id}`, { replace: true });
+        else if ((fin.suivant || fin.fini) && freres?.next) {
           if (fin.suivant) navigate(`/play/${freres.next.id}`, { replace: true });
           else setEtat('suite');
         } else revenir();

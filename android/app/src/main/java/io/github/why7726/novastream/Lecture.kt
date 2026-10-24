@@ -11,6 +11,8 @@ data class Demande(
     val aid: Int?,          // n° de piste audio (1, 2…) ; null = celle du fichier
     val sid: Int?,          // n° de sous-titre ; 0 = aucun, null = celui du fichier
     val sousTitres: List<String>,
+    val aPrecedent: Boolean = false,   // épisode avant / après : boutons du lecteur
+    val aSuivant: Boolean = false,
 )
 
 /**

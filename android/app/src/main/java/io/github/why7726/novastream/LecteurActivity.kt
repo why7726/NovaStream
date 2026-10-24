@@ -9,7 +9,10 @@ import android.view.WindowInsets
 import android.view.WindowInsetsController
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
+import android.view.GestureDetector
+import android.view.MotionEvent
 import androidx.media3.common.AudioAttributes
+import androidx.media3.common.ForwardingPlayer
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -41,6 +44,8 @@ class LecteurActivity : ComponentActivity() {
     private var lecteur: ExoPlayer? = null
     private val minuteur = Handler(Looper.getMainLooper())
     private var fini = false
+    private var versSuivant = false
+    private var versPrecedent = false
     private var erreur: String? = null
     private var charge = false
     private var pistesAppliquees = false
@@ -72,7 +77,6 @@ class LecteurActivity : ComponentActivity() {
 
     private fun demarrer(d: Demande) {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
-        masquerBarres()
 
         val http = DefaultHttpDataSource.Factory()
             .setUserAgent("NovaStream Android")
@@ -92,14 +96,55 @@ class LecteurActivity : ComponentActivity() {
             .build()
         lecteur = p
 
+        /* Boutons du milieu = épisode précédent / suivant (comme sur le site) ;
+           les ±10 s se font d'un double appui à gauche ou à droite de l'image. */
+        val commandes = object : ForwardingPlayer(p) {
+            override fun getAvailableCommands(): Player.Commands {
+                val b = super.getAvailableCommands().buildUpon()
+                if (d.aPrecedent) b.add(Player.COMMAND_SEEK_TO_PREVIOUS) else b.remove(Player.COMMAND_SEEK_TO_PREVIOUS)
+                if (d.aSuivant) b.add(Player.COMMAND_SEEK_TO_NEXT) else b.remove(Player.COMMAND_SEEK_TO_NEXT)
+                return b.build()
+            }
+            override fun isCommandAvailable(c: Int) = when (c) {
+                Player.COMMAND_SEEK_TO_PREVIOUS -> d.aPrecedent
+                Player.COMMAND_SEEK_TO_NEXT -> d.aSuivant
+                else -> super.isCommandAvailable(c)
+            }
+            override fun hasPreviousMediaItem() = d.aPrecedent
+            override fun hasNextMediaItem() = d.aSuivant
+            override fun seekToPrevious() { if (d.aPrecedent) { versPrecedent = true; finish() } }
+            override fun seekToPreviousMediaItem() = seekToPrevious()
+            override fun seekToNext() { if (d.aSuivant) { versSuivant = true; finish() } }
+            override fun seekToNextMediaItem() = seekToNext()
+        }
         val vue = PlayerView(this).apply {
-            player = p
+            player = commandes
             setShowSubtitleButton(true)
-            setShowNextButton(false)
-            setShowPreviousButton(false)
+            setShowRewindButton(false)
+            setShowFastForwardButton(false)
+            setShowPreviousButton(d.aPrecedent)
+            setShowNextButton(d.aSuivant)
             keepScreenOn = true
         }
+        val gestes = GestureDetector(this, object : GestureDetector.SimpleOnGestureListener() {
+            override fun onDown(e: MotionEvent) = true
+            override fun onSingleTapConfirmed(e: MotionEvent): Boolean {
+                if (vue.isControllerFullyVisible) vue.hideController() else vue.showController()
+                return true
+            }
+            override fun onDoubleTap(e: MotionEvent): Boolean {
+                val droite = e.x > vue.width / 2f
+                val cible = (p.currentPosition + if (droite) 10_000 else -10_000).coerceIn(0, maxOf(0, p.duration))
+                p.seekTo(cible)
+                return true
+            }
+        })
+        @Suppress("ClickableViewAccessibility")
+        vue.setOnTouchListener { _, ev -> gestes.onTouchEvent(ev) }
         setContentView(vue)
+        // APRÈS setContentView : avant, la fenêtre n'a pas encore de vue racine et
+        // Android plante (NullPointerException sur getWindowInsetsController).
+        masquerBarres()
 
         val sousTitres = d.sousTitres.map { u ->
             MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(u))
@@ -201,7 +246,7 @@ class LecteurActivity : ComponentActivity() {
         else {
             val duree = if (p != null && p.duration > 0) p.duration / 1000.0 else 0.0
             val pos = p?.currentPosition?.div(1000.0) ?: 0.0
-            r.put("position", pos).put("duree", duree).put("fini", fini || (duree > 0 && pos >= duree - 3)).put("suivant", false)
+            r.put("position", pos).put("duree", duree).put("fini", fini || (duree > 0 && pos >= duree - 3)).put("suivant", versSuivant).put("precedent", versPrecedent)
         }
         p?.release()
         lecteur = null

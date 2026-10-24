@@ -1676,10 +1676,12 @@ function PlayerV2() {
 
         {/* transport central */}
         <div className="absolute inset-0 flex items-center justify-center gap-9 md:gap-14 pointer-events-none">
-          <button onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime -= 10; }}
-            aria-label={tr('Reculer de 10 secondes')}
-            className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all">
-            <Rewind size={26} />
+          {/* Flèches = épisode précédent / suivant. Les ±10 s : double appui à
+              gauche ou à droite de l'image (ou les flèches du clavier). */}
+          <button onClick={(e) => { e.stopPropagation(); if (siblings.prev) handlePrevEpisode(); }}
+            disabled={!siblings.prev || isNavigating} aria-label={tr('Episode precedent')}
+            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.prev ? '' : 'invisible'}`}>
+            <SkipBack size={26} fill="currentColor" />
           </button>
 
           <button onClick={(e) => { e.stopPropagation(); togglePlay(); }}
@@ -1688,10 +1690,10 @@ function PlayerV2() {
             {isPlaying ? <Pause size={30} fill="currentColor" /> : <Play size={30} fill="currentColor" className="ml-1" />}
           </button>
 
-          <button onClick={(e) => { e.stopPropagation(); if (videoRef.current) videoRef.current.currentTime += 10; }}
-            aria-label={tr('Avancer de 10 secondes')}
-            className="pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all">
-            <FastForward size={26} />
+          <button onClick={(e) => { e.stopPropagation(); if (siblings.next) handleNextEpisode(); }}
+            disabled={!siblings.next || isNavigating} aria-label={tr('Episode suivant')}
+            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.next ? '' : 'invisible'}`}>
+            <SkipForward size={26} fill="currentColor" />
           </button>
         </div>
 
@@ -1724,18 +1726,6 @@ function PlayerV2() {
 
           <div className="flex items-center justify-between mt-3.5">
             <div className="flex items-center gap-1">
-              {siblings.prev && (
-                <button onClick={handlePrevEpisode} disabled={isNavigating} aria-label={tr('Episode precedent')}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-                  <SkipBack size={18} />
-                </button>
-              )}
-              {siblings.next && (
-                <button onClick={handleNextEpisode} disabled={isNavigating} aria-label={tr('Episode suivant')}
-                  className="w-10 h-10 rounded-full flex items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
-                  <SkipForward size={18} />
-                </button>
-              )}
               <button onClick={toggleMute} aria-label={isMuted ? tr('Retablir le son') : tr('Couper le son')}
                 className="hidden sm:flex w-10 h-10 rounded-full items-center justify-center text-white/70 hover:text-white hover:bg-white/10 transition-colors">
                 {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
