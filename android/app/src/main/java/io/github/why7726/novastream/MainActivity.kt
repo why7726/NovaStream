@@ -66,6 +66,8 @@ class MainActivity : ComponentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Plantages.installer(this)
+        Plantages.envoyer(this, serveur)   // le plantage précédent, s'il y en a eu un
         racine = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         web = WebView(this).apply { setBackgroundColor(Color.BLACK) }
         racine.addView(web, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
@@ -344,4 +346,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Version affichée (sans dépendre de la génération de BuildConfig). */
-object BuildConfigLite { const val VERSION = "0.2.0" }
+object BuildConfigLite { const val VERSION = "0.2.1" }

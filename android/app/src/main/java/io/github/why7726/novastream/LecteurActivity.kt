@@ -57,7 +57,20 @@ class LecteurActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        Plantages.installer(this)
         val d = Lecture.demande ?: run { finish(); return }
+        // Un problème au démarrage du lecteur ne doit pas fermer toute l'application :
+        // on revient sur la page avec le message, et l'erreur part au journal du serveur.
+        try {
+            demarrer(d)
+        } catch (e: Throwable) {
+            Plantages.noter(this, e)
+            erreur = "Lecture impossible : ${e.javaClass.simpleName}${e.message?.let { m -> " — " + m.take(160) } ?: ""}"
+            finish()
+        }
+    }
+
+    private fun demarrer(d: Demande) {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         masquerBarres()
 
@@ -117,7 +130,11 @@ class LecteurActivity : ComponentActivity() {
             override fun onPlayerError(e: PlaybackException) {
                 // Pendant la lecture, une coupure réseau : on laisse ExoPlayer réessayer
                 // une fois ; avant le démarrage, c'est une vraie erreur pour la page.
-                if (!charge) { erreur = "Lecture impossible : ${e.errorCodeName}"; finish() }
+                if (!charge) {
+                    Plantages.noter(this@LecteurActivity, e)
+                    erreur = "Lecture impossible : ${e.errorCodeName}${(e.cause?.message ?: e.message)?.let { m -> " — " + m.take(160) } ?: ""}"
+                    finish()
+                }
                 else { p.prepare(); p.play() }
             }
         })

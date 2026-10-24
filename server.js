@@ -2869,7 +2869,7 @@ app.post('/api/client-error', (req, res) => {
       `[Client] ${who} — ${clip(message, 300)}
   page: ${clip(url, 200)}
   ua: ${clip(userAgent, 160)}
-  stack: ${clip(stack, 1500)}
+  stack: ${clip(stack, 5000)}
   composants: ${clip(componentStack, 1200)}`
     );
     res.json({ ok: true });
