@@ -20,6 +20,16 @@ export const estBureau = () => typeof window !== 'undefined' && !!window.novaDes
 
 const SUITE_SECONDES = 6;
 
+// Mêmes choix que le lecteur du site (PlayerV2). « Originale » = le fichier tel quel ;
+// les autres passent par le transcodeur du serveur (utile en 4G).
+const QUALITES = [
+  { id: 'original', libelle: tr('Qualité Originale'), detail: tr('Le fichier tel quel') },
+  { id: 'high', libelle: tr('FHD (1080p) • 10 Mbps'), bitrate: '10000', res: '1920x1080', quality: '90' },
+  { id: 'medium', libelle: tr('HD (720p) • 4 Mbps'), bitrate: '4000', res: '1280x720', quality: '60' },
+  { id: 'low', libelle: tr('SD (480p) • 1.5 Mbps'), bitrate: '1500', res: '720x480', quality: '40' },
+];
+const TEXTE = /^(srt|subrip|ass|ssa|webvtt|vtt|mov_text|text)$/i;
+
 export default function LecteurNatif({ surRepli }) {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -99,6 +109,19 @@ export default function LecteurNatif({ surRepli }) {
           titreCourt: m.grandparentTitle || m.title,
           detail: m.grandparentTitle ? `S${m.parentIndex ?? '?'} · É${m.index ?? '?'}${m.title ? ` · ${m.title}` : ''}` : (m.year ? String(m.year) : ''),
           sousTitres: externes.map((s) => `${origine}/plex${s.key}`),
+          // Application Android : réglage de qualité comme sur le site. Pour une
+          // qualité réduite, le serveur transcode (HLS) ; le lecteur remplace
+          // {offset} par la position du moment, et reprend les sous-titres texte à part.
+          ...(window.novaDesktop?.plateforme === 'android' ? {
+            qualites: QUALITES.map((q) => ({
+              id: q.id, libelle: q.libelle, detail: q.detail || '',
+              url: q.id === 'original' ? '' : plexService.getTranscodeUrl(m.id, { audioStreamID: choix?.id, subtitleStreamID: 0, quality: q, offset: 987654321 })
+                .replace('offset=987654321', 'offset={offset}').replace(/^\//, `${origine}/`),
+            })),
+            sousTitresTranscode: integres.filter((s) => TEXTE.test(s.codec || '')).slice(0, 8).map((s) => ({
+              url: `${origine}/api/subtitles/embedded/${m.id}/${s.id}`, libelle: s.displayTitle || s.language || '', defaut: !!s.selected,
+            })),
+          } : {}),
         });
         if (!vivant) return;
         desabonner?.(); desabonner = null;

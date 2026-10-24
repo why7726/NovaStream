@@ -81,6 +81,13 @@ class LecteurActivity : ComponentActivity() {
     private lateinit var attente: ProgressBar
     private lateinit var retourSaut: TextView
     private var enGlissement = false
+    private lateinit var racineVue: FrameLayout
+    private lateinit var vueImage: PlayerView
+    private var panneau: View? = null
+    private var demande: Demande? = null
+    private var qualite = "original"
+    private var tailleSousTitres = 100
+    private var sousTitresHauts = false
 
     private fun dp(v: Number) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
     private fun teinte(c: Int) = ColorStateList.valueOf(c)
@@ -149,6 +156,7 @@ class LecteurActivity : ComponentActivity() {
             }
         }
         val racine = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
+        racineVue = racine; vueImage = vue; demande = d
         racine.addView(vue, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
         construireCommandes(racine, d, p)
         setContentView(racine)
@@ -191,6 +199,10 @@ class LecteurActivity : ComponentActivity() {
                     Plantages.noter(this@LecteurActivity, e)
                     erreur = "Lecture impossible : ${e.errorCodeName}${(e.cause?.message ?: e.message)?.let { m -> " — " + m.take(160) } ?: ""}"
                     finish()
+                } else if (qualite != "original") {
+                    // Le flux transcodé ne vient pas : retour au fichier d'origine.
+                    android.widget.Toast.makeText(this@LecteurActivity, "Qualité indisponible — retour à l'originale", android.widget.Toast.LENGTH_SHORT).show()
+                    changerQualite(p, "original")
                 } else { p.prepare(); p.play() }
             }
         })
@@ -273,7 +285,7 @@ class LecteurActivity : ComponentActivity() {
         bas.addView(tempsEcoule)
         bas.addView(barre, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8); marginEnd = dp(8) })
         bas.addView(tempsRestant)
-        bas.addView(icone(R.drawable.ic_langues, 46) { choisirPistes(p) }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(10) })
+        bas.addView(icone(R.drawable.ic_langues, 46) { ouvrirReglages(p, "audio") }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(10) })
         calque.addView(bas, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
 
         // Chargement, et retour visuel du double appui
@@ -344,39 +356,186 @@ class LecteurActivity : ComponentActivity() {
         else String.format(Locale.ROOT, "%d:%02d", s / 60, s % 60)
     }
 
-    /** Audio et sous-titres : une liste simple, comme le menu du site. */
-    private fun choisirPistes(p: ExoPlayer) {
-        val groupes = p.currentTracks.groups
-        val audios = groupes.filter { it.type == C.TRACK_TYPE_AUDIO }
-        val textes = groupes.filter { it.type == C.TRACK_TYPE_TEXT }
-        val libelle = { g: Tracks.Group, n: Int ->
-            val f = g.getTrackFormat(0)
-            val langue = f.language?.takeIf { it.isNotEmpty() && it != "und" }?.let {
-                Locale.forLanguageTag(it).getDisplayLanguage(Locale.FRENCH).replaceFirstChar { c -> c.uppercase() }
-            }
-            listOfNotNull(f.label, langue).distinct().joinToString(" · ").ifEmpty { "Piste $n" }
+    /* ── Paramètres : le même panneau que le site (Audio · Sous-titres · Qualité) ── */
+
+    private fun ouvrirReglages(p: ExoPlayer, onglet: String) {
+        fermerReglages(relancerMasquage = false)
+        minuteur.removeCallbacks(masquage)
+        val fond = FrameLayout(this).apply { setBackgroundColor(Color.argb(70, 0, 0, 0)); setOnClickListener { fermerReglages() } }
+        val cote = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(20), dp(18), dp(20), dp(12))
+            setBackgroundColor(Color.argb(228, 12, 12, 14))
+            isClickable = true   // un appui dans le panneau ne le ferme pas
         }
-        val noms = mutableListOf<String>()
-        val actions = mutableListOf<() -> Unit>()
+        // En-tête : « Paramètres » + fermer
+        val entete = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL }
+        entete.addView(TextView(this).apply { text = "Paramètres"; setTextColor(Color.WHITE); textSize = 19f; typeface = Typeface.DEFAULT_BOLD },
+            LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        entete.addView(TextView(this).apply {
+            text = "✕"; setTextColor(Color.WHITE); textSize = 15f; gravity = Gravity.CENTER
+            background = GradientDrawable().apply { shape = GradientDrawable.OVAL; setColor(Color.argb(22, 255, 255, 255)) }
+            setOnClickListener { fermerReglages() }
+        }, LinearLayout.LayoutParams(dp(36), dp(36)))
+        cote.addView(entete)
+        // Onglets en pilule : Audio · Sous-titres · Qualité
+        val onglets = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = GradientDrawable().apply { cornerRadius = dp(22).toFloat(); setColor(Color.argb(110, 0, 0, 0)) }
+        }
+        for ((id, nom) in listOf("audio" to "Audio", "soustitres" to "Sous-titres", "qualite" to "Qualité")) {
+            val actif = id == onglet
+            onglets.addView(TextView(this).apply {
+                text = nom; gravity = Gravity.CENTER; textSize = 13f; typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (actif) Color.BLACK else Color.argb(160, 255, 255, 255))
+                background = GradientDrawable().apply { cornerRadius = dp(18).toFloat(); setColor(if (actif) Color.WHITE else Color.TRANSPARENT) }
+                setPadding(0, dp(9), 0, dp(9))
+                setOnClickListener { ouvrirReglages(p, id) }
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        }
+        cote.addView(onglets, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { topMargin = dp(14); bottomMargin = dp(10) })
+        // Contenu de l'onglet
+        val liste = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        when (onglet) {
+            "audio" -> contenuAudio(p, liste)
+            "soustitres" -> contenuSousTitres(p, liste)
+            else -> contenuQualite(p, liste)
+        }
+        cote.addView(android.widget.ScrollView(this).apply { addView(liste) }, LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f))
+        fond.addView(cote, FrameLayout.LayoutParams(dp(360), ViewGroup.LayoutParams.MATCH_PARENT, Gravity.END))
+        racineVue.addView(fond, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT))
+        panneau = fond
+    }
+
+    private fun fermerReglages(relancerMasquage: Boolean = true) {
+        panneau?.let { racineVue.removeView(it) }
+        panneau = null
+        if (relancerMasquage) programmerMasquage()
+    }
+
+    /** Une ligne de choix : titre, détail, coche quand c'est la sélection. */
+    private fun ligne(titre: String, detail: String?, choisi: Boolean, action: () -> Unit): LinearLayout {
+        val l = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL
+            setPadding(dp(16), dp(13), dp(16), dp(13))
+            background = GradientDrawable().apply { cornerRadius = dp(16).toFloat(); setColor(if (choisi) Color.argb(34, 255, 255, 255) else Color.argb(10, 255, 255, 255)) }
+            setOnClickListener { action() }
+        }
+        val textes = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL }
+        textes.addView(TextView(this).apply { text = titre; textSize = 15f; typeface = Typeface.DEFAULT_BOLD; setTextColor(if (choisi) Color.WHITE else Color.argb(200, 255, 255, 255)) })
+        if (!detail.isNullOrEmpty()) textes.addView(TextView(this).apply { text = detail; textSize = 11.5f; setTextColor(Color.argb(120, 255, 255, 255)); setPadding(0, dp(2), 0, 0) })
+        l.addView(textes, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f))
+        if (choisi) l.addView(TextView(this).apply { text = "✓"; textSize = 16f; setTextColor(Color.WHITE) })
+        l.layoutParams = LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { bottomMargin = dp(6) }
+        return l
+    }
+
+    private fun titreSection(t: String) = TextView(this).apply {
+        text = t.uppercase(); textSize = 11f; typeface = Typeface.DEFAULT_BOLD; letterSpacing = 0.08f
+        setTextColor(Color.argb(95, 255, 255, 255)); setPadding(dp(4), dp(16), 0, dp(8))
+    }
+
+    private fun nomPiste(g: Tracks.Group, n: Int): Pair<String, String> {
+        val f = g.getTrackFormat(0)
+        val langue = f.language?.takeIf { it.isNotEmpty() && it != "und" }?.let {
+            Locale.forLanguageTag(it).getDisplayLanguage(Locale.FRENCH).replaceFirstChar { c -> c.uppercase() }
+        }
+        val titre = f.label?.takeIf { it.isNotBlank() } ?: langue ?: "Piste $n"
+        val codec = (f.sampleMimeType ?: "").substringAfterLast('/').uppercase().removePrefix("X-")
+        val canaux = when (f.channelCount) { 1 -> "Mono"; 2 -> "Stéréo"; 6 -> "5.1"; 8 -> "7.1"; else -> if (f.channelCount > 2) "${f.channelCount} canaux" else null }
+        return titre to listOfNotNull(langue?.takeIf { it != titre }, codec.takeIf { it.isNotEmpty() }, canaux).joinToString(" · ")
+    }
+
+    private fun contenuAudio(p: ExoPlayer, liste: LinearLayout) {
+        val audios = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_AUDIO }
+        if (audios.isEmpty()) { liste.addView(TextView(this).apply { text = "Aucune piste audio"; setTextColor(Color.argb(140, 255, 255, 255)) }); return }
         audios.forEachIndexed { i, g ->
-            noms.add((if (g.isSelected) "✓   " else "      ") + "Audio · " + libelle(g, i + 1))
-            actions.add { p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(g.mediaTrackGroup, 0)).build() }
+            val (t, det) = nomPiste(g, i + 1)
+            liste.addView(ligne(t, det, g.isSelected) {
+                p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setOverrideForType(TrackSelectionOverride(g.mediaTrackGroup, 0)).build()
+                minuteur.postDelayed({ if (panneau != null) ouvrirReglages(p, "audio") }, 300)
+            })
         }
-        noms.add((if (textes.none { it.isSelected }) "✓   " else "      ") + "Sans sous-titres")
-        actions.add { p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build() }
+    }
+
+    private fun contenuSousTitres(p: ExoPlayer, liste: LinearLayout) {
+        val textes = p.currentTracks.groups.filter { it.type == C.TRACK_TYPE_TEXT }
+        liste.addView(ligne("Désactivés", "Pas de sous-titres", textes.none { it.isSelected }) {
+            p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true).build()
+            minuteur.postDelayed({ if (panneau != null) ouvrirReglages(p, "soustitres") }, 300)
+        })
         textes.forEachIndexed { i, g ->
-            noms.add((if (g.isSelected) "✓   " else "      ") + "Sous-titres · " + libelle(g, i + 1))
-            actions.add {
+            val (t, det) = nomPiste(g, i + 1)
+            liste.addView(ligne(t, det, g.isSelected) {
                 p.trackSelectionParameters = p.trackSelectionParameters.buildUpon().setTrackTypeDisabled(C.TRACK_TYPE_TEXT, false)
                     .setOverrideForType(TrackSelectionOverride(g.mediaTrackGroup, 0)).build()
-            }
+                minuteur.postDelayed({ if (panneau != null) ouvrirReglages(p, "soustitres") }, 300)
+            })
         }
-        minuteur.removeCallbacks(masquage)
-        AlertDialog.Builder(this, android.R.style.Theme_DeviceDefault_Dialog_Alert)
-            .setTitle("Audio et sous-titres")
-            .setItems(noms.toTypedArray()) { _, i -> actions[i](); programmerMasquage() }
-            .setOnDismissListener { masquerBarres(); programmerMasquage() }
-            .show()
+        if (textes.isEmpty()) liste.addView(TextView(this).apply { text = "Aucun sous-titre dans le fichier."; setTextColor(Color.argb(110, 255, 255, 255)); setPadding(dp(4), dp(8), 0, 0) })
+        // Affichage : taille et position, comme sur le site
+        liste.addView(titreSection("Affichage"))
+        val tailles = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL }
+        for ((v, nom) in listOf(75 to "Petit", 100 to "Normal", 125 to "Grand", 150 to "Très grand")) {
+            val actif = v == tailleSousTitres
+            tailles.addView(TextView(this).apply {
+                text = nom; gravity = Gravity.CENTER; textSize = 12.5f; typeface = Typeface.DEFAULT_BOLD
+                setTextColor(if (actif) Color.BLACK else Color.argb(190, 255, 255, 255))
+                background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(if (actif) Color.WHITE else Color.argb(18, 255, 255, 255)) }
+                setPadding(0, dp(9), 0, dp(9))
+                setOnClickListener { tailleSousTitres = v; appliquerStyleSousTitres(); ouvrirReglages(p, "soustitres") }
+            }, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginEnd = dp(5) })
+        }
+        liste.addView(tailles)
+        val remonter = ligne("Remonter les sous-titres", "Pour qu'ils ne passent pas sous les commandes", sousTitresHauts) {
+            sousTitresHauts = !sousTitresHauts; appliquerStyleSousTitres(); ouvrirReglages(p, "soustitres")
+        }
+        (remonter.layoutParams as LinearLayout.LayoutParams).topMargin = dp(8)
+        liste.addView(remonter)
+    }
+
+    private fun contenuQualite(p: ExoPlayer, liste: LinearLayout) {
+        val d = demande ?: return
+        val choix = d.qualites.ifEmpty { listOf(Qualite("original", "Qualité Originale", "Le fichier tel quel", "")) }
+        for (q in choix) {
+            liste.addView(ligne(q.libelle, q.detail.ifEmpty { if (q.url.isEmpty()) null else "Transcodé par le serveur" }, q.id == qualite) {
+                if (q.id != qualite) changerQualite(p, q.id)
+                fermerReglages()
+            })
+        }
+    }
+
+    private fun appliquerStyleSousTitres() {
+        vueImage.subtitleView?.apply {
+            setFractionalTextSize(0.058f * tailleSousTitres / 100f)
+            setBottomPaddingFraction(if (sousTitresHauts) 0.17f else 0.06f)
+        }
+    }
+
+    /** Originale = le fichier ; sinon le flux HLS transcodé du serveur, repris à la même position. */
+    private fun changerQualite(p: ExoPlayer, id: String) {
+        val d = demande ?: return
+        val q = d.qualites.firstOrNull { it.id == id } ?: Qualite("original", "", "", "")
+        val pos = p.currentPosition
+        qualite = q.id
+        pistesAppliquees = false
+        sousTitresAppliques = false
+        val element = if (q.url.isEmpty()) {
+            MediaItem.Builder().setUri(d.url)
+                .setSubtitleConfigurations(d.sousTitres.map { u -> MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(u)).setMimeType(MimeTypes.APPLICATION_SUBRIP).build() })
+                .build()
+        } else {
+            MediaItem.Builder().setUri(q.url.replace("{offset}", (pos / 1000).toString()))
+                .setMimeType(MimeTypes.APPLICATION_M3U8)
+                .setSubtitleConfigurations(d.sousTitresTranscode.map { s ->
+                    MediaItem.SubtitleConfiguration.Builder(android.net.Uri.parse(s.url)).setMimeType(MimeTypes.TEXT_VTT).setLabel(s.libelle)
+                        .setSelectionFlags(if (s.defaut) C.SELECTION_FLAG_DEFAULT else 0).build()
+                })
+                .build()
+        }
+        p.setMediaItem(element, pos)
+        p.prepare()
+        p.play()
     }
 
     /** Pistes choisies par Nova : n° d'ordre par type, à partir de 1 (comme mpv). */

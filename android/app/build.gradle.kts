@@ -22,8 +22,8 @@ android {
         applicationId = "io.github.why7726.novastream"
         minSdk = 26          // Android 8.0
         targetSdk = 36
-        versionCode = 5
-        versionName = "0.3.0"
+        versionCode = 6
+        versionName = "0.3.1"
     }
 
     signingConfigs {
@@ -59,6 +59,7 @@ dependencies {
     implementation("androidx.media3:media3-exoplayer:$media3")
     implementation("androidx.media3:media3-ui:$media3")
     implementation("androidx.media3:media3-datasource:$media3")
+    implementation("androidx.media3:media3-exoplayer-hls:$media3")   // qualité réduite : flux transcodé du serveur
     // Décodeurs FFmpeg pour ExoPlayer (AC3, EAC3, DTS, TrueHD… que beaucoup
     // de téléphones ne savent pas lire) : la même idée que mpv sur Windows.
     implementation("io.github.anilbeesetti:nextlib-media3ext:1.11.1-0.16.0")

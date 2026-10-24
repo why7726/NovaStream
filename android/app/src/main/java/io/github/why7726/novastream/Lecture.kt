@@ -2,6 +2,11 @@ package io.github.why7726.novastream
 
 import org.json.JSONObject
 
+/** Une qualité proposée par la page (url vide = le fichier tel quel ; sinon HLS du serveur, {offset} à remplacer). */
+data class Qualite(val id: String, val libelle: String, val detail: String, val url: String)
+/** Sous-titre texte servi à part (pour la lecture transcodée, qui n'en contient plus). */
+data class SousTitreTexte(val url: String, val libelle: String, val defaut: Boolean)
+
 /** Une demande de lecture venue de la page Nova, et la façon de lui répondre. */
 data class Demande(
     val url: String,
@@ -15,6 +20,8 @@ data class Demande(
     val aSuivant: Boolean = false,
     val titreCourt: String = "",     // « Les Noces des Lucioles »
     val detail: String = "",         // « S1 · É1 · Une gratitude indésirée »
+    val qualites: List<Qualite> = emptyList(),
+    val sousTitresTranscode: List<SousTitreTexte> = emptyList(),
 )
 
 /**

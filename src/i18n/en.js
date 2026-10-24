@@ -814,4 +814,5 @@ export default {
   "Téléchargé": "Downloaded",
   "Téléchargements": "Downloads",
   "Pour regarder sans connexion. Plus la qualité est basse, plus le fichier est léger.": "To watch offline. The lower the quality, the smaller the file.",
+  "Le fichier tel quel": "The file as is",
 };

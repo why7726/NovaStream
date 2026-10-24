@@ -221,6 +221,13 @@ class MainActivity : ComponentActivity() {
                     aid = Lecture.piste(d.opt("aid")), sid = Lecture.piste(d.opt("sid")), sousTitres = subs,
                     aPrecedent = d.optBoolean("aPrecedent"), aSuivant = d.optBoolean("aSuivant"),
                     titreCourt = d.optString("titreCourt").take(200), detail = d.optString("detail").take(200),
+                    // Qualités et sous-titres : seulement des adresses du serveur choisi
+                    qualites = d.optJSONArray("qualites")?.let { a -> (0 until minOf(a.length(), 6)).mapNotNull { i ->
+                        a.optJSONObject(i)?.let { q -> Qualite(q.optString("id").take(20), q.optString("libelle").take(60), q.optString("detail").take(80), q.optString("url").takeIf { it.isEmpty() || surServeur(it) } ?: return@let null) }
+                    } } ?: emptyList(),
+                    sousTitresTranscode = d.optJSONArray("sousTitresTranscode")?.let { a -> (0 until minOf(a.length(), 8)).mapNotNull { i ->
+                        a.optJSONObject(i)?.takeIf { surServeur(it.optString("url")) }?.let { s -> SousTitreTexte(s.optString("url"), s.optString("libelle").take(80), s.optBoolean("defaut")) }
+                    } } ?: emptyList(),
                 )
                 Lecture.surProgression = { p, du, pause ->
                     val o = JSONObject().put("type", "progression").put("donnees", JSONObject().put("position", p).put("duree", du).put("pause", pause))
@@ -348,4 +355,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Version affichée (sans dépendre de la génération de BuildConfig). */
-object BuildConfigLite { const val VERSION = "0.3.0" }
+object BuildConfigLite { const val VERSION = "0.3.1" }
