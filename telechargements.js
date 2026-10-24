@@ -112,9 +112,14 @@ export function creerTelechargements({ ffmpeg, dossier, maxGo = 80 }) {
         `scale=-2:${h}:flags=lanczos`, 'format=yuv420p',
       ].join(',');
     } else if (t.hdr) {
-      entree = ['-hwaccel', 'cuda'];
-      filtre = ['zscale=t=linear:npl=100', 'format=gbrpf32le', 'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0',
-        'zscale=t=bt709:m=bt709:r=tv', `scale=-2:${h}:flags=lanczos`, 'format=yuv420p'].join(',');
+      /* HDR : la carte réduit d'abord l'image à la taille voulue, PUIS le
+         processeur convertit les couleurs sur cette petite image. Mesuré sur
+         un épisode 4K HDR → 480p : 0,5× le temps réel en convertissant la 4K
+         entière, 3,3× ainsi (1080p : ~1×). */
+      entree = ['-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda'];
+      filtre = [`scale_cuda=-2:${h}:format=p010le`, 'hwdownload', 'format=p010le',
+        'zscale=t=linear:npl=100', 'format=gbrpf32le', 'zscale=p=bt709', 'tonemap=tonemap=hable:desat=0',
+        'zscale=t=bt709:m=bt709:r=tv', 'format=yuv420p'].join(',');
     } else {
       entree = ['-hwaccel', 'cuda', '-hwaccel_output_format', 'cuda'];
       filtre = `scale_cuda=-2:${h}:format=yuv420p`;
