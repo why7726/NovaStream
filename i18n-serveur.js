@@ -179,6 +179,13 @@ const EN = {
   'Ce compte est protégé par un code PIN': 'This account is protected by a PIN code',
   'Plex n\'a pas renvoyé de jeton': 'Plex did not return a token',
 
+  // Téléchargements
+  'Qualité inconnue': 'Unknown quality',
+  'Fichier inaccessible depuis le serveur': 'File not reachable from the server',
+  'Aucune piste audio': 'No audio track',
+  'Trop de téléchargements en préparation — attends que les premiers soient prêts': 'Too many downloads being prepared — wait for the first ones to be ready',
+  'Préparation impossible': 'Preparation failed',
+
   // Notifications (traduites à l'envoi, dans la langue de chaque destinataire).
   // Les formes précises AVANT la forme générale « {0} » {1}.
   'Nouvelle demande': 'New request',

@@ -14,6 +14,7 @@ import SynopsisPure from './SynopsisPure';
 import { useAudioPref, setAudioPref, versionOptions } from '../lib/audioPref';
 import { useLangBadges } from './langBadges';
 import WatchTogetherButton from '../components/WatchTogetherButton';
+import BoutonTelecharger, { useTelechargements } from './Telecharger';
 
 import { tr } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
@@ -52,6 +53,7 @@ function seasonLabel(s) {
    les métadonnées une seule ligne séparée par des points. */
 export default function DetailsPure() {
   const { id } = useParams();
+  const telecharges = useTelechargements();   // application Android : ce qui est déjà sur le téléphone
   const navigate = useNavigate();
   const audioPref = useAudioPref();
   const langMap = useLangBadges();
@@ -369,6 +371,7 @@ export default function DetailsPure() {
                 <Heart size={18} fill={isFav ? 'currentColor' : 'none'} className={isFav ? 'text-white' : 'text-white/85'} />
               </button>
               <WatchTogetherButton media={movie} />
+              {movie.type === 'movie' && <BoutonTelecharger mediaId={movie.id} telecharges={telecharges} />}
             </div>
 
             {movie.type === 'movie' && versions && (
@@ -434,6 +437,7 @@ export default function DetailsPure() {
                   {ep.duration && <p className="text-[11.5px] p-faint mt-0.5">{ep.duration}</p>}
                   <p className="text-[12.5px] p-dim leading-snug line-clamp-2 mt-1">{ep.description || ''}</p>
                 </div>
+                <BoutonTelecharger mediaId={ep.id} compact telecharges={telecharges} />
               </button>
             ))}
             {episodes.length === 0 && <p className="text-[13px] p-faint py-6">{tr('Chargement…')}</p>}

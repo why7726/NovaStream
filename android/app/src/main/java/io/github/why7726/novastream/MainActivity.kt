@@ -108,6 +108,20 @@ class MainActivity : ComponentActivity() {
 
         val s = serveur
         if (s != null) web.loadUrl("$s/") else ouvrirAccueil(null)
+        // Pas de réseau et des films sur le téléphone : on va droit à eux.
+        if (!Telechargements.enLigne(this) && Telechargements.tous(this).isNotEmpty()) ouvrirTelechargements()
+    }
+
+    override fun onResume() {
+        super.onResume()
+        // Positions de lecture hors ligne → Nova, dès qu'il y a du réseau
+        thread { if (Telechargements.enLigne(this)) Telechargements.synchroniser(this) }
+    }
+
+    private var listeOuverteLe = 0L
+    private fun ouvrirTelechargements() {
+        listeOuverteLe = System.currentTimeMillis()
+        startActivity(Intent(this, TelechargementsActivity::class.java))
     }
 
     private fun ouvrirAccueil(message: String?) {
@@ -162,6 +176,33 @@ class MainActivity : ComponentActivity() {
                 }
             }
             "changer-serveur" -> if (depuisServeur) runOnUiThread { ouvrirAccueil(null) }
+            "ouvrir-telechargements" -> if (depuisServeur || depuisAccueil) runOnUiThread { ouvrirTelechargements() }
+            "telechargements" -> if (depuisServeur) thread { Telechargements.actualiser(this); repondre(reponse, id, Telechargements.resume(this)) }
+            "telecharger" -> {
+                if (!depuisServeur) return repondre(reponse, id, erreur = "Refusé")
+                val d = m.optJSONObject("donnees") ?: return repondre(reponse, id, erreur = "Refusé")
+                val surServeur = { u: String -> try { origineDe(u) == serveur } catch (_: Exception) { false } }
+                val mediaId = d.optString("mediaId")
+                val qualite = d.optString("qualite")
+                val jeton = d.optString("jeton")
+                if (!Regex("^[0-9]{1,12}$").matches(mediaId) || qualite !in listOf("original", "1080p", "720p-4", "720p-2", "480p") || jeton.isEmpty() || jeton.length > 4096) {
+                    return repondre(reponse, id, erreur = "Refusé")
+                }
+                // Seules des adresses du serveur choisi (affiche, sous-titres) sont gardées.
+                val subs = JSONArray()
+                d.optJSONArray("sousTitres")?.let { a -> for (i in 0 until minOf(a.length(), 6)) a.optJSONObject(i)?.takeIf { surServeur(it.optString("url")) }?.let(subs::put) }
+                val e = JSONObject()
+                    .put("mediaId", mediaId).put("qualite", qualite).put("serveur", serveur).put("jeton", jeton)
+                    .put("titre", d.optString("titre").take(200)).put("sousTitre", d.optString("sousTitre").take(200))
+                    .put("type", d.optString("type").take(20)).put("dureeMs", d.optLong("dureeMs"))
+                    .put("audioStreamId", d.opt("audioStreamId") ?: JSONObject.NULL)
+                    .put("aidOriginal", d.optInt("aidOriginal")).put("sidOriginal", d.optInt("sidOriginal"))
+                    .put("sousTitres", subs)
+                    // Affiche : du serveur, ou de TMDB (jamais une autre adresse)
+                    .put("affiche", d.optString("affiche").takeIf { surServeur(it) || it.startsWith("https://image.tmdb.org/") } ?: "")
+                    .put("etat", "preparation").put("progression", 0).put("ajouteLe", System.currentTimeMillis())
+                thread { Telechargements.ajouter(this, e); repondre(reponse, id, true) }
+            }
             "arreter" -> if (depuisServeur) runOnUiThread { Lecture.arretDemande?.invoke() }
             "lire" -> {
                 if (!depuisServeur) return repondre(reponse, id, erreur = "Refusé")
@@ -233,6 +274,7 @@ class MainActivity : ComponentActivity() {
         override fun onReceivedError(view: WebView, request: WebResourceRequest, error: WebResourceError) {
             if (request.isForMainFrame && !request.url.toString().startsWith(ORIGINE_ACCUEIL)) {
                 ouvrirAccueil("Le serveur ne répond pas (${error.description}).")
+                if (Telechargements.tous(this@MainActivity).isNotEmpty() && System.currentTimeMillis() - listeOuverteLe > 10_000) ouvrirTelechargements()
             }
         }
     }
@@ -292,6 +334,9 @@ class MainActivity : ComponentActivity() {
                 reglages: (p) => appel('reglages', p || null),
                 changerServeur: () => appel('changer-serveur'),
                 definirServeur: (a) => appel('definir-serveur', a),
+                telecharger: (o) => appel('telecharger', o),
+                telechargements: () => appel('telechargements'),
+                ouvrirTelechargements: () => appel('ouvrir-telechargements'),
               };
             })();
         """.trimIndent()
@@ -299,4 +344,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Version affichée (sans dépendre de la génération de BuildConfig). */
-object BuildConfigLite { const val VERSION = "0.1.0" }
+object BuildConfigLite { const val VERSION = "0.2.0" }

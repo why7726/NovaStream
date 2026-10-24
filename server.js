@@ -29,6 +29,7 @@ import { creerFiltrePrive } from './prive.js';
 import { creerJellyfin } from './jellyfin.js';
 import { creerLocales } from './local.js';
 import { creerRemux } from './remux.js';
+import { creerTelechargements, QUALITES as QUALITES_TELECHARGEMENT } from './telechargements.js';
 import { contexte, langue, langueDe, langueTmdb, versAnglais } from './i18n-serveur.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -3508,6 +3509,74 @@ app.get('/remux/:session/:nom', proxyAuth, (req, res) => {
   if (!f) return res.status(404).end();
   res.setHeader('Cache-Control', 'private, max-age=3600');
   return res.sendFile(f, { headers: { 'Content-Type': nom.endsWith('.mp4') || nom.endsWith('.m4s') ? 'video/mp4' : 'application/octet-stream' } });
+});
+
+/* ══ Téléchargements (mode hors ligne des applications) — voir telechargements.js ══
+   Mêmes contrôles d'accès que la lecture : la métadonnée passe par plexJson
+   (bibliothèques privées filtrées) ou par la bibliothèque locale (accès +18). */
+const telechargements = creerTelechargements({
+  ffmpeg: process.env.FFMPEG_PATH || ffmpegStatic,
+  dossier: path.join(config.DATA_DIR, 'telechargements'),
+  maxGo: Number(process.env.NOVA_TELECHARGEMENTS_GO) || 80,
+});
+
+async function sourceTelechargement(mediaId) {
+  if (locales.estLocal(mediaId)) {
+    const t = await locales.trouver(mediaId);
+    const e = t && (t.episode || t.film);
+    if (!e || !locales.visible(t.lib)) return null;
+    const meta = (await locales.plexJson(`/library/metadata/${mediaId}`))?.MediaContainer?.Metadata?.[0];
+    return meta ? { fichier: e.fichier, meta } : null;
+  }
+  if (estJellyfin()) return null;
+  const meta = (await plexJson(`/library/metadata/${mediaId}`))?.MediaContainer?.Metadata?.[0];
+  const fichier = meta?.Media?.[0]?.Part?.[0]?.file;
+  return meta && fichier ? { fichier, meta } : null;
+}
+
+app.post('/api/telechargements', authMiddleware, async (req, res) => {
+  try {
+    const { mediaId, qualite, audioStreamId } = req.body || {};
+    if (!/^\d{1,12}$/.test(String(mediaId || ''))) return res.status(400).json({ error: 'Requête invalide' });
+    if (qualite !== 'original' && !QUALITES_TELECHARGEMENT[qualite]) return res.status(400).json({ error: 'Qualité inconnue' });
+    const src = await sourceTelechargement(String(mediaId));
+    if (!src) return res.status(404).json({ error: 'Introuvable' });
+    const media = src.meta.Media?.[0];
+    const part = media?.Part?.[0];
+    if (!part?.key) return res.status(404).json({ error: 'Introuvable' });
+
+    // Le fichier tel quel : rien à préparer.
+    if (qualite === 'original') {
+      return res.json({ etat: 'pret', original: true, url: `/plex${part.key}`, taille: part.size || null, conteneur: media.container || null });
+    }
+    if (!fs.existsSync(src.fichier)) return res.status(409).json({ error: 'Fichier inaccessible depuis le serveur' });
+    const flux = part.Stream || [];
+    const audios = flux.filter((s) => s.streamType === 2);
+    const audio = (audioStreamId != null && audios.find((a) => String(a.id) === String(audioStreamId))) || audios.find((a) => a.selected) || audios[0];
+    if (!audio || !Number.isInteger(audio.index)) return res.status(422).json({ error: 'Aucune piste audio' });
+    const video = flux.find((s) => s.streamType === 1);
+    const hdr = /smpte2084|arib-std-b67|hlg|pq/i.test(`${video?.colorTrc || ''} ${video?.DOVIPresent ? 'pq' : ''}`);
+    const r = telechargements.demander({
+      fichier: src.fichier, indexAudio: audio.index, qualite, hdr, hauteurSource: video?.height,
+      dureeS: (media.duration || src.meta.duration || 0) / 1000, userId: req.user.id,
+    });
+    res.json({ ...r, url: `/api/telechargements/${r.cle}/fichier` });
+  } catch (e) {
+    res.status(429).json({ error: e.message || 'Impossible' });
+  }
+});
+
+app.get('/api/telechargements/:cle', authMiddleware, (req, res) => {
+  if (!telechargements.autorise(req.params.cle, req.user.id)) return res.status(404).json({ error: 'Introuvable' });
+  const e = telechargements.etat(req.params.cle);
+  if (!e) return res.status(404).json({ error: 'Introuvable' });
+  res.json({ ...e, url: `/api/telechargements/${e.cle}/fichier` });
+});
+
+app.get('/api/telechargements/:cle/fichier', authMiddleware, (req, res) => {
+  const f = telechargements.fichier(req.params.cle, req.user.id);
+  if (!f) return res.status(404).json({ error: 'Introuvable' });
+  res.sendFile(f, { headers: { 'Content-Type': 'video/mp4', 'Cache-Control': 'private, no-transform' } });
 });
 
 function avecJeton(url, nova) {

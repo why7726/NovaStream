@@ -909,6 +909,7 @@ const plexService = {
       grandparentRatingKey: item.grandparentRatingKey,
       index: item.index,
       parentIndex: item.parentIndex,
+      taille: item.Media?.[0]?.Part?.[0]?.size || null,
       grandparentTitle: item.grandparentTitle,
       parentTitle: item.parentTitle,
       libraryTitle: item.librarySectionTitle,
