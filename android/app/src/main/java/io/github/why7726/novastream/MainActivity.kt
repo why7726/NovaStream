@@ -355,4 +355,4 @@ class MainActivity : ComponentActivity() {
 }
 
 /** Version affichée (sans dépendre de la génération de BuildConfig). */
-object BuildConfigLite { const val VERSION = "0.3.1" }
+object BuildConfigLite { const val VERSION = "0.3.2" }

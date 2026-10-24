@@ -88,6 +88,10 @@ class LecteurActivity : ComponentActivity() {
     private var qualite = "original"
     private var tailleSousTitres = 100
     private var sousTitresHauts = false
+    private var pastilleQualite: TextView? = null
+
+    /** « Originale », « 1080p », « 720p », « 480p » : ce qu'affiche la pastille. */
+    private fun libelleQualite() = when (qualite) { "high" -> "1080p"; "medium" -> "720p"; "low" -> "480p"; else -> "Originale" }
 
     private fun dp(v: Number) = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_DIP, v.toFloat(), resources.displayMetrics).toInt()
     private fun teinte(c: Int) = ColorStateList.valueOf(c)
@@ -285,7 +289,16 @@ class LecteurActivity : ComponentActivity() {
         bas.addView(tempsEcoule)
         bas.addView(barre, LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f).apply { marginStart = dp(8); marginEnd = dp(8) })
         bas.addView(tempsRestant)
-        bas.addView(icone(R.drawable.ic_langues, 46) { ouvrirReglages(p, "audio") }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(10) })
+        // Réglages bien visibles : pastille de qualité, sous-titres, paramètres
+        pastilleQualite = TextView(this).apply {
+            text = libelleQualite(); textSize = 12.5f; typeface = Typeface.DEFAULT_BOLD; setTextColor(Color.WHITE)
+            gravity = Gravity.CENTER; setPadding(dp(12), dp(6), dp(12), dp(6))
+            background = GradientDrawable().apply { cornerRadius = dp(14).toFloat(); setColor(Color.argb(30, 255, 255, 255)); setStroke(dp(1), Color.argb(70, 255, 255, 255)) }
+            setOnClickListener { ouvrirReglages(p, "qualite") }
+        }
+        bas.addView(pastilleQualite, LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT).apply { marginStart = dp(12) })
+        bas.addView(icone(R.drawable.ic_langues, 46) { ouvrirReglages(p, "soustitres") }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(6) })
+        bas.addView(icone(R.drawable.ic_reglages, 46) { ouvrirReglages(p, "audio") }, LinearLayout.LayoutParams(dp(46), dp(46)).apply { marginStart = dp(2) })
         calque.addView(bas, FrameLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.BOTTOM))
 
         // Chargement, et retour visuel du double appui
@@ -518,6 +531,7 @@ class LecteurActivity : ComponentActivity() {
         val q = d.qualites.firstOrNull { it.id == id } ?: Qualite("original", "", "", "")
         val pos = p.currentPosition
         qualite = q.id
+        pastilleQualite?.text = libelleQualite()
         pistesAppliquees = false
         sousTitresAppliques = false
         val element = if (q.url.isEmpty()) {
