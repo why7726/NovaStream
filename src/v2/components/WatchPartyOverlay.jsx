@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, Smile, X, Users, Hourglass, Timer } from 'lucide-react';
+import { MessageCircle, Send, Smile, X, Users, Hourglass, Timer, LogOut } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import WatchAvatar from './WatchAvatar';
-import { getCurrent, on, connectSession, isConnected, sendChat, sendReaction } from '../lib/watchParty';
+import { getCurrent, on, connectSession, isConnected, sendChat, sendReaction, quitterSeance } from '../lib/watchParty';
 
 import { tr } from '../../i18n';
 const EMOJIS = ['😂', '❤️', '🔥', '😮', '😢', '👏', '🎉', '💀'];
@@ -13,7 +14,9 @@ const EMOJIS = ['😂', '❤️', '🔥', '😮', '😢', '👏', '🎉', '💀'
 // player container so it also shows in fullscreen.
 export default function WatchPartyOverlay({ videoRef }) {
   const cur = getCurrent();
+  const navigate = useNavigate();
   const [participants, setParticipants] = useState([]);
+  const [sortie, setSortie] = useState(false);
   const [messages, setMessages] = useState([]);
   const [reactions, setReactions] = useState([]);
   const [chatOpen, setChatOpen] = useState(false);
@@ -150,6 +153,14 @@ export default function WatchPartyOverlay({ videoRef }) {
         <button onClick={() => { setEmojiOpen((o) => !o); setChatOpen(false); }}
           className={`w-11 h-11 rounded-full flex items-center justify-center backdrop-blur-xl border shadow-lg transition-all active:scale-90 ${emojiOpen ? 'bg-white text-black border-white' : 'bg-black/50 text-white border-white/15 hover:bg-black/70'}`}>
           <Smile size={20} />
+        </button>
+
+        {/* Sortir de la séance : l'hôte la termine pour tout le monde, les autres
+            la quittent (un invité sans compte est déconnecté). */}
+        <button onClick={async () => { if (sortie) return; setSortie(true); if ((await quitterSeance()) !== 'invite') navigate('/', { replace: true }); }}
+          title={isHost ? tr('Terminer la séance') : tr('Quitter la séance')}
+          className="h-11 px-4 rounded-full flex items-center gap-2 backdrop-blur-xl border shadow-lg transition-all active:scale-95 bg-black/50 text-white border-white/15 hover:bg-red-500/80 hover:border-red-400/60 text-[13px] font-semibold">
+          <LogOut size={17} /> {isHost ? tr('Terminer') : tr('Quitter')}
         </button>
 
         <button onClick={() => { setChatOpen((o) => !o); setEmojiOpen(false); }}

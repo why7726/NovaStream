@@ -106,3 +106,38 @@ export function leave() {
   current = null;
   persist();
 }
+
+/** Terminer une séance (hôte ou admin), même sans être connecté au salon. */
+export async function terminerSeance(sessionId) {
+  const res = await fetch(`${base()}/api/watch/${sessionId}/end`, {
+    method: 'POST', headers: { Authorization: `Bearer ${authService.getToken()}` },
+  });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Impossible'));
+}
+
+/** Séances en cours (admin). */
+export async function seancesEnCours() {
+  const res = await fetch(`${base()}/api/admin/watch`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
+  if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || tr('Indisponible'));
+  return (await res.json()).seances || [];
+}
+
+/**
+ * Quitter la séance en cours, d'où qu'on soit :
+ *  · l'hôte la TERMINE pour tout le monde ;
+ *  · un membre avec un compte la quitte et garde sa connexion ;
+ *  · un invité sans compte n'a rien d'autre à faire ici : il est déconnecté.
+ * @returns 'invite' quand la page va se recharger vers la connexion
+ */
+export async function quitterSeance() {
+  const cur = getCurrent();
+  if (cur?.isHost && cur.sessionId) { try { await terminerSeance(cur.sessionId); } catch {} }
+  const invite = !!authService.getUser()?.guest;
+  leave();
+  if (invite) {
+    authService.logout();
+    window.location.replace('/login');
+    return 'invite';
+  }
+  return 'compte';
+}

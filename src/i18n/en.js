@@ -820,4 +820,12 @@ export default {
   "Télécharger la saison": "Download the season",
   "Saison {0} · {1} épisodes": "Season {0} · {1} episodes",
   "plus lourd que l'original": "larger than the original",
+  "Quitter la séance": "Leave the watch party",
+  "Terminer": "End",
+  "Séances en cours": "Active watch parties",
+  "Aucune séance en cours.": "No active watch party.",
+  "hôte : {0}": "host: {0}",
+  "{0} participant(s)": "{0} participant(s)",
+  "en salle d'attente": "in the waiting room",
+  "en cours de lecture": "playing",
 };

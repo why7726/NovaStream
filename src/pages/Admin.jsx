@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import SeancesAdmin from '../v2/pure/SeancesAdmin';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Copy, Check, ArrowLeft, Ticket, User, Clock, Activity, History, Monitor, LogIn, LogOut, PlayCircle, UserPlus, Square, Eye, Globe } from 'lucide-react';
 
@@ -173,6 +174,9 @@ function Admin() {
             <Globe size={16} className="md:w-[18px] md:h-[18px]" /> {tr('Activité')}
           </button>
         </div>
+
+        {/* Séances « Regarder ensemble » ouvertes : l'admin peut les terminer */}
+        <SeancesAdmin />
 
         {activeTab === 'codes' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">

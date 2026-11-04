@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library, CalendarClock, SlidersHorizontal, Download } from 'lucide-react';
+import { Search, User, Home, Film, Tv, Heart, Clock, Sparkles, ShieldCheck, PlusCircle, LogOut, Check, Popcorn, Compass, Link2, Settings, Library, CalendarClock, SlidersHorizontal, Download, Users } from 'lucide-react';
 import authService from '../../services/authService';
 import SearchPure from './SearchPure';
 import { useLibraries, libraryKind } from '../lib/libraries';
@@ -190,6 +190,18 @@ export default function NavPure() {
                     ))}
                     <div className="my-1.5 mx-3.5 border-t border-white/[0.08]" />
                   </div>
+                )}
+                {/* Une séance « Regarder ensemble » en cours : on peut toujours en sortir d'ici.
+                    (Module de la séance chargé seulement au clic : socket.io reste hors de la coquille.) */}
+                {(() => { try { return !!localStorage.getItem('nova_watch_current'); } catch { return false; } })() && (
+                  <>
+                    <MenuRow icon={Users} tone="text-red-300" onClick={async () => {
+                      setMenu(false);
+                      const m = await import('../lib/watchParty');
+                      if ((await m.quitterSeance()) !== 'invite') navigate('/');
+                    }}>{(() => { try { return JSON.parse(localStorage.getItem('nova_watch_current'))?.isHost; } catch { return false; } })() ? tr('Terminer la séance') : tr('Quitter la séance')}</MenuRow>
+                    <div className="my-1.5 mx-3.5 border-t border-white/[0.08]" />
+                  </>
                 )}
                 {/* Application Android : les films téléchargés, lisibles hors ligne */}
                 {typeof window.novaDesktop?.ouvrirTelechargements === 'function' && (

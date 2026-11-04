@@ -118,6 +118,23 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
     res.json({ sessionId: id, hostPid });
   });
 
+  /* Terminer une séance sans passer par la salle : son hôte, ou l'admin (qui
+     voit toutes les séances dans l'Espace admin). Tout le monde est prévenu,
+     et les jetons invités de la séance cessent aussitôt de fonctionner. */
+  const terminer = (id) => { io.to(id).emit('watch:ended'); sessions.delete(id); };
+  app.post('/api/watch/:id/end', authMiddleware, (req, res) => {
+    const s = sessions.get(req.params.id);
+    if (!s) return res.json({ ok: true });   // déjà terminée
+    if (req.user.guest || (req.user.id !== s.host.userId && !req.user.isAdmin)) return res.status(403).json({ error: 'Non autorisé' });
+    terminer(s.id);
+    res.json({ ok: true });
+  });
+
+  app.get('/api/admin/watch', authMiddleware, (req, res) => {
+    if (!req.user.isAdmin) return res.status(403).json({ error: 'Accès admin requis' });
+    res.json({ seances: [...sessions.values()].map((s) => ({ ...publicSession(s), createdAt: s.createdAt })) });
+  });
+
   app.get('/api/watch/:id', (req, res) => {
     const s = sessions.get(req.params.id);
     if (!s) return res.status(404).json({ error: 'Séance introuvable ou terminée' });

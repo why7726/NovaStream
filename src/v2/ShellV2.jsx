@@ -64,6 +64,23 @@ function FicheGardee() {
 // charger socket.io dans la coquille du site)
 const enSeance = () => { try { return !!JSON.parse(localStorage.getItem('nova_watch_current')); } catch { return false; } };
 
+/* Au démarrage : une séance mémorisée mais terminée (hôte parti, 6 h passées,
+   serveur redémarré…) est oubliée. Sinon le lecteur s'y rattachait à chaque
+   film. Un invité sans compte n'a plus rien à faire ici : déconnexion. */
+function oublierSeanceMorte() {
+  let cur = null;
+  try { cur = JSON.parse(localStorage.getItem('nova_watch_current')); } catch {}
+  if (!cur?.sessionId) return;
+  fetch(`${import.meta.env.DEV ? 'http://localhost:5174' : ''}/api/watch/${encodeURIComponent(cur.sessionId)}`).then((r) => {
+    if (r.status !== 404) return;
+    try { localStorage.removeItem('nova_watch_current'); } catch {}
+    let u = null;
+    try { u = JSON.parse(localStorage.getItem('nova_user')); } catch {}
+    if (u?.guest) { localStorage.removeItem('nova_token'); localStorage.removeItem('nova_user'); window.location.replace('/login'); }
+  }).catch(() => {});
+}
+oublierSeanceMorte();
+
 // Application de bureau : lecture native (mpv), sauf en séance à plusieurs,
 // qui a besoin du lecteur web pour se synchroniser. Repli possible en cas d'échec.
 function LectureGardee() {

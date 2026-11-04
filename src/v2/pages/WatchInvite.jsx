@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Clapperboard, PartyPopper } from 'lucide-react';
 import KahootOnboard from '../components/KahootOnboard';
 import { getSessionInfo, joinSession, connectSession } from '../lib/watchParty';
+import authService from '../../services/authService';
 
 import { tr } from '../../i18n';
 // Public landing for a shared watch-party link. Works for people WITHOUT a
@@ -24,6 +25,16 @@ export default function WatchInvite({ handleAuth }) {
   const handleDone = async ({ name, avatar }) => {
     setStep('joining');
     try {
+      /* Quelqu'un qui a déjà un compte Nova rejoint AVEC son compte : on ne
+         remplace surtout pas sa connexion par un jeton invité (sinon, après la
+         séance, tout ce qu'il ouvrait le ramenait dans la séance). Le serveur
+         le reconnaît à son jeton et lui donne l'identifiant « u<id> ». */
+      const moi = authService.getUser();
+      if (moi && !moi.guest && authService.getToken()) {
+        connectSession({ sessionId: id, pid: `u${moi.id}`, isHost: false, name: moi.username || name, avatar });
+        navigate(`/watch/${id}/room`);
+        return;
+      }
       const r = await joinSession(id, { name, avatar });
       // Become a (guest) logged-in user so the Plex proxy + player work.
       localStorage.setItem('nova_token', r.token);
