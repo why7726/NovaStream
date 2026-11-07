@@ -258,6 +258,14 @@ export default function DetailsPure() {
     ? realEpisodes.filter((e) => epVersions.vf.includes(Number(e.index)))
     : realEpisodes;
 
+  /* Séance « Regarder ensemble » sur une série : elle porte sur un ÉPISODE —
+     celui que « Lecture » lancerait (en cours, sinon le premier non vu, sinon
+     le premier). Une série seule n'est pas un fichier : au lancement, tout le
+     monde se retrouvait renvoyé sur la fiche. */
+  const episodeSeance = movie && movie.type !== 'movie'
+    ? (episodes.find((e) => e.id === resume?.id) || episodes.find((e) => !watchedIds.has(e.id)) || episodes[0] || null)
+    : null;
+
   const play = () => {
     if (resume) return navigate(`/play/${resume.id}`);
     if (movie.type === 'movie') return navigate(`/play/${movie.id}`);
@@ -370,7 +378,7 @@ export default function DetailsPure() {
               <button onClick={toggleFav} aria-label={tr('Favori')} className="p-icon-btn">
                 <Heart size={18} fill={isFav ? 'currentColor' : 'none'} className={isFav ? 'text-white' : 'text-white/85'} />
               </button>
-              <WatchTogetherButton media={movie} />
+              <WatchTogetherButton media={movie} episode={episodeSeance} />
               {movie.type === 'movie'
                 ? <BoutonTelecharger mediaId={movie.id} telecharges={telecharges} />
                 : <BoutonTelecharger episodes={episodes} telecharges={telecharges}

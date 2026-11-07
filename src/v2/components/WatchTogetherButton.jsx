@@ -7,19 +7,23 @@ import { createSession, connectSession } from '../lib/watchParty';
 import { tr } from '../../i18n';
 // Entry point: a Nova user opens a synchronized "watch together" session for
 // this title, then lands in the waiting room to invite people.
-export default function WatchTogetherButton({ media, className = '' }) {
+export default function WatchTogetherButton({ media, episode = null, className = '' }) {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(false);
 
   const start = async () => {
     if (loading || !media) return;
+    // Une série : la séance porte sur l'épisode à regarder (une série n'est pas un fichier).
+    if (media.type !== 'movie' && !episode) { alert(tr("Choisis d'abord un épisode — les épisodes ne sont pas encore chargés.")); return; }
     setLoading(true);
     try {
       const user = authService.getUser();
       const r = await createSession({
-        mediaId: media.id,
-        mediaType: media.type,
-        mediaTitle: media.title || media.grandparentTitle,
+        mediaId: episode ? episode.id : media.id,
+        mediaType: episode ? 'episode' : media.type,
+        mediaTitle: episode
+          ? `${media.title} · S${episode.parentIndex ?? '?'}E${episode.index ?? '?'}${episode.title ? ` · ${episode.title}` : ''}`
+          : (media.title || media.grandparentTitle),
         mediaPoster: media.poster,
         mediaBackdrop: media.backdrop,
       });

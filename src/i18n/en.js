@@ -828,4 +828,5 @@ export default {
   "{0} participant(s)": "{0} participant(s)",
   "en salle d'attente": "in the waiting room",
   "en cours de lecture": "playing",
+  "Choisis d'abord un épisode — les épisodes ne sont pas encore chargés.": "Pick an episode first — the episodes are still loading.",
 };
