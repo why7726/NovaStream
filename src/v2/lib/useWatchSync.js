@@ -6,21 +6,24 @@
 // Audio / subtitles / quality stay 100% independent per person — only the
 // playback position + play/pause are synchronized.
 import { useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { getCurrent, on, sendControl, sendSync, sendBuffering, connectSession, isConnected, leave } from './watchParty';
 import authService from '../../services/authService';
 
 export default function useWatchSync(videoRef) {
   const navigate = useNavigate();
+  const { id } = useParams();
 
   useEffect(() => {
     const cur = getCurrent();
     if (!cur) return; // normal (solo) playback — do nothing.
 
-    // Make sure the socket is live (survives SPA nav; reconnects after a reload).
-    if (!isConnected()) connectSession(cur);
-
     const isHost = !!cur.isHost;
+    /* L'hôte annonce l'épisode qu'il regarde : s'il est passé au suivant (ou en
+       a choisi un autre), la séance bascule et tout le monde le suit. Les
+       participants, eux, se (re)connectent simplement. */
+    if (isHost) connectSession({ ...cur, enCours: id ? String(id) : undefined });
+    else if (!isConnected()) connectSession(cur);
     let suppress = false;
     const offs = [];
 
@@ -47,6 +50,13 @@ export default function useWatchSync(videoRef) {
     if (!attachBuffer()) {
       const bt = setInterval(() => { if (attachBuffer()) clearInterval(bt); }, 200);
       offs.push(() => clearInterval(bt));
+    }
+
+    // Participants : l'hôte change d'épisode → on le suit.
+    if (!isHost) {
+      offs.push(on('launch', ({ mediaId } = {}) => {
+        if (mediaId && String(mediaId) !== String(id)) navigate(`/play/${mediaId}`, { replace: true });
+      }));
     }
 
     // Session ended by the host → clean up and go home.
@@ -102,5 +112,5 @@ export default function useWatchSync(videoRef) {
     }
 
     return () => offs.forEach((fn) => fn && fn());
-  }, [videoRef, navigate]);
+  }, [videoRef, navigate, id]);
 }

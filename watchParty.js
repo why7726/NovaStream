@@ -174,7 +174,7 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
     const chatOk = makeLimiter(5, 2000);      // per-socket
     const reactOk = makeLimiter(12, 3000);
 
-    socket.on('watch:hello', ({ sessionId, avatar, name } = {}) => {
+    socket.on('watch:hello', ({ sessionId, avatar, name, enCours: enCoursBrut, titreEnCours } = {}) => {
       const auth = socket.data.auth || {};
       const s = sessions.get(sessionId);
       if (!s) { socket.emit('watch:ended'); return; }
@@ -203,6 +203,20 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
         pid, name: sanitizeName(dispName), avatar: sanitizeAvatar(avatar),
         isHost: host, ready: true, buffering: false, socketId: socket.id,
       });
+      /* L'hôte annonce l'épisode qu'il regarde (épisode suivant, précédent, ou
+         choisi dans la liste) : la séance bascule dessus et tout le monde suit.
+         Les participants n'enchaînent pas d'eux-mêmes — l'hôte mène. */
+      const enCours = typeof enCoursBrut === 'string' ? enCoursBrut : null;
+      if (host && s.started && enCours && /^[\w:-]{1,64}$/.test(enCours) && enCours !== s.media.id) {
+        s.media.id = enCours;
+        s.media.type = 'episode';
+        const titre = sanitizeName(titreEnCours || '').slice(0, 120);
+        if (titre) s.media.title = titre;
+        s.state = { playing: true, position: 0, at: Date.now() };
+        socket.to(sid).emit('watch:launch', { mediaId: s.media.id, state: s.state });
+        emitState(s);
+      }
+
       emitState(s);
       if (s.started) socket.emit('watch:launch', { mediaId: s.media.id, state: s.state });
     });

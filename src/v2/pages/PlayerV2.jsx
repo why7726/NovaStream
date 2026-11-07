@@ -9,6 +9,7 @@ import authService from '../../services/authService';
 import { useFeatures } from '../lib/features';
 import Indisponible from '../pure/Indisponible';
 import useWatchSync from '../lib/useWatchSync';
+import { getCurrent as seanceEnCours } from '../lib/watchParty';
 import { getAudioPref, setAudioPref, classifyAudio, audioLabel, versionOptions, pickAudioStream } from '../lib/audioPref';
 import { castSupported, initCast, getCastState, onCastStateChange, castMedia, stopCast } from '../lib/castService';
 import WatchPartyOverlay from '../components/WatchPartyOverlay';
@@ -586,7 +587,7 @@ function PlayerV2() {
     const realDur = video.duration && isFinite(video.duration) ? video.duration : (exactDuration || 0);
     const credits = markers.find(m => m.type === 'credits');
     const inEndZone = credits ? (t >= credits.start) : (realDur > 0 && (realDur - t) <= 30 && (realDur - t) > 0);
-    if (siblings.next && inEndZone && !autoNextArmed && !autoNextCancelledRef.current && !isNavigating) {
+    if (siblings.next && inEndZone && !autoNextArmed && !autoNextCancelledRef.current && !isNavigating && !(seanceEnCours() && !seanceEnCours().isHost)) {
       setAutoNextArmed(true);
     }
   };
@@ -677,7 +678,12 @@ function PlayerV2() {
     }
   };
 
+  /* Séance « Regarder ensemble » : seul l'hôte change d'épisode, les autres
+     le suivent (voir useWatchSync) — pas d'enchaînement ni de flèches chez eux. */
+  const participantSeance = (() => { const c = seanceEnCours(); return !!c && !c.isHost; })();
+
   const handleNextEpisode = () => {
+    if (participantSeance) return;
     if (siblings.next && !isNavigating) {
       setIsNavigating(true);
       plexService.stopTranscodeSession();
@@ -686,6 +692,7 @@ function PlayerV2() {
   };
 
   const handlePrevEpisode = () => {
+    if (participantSeance) return;
     if (siblings.prev && !isNavigating) {
       setIsNavigating(true);
       plexService.stopTranscodeSession();
@@ -1680,7 +1687,7 @@ function PlayerV2() {
               gauche ou à droite de l'image (ou les flèches du clavier). */}
           <button onClick={(e) => { e.stopPropagation(); if (siblings.prev) handlePrevEpisode(); }}
             disabled={!siblings.prev || isNavigating} aria-label={tr('Episode precedent')}
-            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.prev ? '' : 'invisible'}`}>
+            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.prev && !participantSeance ? '' : 'invisible'}`}>
             <SkipBack size={26} fill="currentColor" />
           </button>
 
@@ -1692,7 +1699,7 @@ function PlayerV2() {
 
           <button onClick={(e) => { e.stopPropagation(); if (siblings.next) handleNextEpisode(); }}
             disabled={!siblings.next || isNavigating} aria-label={tr('Episode suivant')}
-            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.next ? '' : 'invisible'}`}>
+            className={`pointer-events-auto w-12 h-12 rounded-full flex items-center justify-center text-white/85 hover:text-white hover:bg-white/10 active:scale-90 transition-all ${siblings.next && !participantSeance ? '' : 'invisible'}`}>
             <SkipForward size={26} fill="currentColor" />
           </button>
         </div>
