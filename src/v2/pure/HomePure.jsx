@@ -293,16 +293,17 @@ export default function HomePure({ section }) {
           </section>
         )}
 
-        {/* Top 10 — chiffres en contour, rien d'autre */}
+        {/* Top 10 — chiffre posé sur chaque affiche */}
         {data.top10.length > 0 && (
           <section data-row className="mb-10 md:mb-14">
             <h2 className="p-title text-[17px] md:text-[22px] px-5 md:px-8 mb-3.5 md:mb-4">{tr('Les 10 du moment')}</h2>
-            <div className="p-rail p-marge gap-4 md:gap-7 px-5 md:px-8 pt-5 pb-14 items-end">
+            <div className="p-rail p-marge gap-3 md:gap-5 px-5 md:px-8 pt-2 pb-4 items-end">
               {data.top10.map((it, k) => (
-                <div key={it.id} className="flex items-end shrink-0">
-                  <span className="top10-num-glass select-none pr-1 md:pr-2 -mb-3">{k + 1}</span>
-                  <CardPure item={it} width="w-[110px] md:w-[150px]" showTitle={false}
+                <div key={it.id} className="relative shrink-0">
+                  <CardPure item={it} width="w-[120px] md:w-[160px]" showTitle={false}
                     watched={watchedIds.has(it.id)} camIds={camIds} />
+                  {/* Le chiffre est posé SUR l'affiche, en bas à gauche. */}
+                  <span aria-hidden className="top10-num-sur select-none pointer-events-none">{k + 1}</span>
                 </div>
               ))}
             </div>

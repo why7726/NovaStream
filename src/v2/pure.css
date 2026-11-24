@@ -78,6 +78,25 @@
   font-weight: 700 !important;
 }
 
+/* Top 10 : chiffre posé sur l'affiche, en bas à gauche. Plein et blanc,
+   cerné de noir et ombré pour rester lisible sur une affiche claire. */
+.nova-pure .top10-num-sur {
+  position: absolute;
+  left: 6px;
+  bottom: -4px;
+  z-index: 5;
+  font-size: 64px;
+  line-height: 0.8;
+  font-weight: 800;
+  letter-spacing: -0.06em;
+  font-variant-numeric: tabular-nums;
+  color: #fff;
+  -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.55);
+  paint-order: stroke fill;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.6);
+}
+@media (min-width: 768px) { .nova-pure .top10-num-sur { font-size: 84px; left: 8px; } }
+
 /* ── Typographie ──────────────────────────────────────────────── */
 .nova-pure .p-title {
   font-weight: 600;
