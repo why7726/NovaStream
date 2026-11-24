@@ -11,6 +11,8 @@ const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 /* Hero "Pure" — une image, un logo, une phrase, un bouton.
    Pas de parallaxe, pas de dégradé coloré : juste un fondu vers le noir
    et un crossfade lent entre les titres mis en avant. */
+const DUREE = 9000;   // temps passé sur chaque image (ms)
+
 export default function HeroPure({ movies = [] }) {
   const navigate = useNavigate();
   const [i, setI] = useState(0);
@@ -20,7 +22,7 @@ export default function HeroPure({ movies = [] }) {
   // laisse 9 s pleines sur l'image choisie.
   useEffect(() => {
     if (movies.length <= 1) return undefined;
-    const t = setTimeout(() => setI((p) => (p + 1) % movies.length), 9000);
+    const t = setTimeout(() => setI((p) => (p + 1) % movies.length), DUREE);
     return () => clearTimeout(t);
   }, [movies.length, i]);
 
@@ -104,8 +106,15 @@ export default function HeroPure({ movies = [] }) {
       {movies.length > 1 && (
         <div className="absolute bottom-[86px] md:bottom-10 inset-x-0 flex justify-center gap-1.5">
           {movies.map((_, k) => (
+            /* La barre de l'image affichée se remplit de blanc en 9 s : pleine,
+               on passe à la suivante (même durée que le minuteur ci-dessus). */
             <button key={k} onClick={(e) => { e.stopPropagation(); setI(k); }} aria-label={tr('Titre {0}', [k + 1])}
-              className={`h-[3px] rounded-full transition-all duration-500 ${k === i ? 'w-6 bg-white' : 'w-[3px] bg-white/35 hover:bg-white/60'}`} />
+              className={`relative h-[3px] rounded-full overflow-hidden transition-all duration-500 ${k === i ? 'w-6 bg-white/30' : 'w-[3px] bg-white/35 hover:bg-white/60'}`}>
+              {k === i && (
+                <motion.span key={`p-${i}`} className="absolute inset-y-0 left-0 bg-white rounded-full"
+                  initial={{ width: '0%' }} animate={{ width: '100%' }} transition={{ duration: DUREE / 1000, ease: 'linear' }} />
+              )}
+            </button>
           ))}
         </div>
       )}
