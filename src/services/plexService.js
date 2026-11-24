@@ -612,13 +612,18 @@ const plexService = {
     + '&excludeFields=summary,tagline',
 
   async getLibraryItems(sectionId) {
-    const cached = this._cacheRead(`items_${sectionId}`);
+    /* Bibliothèque lue par Nova (dossier local, dont l'onglet +18) : petite, et
+       son contenu change dès que l'admin y classe un titre du serveur — on ne la
+       garde pas 10 min en cache, sinon le titre n'apparaissait pas même en
+       rechargeant la page (le sessionStorage survit au rechargement). */
+    const local = Number(sectionId) > 90_000_000;
+    const cached = local ? null : this._cacheRead(`items_${sectionId}`);
     if (cached) return cached;
     const data = await this.fetchFromPlex(`/library/sections/${sectionId}/all?${this.LISTING_LEGER}`);
     const items = data?.Metadata || [];
     // Stamp the section id (listing items don't include it) so CAM films get badged.
     const out = items.map(item => this.formatPlexItem({ ...item, librarySectionID: item.librarySectionID ?? sectionId }));
-    if (out.length) this._cacheWrite(`items_${sectionId}`, out);
+    if (out.length && !local) this._cacheWrite(`items_${sectionId}`, out);
     return out;
   },
 
