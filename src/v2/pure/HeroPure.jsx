@@ -11,7 +11,7 @@ const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 /* Hero "Pure" — une image, un logo, une phrase, un bouton.
    Pas de parallaxe, pas de dégradé coloré : juste un fondu vers le noir
    et un crossfade lent entre les titres mis en avant. */
-const DUREE = 9000;   // temps passé sur chaque image (ms)
+const DUREE = 4000;   // temps passé sur chaque image (ms)
 
 export default function HeroPure({ movies = [] }) {
   const navigate = useNavigate();
@@ -19,7 +19,7 @@ export default function HeroPure({ movies = [] }) {
   const [logos, setLogos] = useState({});
 
   // Défilement automatique — relancé à chaque changement, donc un balayage
-  // laisse 9 s pleines sur l'image choisie.
+  // laisse 4 s pleines sur l'image choisie.
   useEffect(() => {
     if (movies.length <= 1) return undefined;
     const t = setTimeout(() => setI((p) => (p + 1) % movies.length), DUREE);
@@ -106,7 +106,7 @@ export default function HeroPure({ movies = [] }) {
       {movies.length > 1 && (
         <div className="absolute bottom-[86px] md:bottom-10 inset-x-0 flex justify-center gap-1.5">
           {movies.map((_, k) => (
-            /* La barre de l'image affichée se remplit de blanc en 9 s : pleine,
+            /* La barre de l'image affichée se remplit de blanc en 4 s : pleine,
                on passe à la suivante (même durée que le minuteur ci-dessus). */
             <button key={k} onClick={(e) => { e.stopPropagation(); setI(k); }} aria-label={tr('Titre {0}', [k + 1])}
               className={`relative h-[3px] rounded-full overflow-hidden transition-all duration-500 ${k === i ? 'w-6 bg-white/30' : 'w-[3px] bg-white/35 hover:bg-white/60'}`}>
