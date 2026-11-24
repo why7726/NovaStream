@@ -77,6 +77,13 @@ const plexService = {
      qu'une 3G correcte. `downlink` et `rtt` du navigateur sont des estimations
      mesurées sur le trafic réel — c'est ça qu'on regarde. L'étiquette ne sert
      que de dernier recours quand on n'a aucun chiffre. */
+  /** Réseau quasi absent (économie de données, 2G) : on s'en tient aux petites images. */
+  _reseauTresFaible() {
+    const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!c) return false;
+    return !!c.saveData || /^(slow-2g|2g)$/.test(c.effectiveType || '');
+  },
+
   _reseauFaible() {
     const c = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
     if (!c) return false;
@@ -116,6 +123,10 @@ const plexService = {
     if (usage === 'poster') taille = faible ? [200, 300] : [320, 480];
     else if (usage === 'still') taille = faible ? [320, 180] : [480, 270];
     else if (usage === 'backdrop') taille = faible ? [780, 440] : [1280, 720];
+    // Grande image du haut de page : elle couvre tout l'écran. L'affiche des
+    // rangées (320×480), étirée sur un téléphone 3×, y était floue.
+    else if (usage === 'posterHD') taille = faible ? [720, 1080] : [1000, 1500];   // une seule image : nette même en 4G faible
+    else if (usage === 'backdropHD') taille = faible ? [1280, 720] : [1920, 1080];
 
     /* Images : AUCUN jeton dans l'adresse — le cookie « média » du serveur les
        authentifie. L'adresse d'une affiche reste donc la même d'une visite à
@@ -897,6 +908,8 @@ const plexService = {
          l'épisode lui-même qu'il faut, au même format que son cadre. */
       still: item.type === 'episode' && item.thumb ? this.getImageUrl(item.thumb, 'still') : null,
       backdrop: this.getImageUrl(item.art, 'backdrop'),
+      posterHD: this.getImageUrl(item.type === 'episode' ? (item.parentThumb || item.thumb || item.grandparentThumb) : item.thumb, 'posterHD'),
+      backdropHD: this.getImageUrl(item.art, 'backdropHD'),
       logo: this.getImageUrl(item.titleLogo || item.logo, 'logo'),
       tmdbId: item.tmdbId,
       imdbId: item.imdbId,

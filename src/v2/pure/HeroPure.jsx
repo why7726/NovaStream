@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
 
 import { tr } from '../../i18n';
+import plexService from '../../services/plexService';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Hero "Pure" — une image, un logo, une phrase, un bouton.
@@ -42,16 +43,14 @@ export default function HeroPure({ movies = [] }) {
   const meta = [m.year, m.duration, (m.genres || [])[0]].filter(Boolean).join('  ·  ');
 
   return (
-    <section className="relative w-full h-[86vh] md:h-[92vh] overflow-hidden">
+    /* Un appui sur la grande image ouvre la fiche du titre (comme « Plus d'infos »). */
+    <section onClick={() => navigate(`/title/${m.id}`)} className="relative w-full h-[86vh] md:h-[92vh] overflow-hidden cursor-pointer">
       <AnimatePresence>
         <motion.div key={m.id}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
           transition={{ duration: 1.6, ease: 'easeInOut' }}
           className="absolute inset-0">
-          <picture>
-            <source media="(max-width: 767px)" srcSet={m.poster || m.backdrop} />
-            <img src={m.backdrop || m.poster} alt="" fetchpriority="high" decoding="async" className="w-full h-full object-cover object-top md:object-center" />
-          </picture>
+          <ImageProgressive m={m} />
         </motion.div>
       </AnimatePresence>
 
@@ -71,7 +70,7 @@ export default function HeroPure({ movies = [] }) {
             {meta && <p className="text-[12.5px] md:text-[13px] font-medium tracking-[0.02em] p-dim mb-6">{meta}</p>}
 
             <div className="flex items-center gap-3">
-              <button onClick={() => navigate(m.type === 'movie' ? `/play/${m.id}` : `/title/${m.id}`)} className="p-btn">
+              <button onClick={(e) => { e.stopPropagation(); navigate(m.type === 'movie' ? `/play/${m.id}` : `/title/${m.id}`); }} className="p-btn">
                 <Play size={16} fill="currentColor" /> {m.type === 'movie' ? tr('Lecture') : tr('Voir')}
               </button>
               <button onClick={() => navigate(`/title/${m.id}`)} className="p-btn p-btn-ghost">{tr('Plus d\'infos')}</button>
@@ -83,11 +82,43 @@ export default function HeroPure({ movies = [] }) {
       {movies.length > 1 && (
         <div className="absolute bottom-[86px] md:bottom-10 inset-x-0 flex justify-center gap-1.5">
           {movies.map((_, k) => (
-            <button key={k} onClick={() => setI(k)} aria-label={tr('Titre {0}', [k + 1])}
+            <button key={k} onClick={(e) => { e.stopPropagation(); setI(k); }} aria-label={tr('Titre {0}', [k + 1])}
               className={`h-[3px] rounded-full transition-all duration-500 ${k === i ? 'w-6 bg-white' : 'w-[3px] bg-white/35 hover:bg-white/60'}`} />
           ))}
         </div>
       )}
     </section>
+  );
+}
+
+/* Grande image : d'abord la petite version (déjà en cache, s'affiche tout de
+   suite, même avec un réseau faible), puis la HD la remplace en fondu dès
+   qu'elle est arrivée. Sans réseau ou en mode économie de données, on garde
+   la petite. */
+function ImageProgressive({ m }) {
+  const mobile = typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches;
+  const petite = mobile ? (m.poster || m.backdrop) : (m.backdrop || m.poster);
+  const hd = mobile ? m.posterHD : m.backdropHD;
+  const [nette, setNette] = useState(null);
+
+  useEffect(() => {
+    setNette(null);
+    if (!hd || hd === petite || plexService._reseauTresFaible()) return undefined;
+    let on = true;
+    const img = new Image();
+    img.decoding = 'async';
+    img.onload = () => { if (on) setNette(hd); };
+    img.src = hd;
+    return () => { on = false; img.onload = null; };
+  }, [hd, petite]);
+
+  const cls = 'absolute inset-0 w-full h-full object-cover object-top md:object-center';
+  return (
+    <>
+      <img src={petite} alt="" fetchpriority="high" decoding="async" className={cls} />
+      {nette && (
+        <motion.img src={nette} alt="" initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }} className={cls} />
+      )}
+    </>
   );
 }
