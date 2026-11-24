@@ -19,16 +19,53 @@
  *                serveur (Plex ou Jellyfin traduit), pour relever ce qu'il faut bloquer
  * @param actif   () => boolean — un serveur est-il relié ?
  * @param exclues () => string[] — clés des bibliothèques décochées
+ * @param adulte  () => string[] — films / séries du serveur classés +18 par l'admin
+ * @param accesAdulte () => boolean — la personne qui fait la requête y a-t-elle droit ?
  */
-export function creerFiltrePrive({ lister, actif, exclues }) {
+export function creerFiltrePrive({ lister, actif, exclues, adulte = () => [], accesAdulte = () => false }) {
   let titres = new Set();     // ratingKey (films, épisodes, saisons, séries)
   let fichiers = new Set();   // id des « parts » (fichiers vidéo)
   let pret = true;
 
+  /* Titres classés +18 (venus de Plex / Jellyfin) : rangés dans l'onglet +18.
+     Ils sortent de TOUTES les listes (accueil, bibliothèques, recherche) ; leur
+     fiche, leurs épisodes et leurs fichiers ne s'ouvrent qu'avec l'accès +18. */
+  let adTitres = new Set();
+  let adFichiers = new Set();
+  let adMeta = [];            // fiches des titres classés (pour l'onglet +18)
+
   const sections = () => new Set((exclues() || []).map(String));
+
+  async function rafraichirAdulte() {
+    const ids = [...new Set((adulte() || []).map(String))];
+    if (!ids.length || !actif()) { adTitres = new Set(); adFichiers = new Set(); adMeta = []; return; }
+    const t = new Set();
+    const f = new Set();
+    const metas = [];
+    const noter = (m) => {
+      for (const k of [m.ratingKey, m.parentRatingKey, m.grandparentRatingKey]) if (k) t.add(String(k));
+      for (const media of m.Media || []) for (const p of media.Part || []) if (p.id) f.add(String(p.id));
+    };
+    for (const id of ids) {
+      t.add(id);
+      try {
+        const [m] = await lister(`/library/metadata/${id}`);
+        if (!m) continue;
+        noter(m);
+        metas.push(m);
+        if (m.type === 'show') {
+          for (const s of await lister(`/library/metadata/${id}/children`).catch(() => [])) noter(s);
+          for (const e of await lister(`/library/metadata/${id}/allLeaves`).catch(() => [])) noter(e);
+        }
+      } catch (e) { console.warn('[+18] titre illisible', id, e.message); }
+    }
+    adTitres = t; adFichiers = f; adMeta = metas;
+    if (t.size) console.log(`[+18] ${ids.length} titre(s) du serveur classé(s) +18`);
+  }
 
   /** Relève les identifiants à bloquer. À appeler après un changement de réglage. */
   async function rafraichir() {
+    await rafraichirAdulte().catch((e) => console.warn('[+18] relevé impossible :', e.message));
     const secs = [...sections()];
     if (!secs.length || !actif()) { titres = new Set(); fichiers = new Set(); pret = true; return; }
     pret = false;
@@ -59,11 +96,20 @@ export function creerFiltrePrive({ lister, actif, exclues }) {
 
   const sectionExclue = (id) => id != null && sections().has(String(id));
 
-  /** Ce chemin Plex vise-t-il un contenu privé ? (déjà décodé ou non, on décode) */
+  /** Ce chemin vise-t-il directement un titre classé +18 ? */
+  function visePlus18(p) {
+    if (!adTitres.size) return false;
+    for (const m of p.matchAll(/\/library\/metadata\/(\d+)/g)) if (adTitres.has(m[1])) return true;
+    for (const m of p.matchAll(/\/library\/parts\/(\d+)/g)) if (adFichiers.has(m[1])) return true;
+    return false;
+  }
+
+  /** Ce chemin Plex vise-t-il un contenu privé ou +18 interdit à la personne ? (déjà décodé ou non, on décode) */
   function cheminInterdit(chemin) {
-    if (!sections().size) return false;
     let p = String(chemin || '');
     try { p = decodeURIComponent(p); } catch { /* chemin brut */ }
+    if (visePlus18(p) && !accesAdulte()) return true;
+    if (!sections().size) return false;
     const sec = p.match(/\/library\/sections\/(\d+)/);
     if (sec && sectionExclue(sec[1])) return true;
     for (const m of p.matchAll(/\/library\/metadata\/(\d+)/g)) if (titres.has(m[1])) return true;
@@ -71,16 +117,32 @@ export function creerFiltrePrive({ lister, actif, exclues }) {
     return false;
   }
 
+  const itemPlus18 = (m) => !!m && adTitres.size > 0 && (
+    adTitres.has(String(m.ratingKey || ''))
+    || adTitres.has(String(m.parentRatingKey || ''))
+    || adTitres.has(String(m.grandparentRatingKey || ''))
+  );
+  // Fiche ouverte directement (titre +18, ses saisons, ses épisodes) : on la
+  // garde — cheminInterdit a déjà refusé qui n'y a pas droit. Partout ailleurs
+  // (listes, hubs, recherche), le titre +18 n'apparaît pas.
+  let garderPlus18 = false;
   const itemPrive = (m) => !!m && (
     sectionExclue(m.librarySectionID)
     || titres.has(String(m.ratingKey || ''))
     || titres.has(String(m.grandparentRatingKey || ''))
+    || (!garderPlus18 && itemPlus18(m))
   );
 
   /** Retire le contenu privé d'une réponse JSON de Plex (modifie et renvoie l'objet). */
   function filtrerJson(json, chemin = '') {
     const mc = json?.MediaContainer;
-    if (!mc || !sections().size) return json;
+    if (!mc) return json;
+    let p = String(chemin || '');
+    try { p = decodeURIComponent(p); } catch { /* chemin brut */ }
+    garderPlus18 = visePlus18(p) || (!p && Array.isArray(mc.Metadata) && mc.Metadata.length === 1 && itemPlus18(mc.Metadata[0]) && accesAdulte());
+    // Les titres +18 portent la mention : la fiche affiche l'avertissement +18.
+    if (garderPlus18 && Array.isArray(mc.Metadata)) for (const m of mc.Metadata) if (itemPlus18(m)) { m.adulte = true; m.contentRating = '18+'; }
+    if (!sections().size && !adTitres.size) return json;
     // Conteneur entier rattaché à une section privée (enfants d'une série…)
     if (sectionExclue(mc.librarySectionID)) {
       mc.Metadata = []; mc.Directory = []; mc.size = 0;
@@ -103,5 +165,12 @@ export function creerFiltrePrive({ lister, actif, exclues }) {
     return json;
   }
 
-  return { rafraichir, cheminInterdit, filtrerJson, sectionExclue, estTitrePrive: (rk) => titres.has(String(rk)), pret: () => pret };
+  return {
+    rafraichir, cheminInterdit, filtrerJson, sectionExclue,
+    // Historique, « Reprendre », lecture Jellyfin : un titre +18 n'y figure que pour qui y a droit.
+    estTitrePrive: (rk) => titres.has(String(rk)) || (adTitres.has(String(rk)) && !accesAdulte()),
+    pret: () => pret,
+    /** Fiches des titres classés +18 (copies), pour l'onglet +18. */
+    titresPlus18: () => adMeta.map((m) => ({ ...m, adulte: true, contentRating: '18+' })),
+  };
 }

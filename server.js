@@ -94,6 +94,8 @@ const prive = creerFiltrePrive({
   lister: async (chemin) => (await plexJsonBrut(chemin))?.MediaContainer?.Metadata || [],
   actif: () => config.features().serveur,
   exclues: () => config.bibliotheques().exclues,
+  adulte: () => config.titresAdulte(),
+  accesAdulte: () => accesAdulte(),
 });
 
 /* Serveur Jellyfin : Nova parle « Plex », jellyfin.js traduit (voir ce fichier).
@@ -770,7 +772,7 @@ app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
       const url = `${PLEX_URL}/library/metadata/${req.params.id}?includeMarkers=1&includeChapters=1&X-Plex-Token=${tokenPour(req)}`;
       brut = await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
     }
-    const data = prive.filtrerJson(brut);
+    const data = prive.filtrerJson(brut, `/library/metadata/${req.params.id}`);
     if (data?.MediaContainer?.Metadata?.[0]) {
       const item = data.MediaContainer.Metadata[0];
       const guids = item.Guid || [];
@@ -1067,6 +1069,35 @@ app.post('/api/activity/log', authMiddleware, (req, res) => {
     console.error('[Activity Error]', err);
     res.status(500).json({ error: 'Log error' });
   }
+});
+
+/* ─── Titres du serveur classés +18 (Espace admin) ─────────────────
+   Un film ou une série de Plex / Jellyfin rangé dans l'onglet +18 : voir
+   prive.js (filtrage) et config.titresAdulte() (la liste, dans data/). */
+app.get('/api/admin/plus18', authMiddleware, adminMiddleware, (req, res) => {
+  res.json({ titres: prive.titresPlus18(), ids: config.titresAdulte() });
+});
+app.post('/api/admin/plus18', authMiddleware, adminMiddleware, async (req, res) => {
+  const id = String(req.body?.id || '');
+  if (!/^\d{1,12}$/.test(id)) return res.status(400).json({ error: 'Titre invalide' });
+  if (locales.estLocal(id)) return res.status(400).json({ error: "Ce titre vient déjà d'un dossier lu par Nova" });
+  try {
+    // Un épisode ou une saison : on classe la série entière.
+    const m = (await plexJsonBrut(`/library/metadata/${id}`))?.MediaContainer?.Metadata?.[0];
+    if (!m) return res.status(404).json({ error: 'Introuvable' });
+    const cible = m.type === 'episode' ? m.grandparentRatingKey : m.type === 'season' ? m.parentRatingKey : m.ratingKey;
+    if (!['movie', 'show', 'episode', 'season'].includes(m.type) || !cible) return res.status(400).json({ error: 'Seuls les films et les séries peuvent être classés +18' });
+    config.setTitresAdulte([...config.titresAdulte(), String(cible)]);   // → prive.rafraichir() via onChange
+    await prive.rafraichir();
+    res.json({ ok: true, titres: prive.titresPlus18() });
+  } catch (e) {
+    res.status(502).json({ error: 'Serveur multimédia injoignable' });
+  }
+});
+app.delete('/api/admin/plus18/:id', authMiddleware, adminMiddleware, async (req, res) => {
+  config.setTitresAdulte(config.titresAdulte().filter((x) => x !== String(req.params.id)));
+  await prive.rafraichir();
+  res.json({ ok: true, titres: prive.titresPlus18() });
 });
 
 // Global stats for the admin dashboard
@@ -4607,6 +4638,15 @@ async function servirLocal(req, res, plexPath) {
   }
   if (/^\/:\/(timeline|scrobble|unscrobble)$/.test(chemin)) return res.json({});   // Nova tient sa propre progression
   const json = await locales.plexJson(plexPath);
+  // Onglet +18 : on y ajoute les titres du serveur multimédia classés +18.
+  if ((m = chemin.match(/^\/library\/sections\/(\d+)\/all$/)) && json?.MediaContainer && accesAdulte()) {
+    const sec = (await locales.sections()).find((x) => x.key === m[1]);
+    if (sec?.adulte) {
+      const mc = json.MediaContainer;
+      mc.Metadata = [...(mc.Metadata || []), ...prive.titresPlus18()].sort((a, b) => String(a.title).localeCompare(String(b.title)));
+      mc.size = mc.Metadata.length;
+    }
+  }
   if (!json || (/^\/library\/metadata\/\d+$/.test(chemin) && !json.MediaContainer?.Metadata?.length)) {
     return res.status(404).json({ error: 'Introuvable' });
   }

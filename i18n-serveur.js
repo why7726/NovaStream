@@ -59,6 +59,9 @@ const EN = {
   // Génériques
   'Erreur serveur': 'Server error',
   'Introuvable': 'Not found',
+  'Titre invalide': 'Invalid title',
+  "Ce titre vient déjà d'un dossier lu par Nova": 'This title already comes from a folder read by Nova',
+  'Seuls les films et les séries peuvent être classés +18': 'Only movies and shows can be marked 18+',
   'Indisponible': 'Unavailable',
   'Impossible': 'Not possible',
   'Requête invalide': 'Invalid request',

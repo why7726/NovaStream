@@ -192,6 +192,18 @@ export function serveurType() {
   return null;
 }
 
+/* ── Titres du serveur multimédia classés +18 par l'administrateur ──
+   Identifiants (ratingKey) de films / séries : rangés dans l'onglet +18,
+   invisibles et inaccessibles pour les comptes sans accès +18 (voir prive.js). */
+export function titresAdulte() {
+  return Array.isArray(fichier.titresAdulte) ? fichier.titresAdulte.map(String) : [];
+}
+export function setTitresAdulte(ids) {
+  fichier = { ...fichier, titresAdulte: [...new Set((ids || []).map(String).filter((x) => /^\d{1,12}$/.test(x)))] };
+  ecrireFichier();
+  for (const fn of abonnes) { try { fn(); } catch (e) { console.error('[Config]', e.message); } }
+}
+
 /* ── Bibliothèques locales : dossiers lus directement par Nova (voir local.js) ──
    [{ id, nom, chemin, adulte }] — `adulte` : réservée aux comptes autorisés. */
 export function bibliothequesLocales() {

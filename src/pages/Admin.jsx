@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import SeancesAdmin from '../v2/pure/SeancesAdmin';
+import Plus18Admin from '../v2/pure/Plus18Admin';
 import { useNavigate } from 'react-router-dom';
 import { Plus, Copy, Check, ArrowLeft, Ticket, User, Clock, Activity, History, Monitor, LogIn, LogOut, PlayCircle, UserPlus, Square, Eye, Globe } from 'lucide-react';
 
@@ -173,10 +174,20 @@ function Admin() {
           >
             <Globe size={16} className="md:w-[18px] md:h-[18px]" /> {tr('Activité')}
           </button>
+          <button
+            onClick={() => setActiveTab('plus18')}
+            className={`flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-full font-bold text-[13px] md:text-sm transition-all whitespace-nowrap ${
+              activeTab === 'plus18' ? 'bg-white text-black shadow-lg shadow-white/10' : 'bg-white/5 text-gray-400 hover:bg-white/10'
+            }`}
+          >
+            <Eye size={16} className="md:w-[18px] md:h-[18px]" /> +18
+          </button>
         </div>
 
         {/* Séances « Regarder ensemble » ouvertes : l'admin peut les terminer */}
         <SeancesAdmin />
+
+        {activeTab === 'plus18' && <Plus18Admin />}
 
         {activeTab === 'codes' && (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">

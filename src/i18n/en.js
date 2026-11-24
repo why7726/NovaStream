@@ -832,4 +832,11 @@ export default {
   "En attente du choix de l'hôte…": "Waiting for the host to pick…",
   "Choisis l'épisode": "Pick the episode",
   "Rejoindre la lecture": "Join the playback",
+  "Contenu +18": "18+ content",
+  "Range un film ou une série de ton serveur dans l'onglet +18. Il disparaît de l'accueil, des bibliothèques et de la recherche, et seuls les comptes avec l'accès +18 peuvent l'ouvrir.": "Move a movie or show from your server into the 18+ tab. It disappears from home, libraries and search, and only accounts with 18+ access can open it.",
+  "Chercher un film ou une série…": "Search for a movie or show…",
+  "Classer +18": "Mark 18+",
+  "Classés +18": "Marked 18+",
+  "Aucun titre du serveur classé +18 pour le moment.": "No server title marked 18+ yet.",
+  "Retirer du +18": "Remove from 18+",
 };
