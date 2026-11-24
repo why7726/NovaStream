@@ -211,12 +211,15 @@
    le contenu dépasse un peu en hauteur se met donc à coulisser verticalement
    sous le doigt au lieu de laisser défiler la page — constaté sur « Les 10 du
    moment », qui débordait de 47 px à cause du grand chiffre.
-   `touch-action: pan-x` tranche : sur cet élément, le doigt ne peut faire
-   qu'un geste horizontal, le vertical repart à la page. */
+   `overflow-y: hidden` tranche : le rail n'est plus défilable verticalement,
+   le geste vertical repart donc à la page.
+   ⚠️ Surtout PAS `touch-action: pan-x` : il interdit au navigateur tout
+   défilement vertical qui COMMENCE sur le rail — la page ne défilait plus
+   quand le doigt se posait sur une affiche. */
 .nova-pure .p-rail {
   display: flex;
   overflow-x: auto;
-  touch-action: pan-x;
+  overflow-y: hidden;
   overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
   -ms-overflow-style: none;
@@ -227,7 +230,7 @@
 /* Même règle pour les rails écrits directement en Tailwind (barre de filtres,
    saga d'une demande, propositions de « Dis-moi ta soirée ») : eux aussi
    captaient le geste vertical. */
-.nova-pure .overflow-x-auto { touch-action: pan-x; overscroll-behavior-x: contain; }
+.nova-pure .overflow-x-auto { overflow-y: hidden; overscroll-behavior-x: contain; }
 .nova-pure .p-rail > * { scroll-snap-align: start; }
 
 /* Rails alignés sur la marge de la page (px-5 / md:px-8) — classe p-marge.
