@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import authService from '../../services/authService';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -16,11 +16,30 @@ export default function HeroPure({ movies = [] }) {
   const [i, setI] = useState(0);
   const [logos, setLogos] = useState({});
 
+  // Défilement automatique — relancé à chaque changement, donc un balayage
+  // laisse 9 s pleines sur l'image choisie.
   useEffect(() => {
-    if (movies.length <= 1) return;
-    const t = setInterval(() => setI((p) => (p + 1) % movies.length), 9000);
-    return () => clearInterval(t);
-  }, [movies.length]);
+    if (movies.length <= 1) return undefined;
+    const t = setTimeout(() => setI((p) => (p + 1) % movies.length), 9000);
+    return () => clearTimeout(t);
+  }, [movies.length, i]);
+
+  /* Balayage au doigt : gauche = suivante, droite = précédente. Seul un geste
+     nettement horizontal compte — le défilement vertical de la page reste libre.
+     Un balayage n'ouvre pas la fiche (l'appui simple, si). */
+  const doigt = useRef(null);
+  const vientDeBalayer = useRef(false);
+  const surDebut = (e) => { const t = e.touches[0]; doigt.current = { x: t.clientX, y: t.clientY }; };
+  const surFin = (e) => {
+    const d = doigt.current; doigt.current = null;
+    if (!d || movies.length <= 1) return;
+    const t = e.changedTouches[0];
+    const dx = t.clientX - d.x, dy = t.clientY - d.y;
+    if (Math.abs(dx) < 45 || Math.abs(dx) < Math.abs(dy) * 1.3) return;
+    vientDeBalayer.current = true;
+    setTimeout(() => { vientDeBalayer.current = false; }, 400);
+    setI((p) => (dx < 0 ? (p + 1) % movies.length : (p - 1 + movies.length) % movies.length));
+  };
 
   useEffect(() => {
     let on = true;
@@ -44,7 +63,10 @@ export default function HeroPure({ movies = [] }) {
 
   return (
     /* Un appui sur la grande image ouvre la fiche du titre (comme « Plus d'infos »). */
-    <section onClick={() => navigate(`/title/${m.id}`)} className="relative w-full h-[86vh] md:h-[92vh] overflow-hidden cursor-pointer">
+    <section onClick={() => { if (!vientDeBalayer.current) navigate(`/title/${m.id}`); }}
+      /* touch-action pan-y : le geste horizontal est pour nous (sinon le
+         navigateur le prenait pour « page précédente »), le vertical défile. */
+      onTouchStart={surDebut} onTouchEnd={surFin} style={{ touchAction: 'pan-y' }} className="relative w-full h-[86vh] md:h-[92vh] overflow-hidden cursor-pointer">
       <AnimatePresence>
         <motion.div key={m.id}
           initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
