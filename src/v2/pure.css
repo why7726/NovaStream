@@ -78,8 +78,9 @@
   font-weight: 700 !important;
 }
 
-/* Top 10 : chiffre posé sur l'affiche, en bas à gauche. Plein et blanc,
-   cerné de noir et ombré pour rester lisible sur une affiche claire. */
+/* Top 10 : chiffre posé sur l'affiche, en bas à gauche — même style
+   qu'avant (contour blanc), avec un intérieur clair translucide. L'ombre le
+   détache d'une affiche claire. */
 .nova-pure .top10-num-sur {
   position: absolute;
   left: 6px;
@@ -90,10 +91,10 @@
   font-weight: 800;
   letter-spacing: -0.06em;
   font-variant-numeric: tabular-nums;
-  color: #fff;
-  -webkit-text-stroke: 1.5px rgba(0, 0, 0, 0.55);
-  paint-order: stroke fill;
-  text-shadow: 0 2px 14px rgba(0, 0, 0, 0.7), 0 0 2px rgba(0, 0, 0, 0.6);
+  color: rgba(255, 255, 255, 0.4);
+  -webkit-text-fill-color: rgba(255, 255, 255, 0.4);
+  -webkit-text-stroke: 2px rgba(255, 255, 255, 0.95);
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.55));
 }
 @media (min-width: 768px) { .nova-pure .top10-num-sur { font-size: 84px; left: 8px; } }
 
