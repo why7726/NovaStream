@@ -70,8 +70,9 @@ export default function CardPure({
           </span>
         )}
         {watched && (
-          <span className="absolute top-2 right-2 w-5 h-5 rounded-full bg-black/55 backdrop-blur-md flex items-center justify-center text-white/90">
-            <Check size={11} strokeWidth={3} />
+          /* Déjà vu : coche NOIRE sur rond blanc — bien lisible sur n'importe quelle affiche. */
+          <span className="absolute top-2 right-2 w-[22px] h-[22px] rounded-full bg-white/90 shadow-[0_1px_4px_rgba(0,0,0,0.45)] flex items-center justify-center text-black">
+            <Check size={13} strokeWidth={3.25} />
           </span>
         )}
         {progress > 0 && progress < 99 && (
