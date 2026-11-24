@@ -51,6 +51,12 @@ export default function useWatchSync(videoRef) {
       const bt = setInterval(() => { if (attachBuffer()) clearInterval(bt); }, 200);
       offs.push(() => clearInterval(bt));
     }
+    /* Nouvel épisode : on se déclare « en chargement » tout de suite. L'hôte
+       (option « Attendre tous ») reste en pause tant que quelqu'un charge —
+       avant, il repartait seul et les autres, en retard, couraient derrière à
+       coups de sauts qui relançaient le chargement : la séance se désynchronisait. */
+    lastBuf = false; setBuf(true);
+    offs.push(() => setBuf(false));
 
     // Participants : l'hôte change d'épisode → on le suit.
     if (!isHost) {
@@ -97,18 +103,33 @@ export default function useWatchSync(videoRef) {
       }, 2000);
       offs.push(() => clearInterval(hb));
     } else {
-      const apply = (st) => {
+      /* Écart toléré : une action de l'hôte (pause, saut) s'applique dès 1 s ;
+         le battement régulier ne recale qu'au-delà de 2,5 s, pour ne pas
+         « courir après » l'hôte pendant un chargement. */
+      let enAttente = null;
+      const apply = (st, seuil = 1) => {
         const v = video(); if (!v || !st) return;
+        // Vidéo pas encore prête (épisode qui charge) : on appliquera dès qu'elle l'est.
+        if (v.readyState < 1) {
+          const premier = !enAttente;
+          enAttente = st;
+          if (premier) {
+            const quandPrete = () => { const e = enAttente; enAttente = null; apply(e, 1); };
+            v.addEventListener('loadedmetadata', quandPrete, { once: true });
+            offs.push(() => v.removeEventListener('loadedmetadata', quandPrete));
+          }
+          return;
+        }
         suppress = true;
-        if (Math.abs(v.currentTime - st.position) > 1.3) {
+        if (Math.abs(v.currentTime - st.position) > seuil) {
           try { v.currentTime = st.position; } catch {}
         }
         if (st.playing && v.paused) v.play().catch(() => {});
         if (!st.playing && !v.paused) v.pause();
         setTimeout(() => { suppress = false; }, 350);
       };
-      offs.push(on('control', apply));
-      offs.push(on('sync', apply));
+      offs.push(on('control', (st) => apply(st, 1)));
+      offs.push(on('sync', (st) => apply(st, 2.5)));
     }
 
     return () => offs.forEach((fn) => fn && fn());

@@ -829,4 +829,7 @@ export default {
   "en salle d'attente": "in the waiting room",
   "en cours de lecture": "playing",
   "Choisis d'abord un épisode — les épisodes ne sont pas encore chargés.": "Pick an episode first — the episodes are still loading.",
+  "En attente du choix de l'hôte…": "Waiting for the host to pick…",
+  "Choisis l'épisode": "Pick the episode",
+  "Rejoindre la lecture": "Join the playback",
 };

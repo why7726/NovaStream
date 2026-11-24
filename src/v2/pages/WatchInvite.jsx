@@ -32,7 +32,9 @@ export default function WatchInvite({ handleAuth }) {
       const moi = authService.getUser();
       if (moi && !moi.guest && authService.getToken()) {
         connectSession({ sessionId: id, pid: `u${moi.id}`, isHost: false, name: moi.username || name, avatar });
-        navigate(`/watch/${id}/room`);
+        // Séance déjà lancée : on rejoint directement la lecture en cours.
+        const frais = await getSessionInfo(id).catch(() => info);
+        navigate(frais?.started && frais.media?.id ? `/play/${frais.media.id}` : `/watch/${id}/room`);
         return;
       }
       const r = await joinSession(id, { name, avatar });
@@ -41,7 +43,8 @@ export default function WatchInvite({ handleAuth }) {
       localStorage.setItem('nova_user', JSON.stringify(r.user));
       handleAuth?.(r.user);
       connectSession({ sessionId: id, pid: r.pid, isHost: false, name, avatar });
-      navigate(`/watch/${id}/room`);
+      const frais = await getSessionInfo(id).catch(() => info);
+      navigate(frais?.started && r.media?.id ? `/play/${r.media.id}` : `/watch/${id}/room`);
     } catch (e) {
       setError(e.message);
       setStep('welcome');

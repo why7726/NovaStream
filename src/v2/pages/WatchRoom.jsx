@@ -4,7 +4,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Play, Check, Link2, LogOut, Users, Share2, X } from 'lucide-react';
 import WatchAvatar from '../components/WatchAvatar';
 import authService from '../../services/authService';
-import { getCurrent, connectSession, on, setReady, launch, endSession, leave } from '../lib/watchParty';
+import { getCurrent, connectSession, on, setReady, launch, endSession, leave, choisirEpisode } from '../lib/watchParty';
+import plexService from '../../services/plexService';
 
 import { tr } from '../../i18n';
 // The waiting room: shared participant list + ready-check. Host sees the launch
@@ -18,12 +19,18 @@ export default function WatchRoom() {
   const [copied, setCopied] = useState(false);
   const [err, setErr] = useState(null);
   const [shareOpen, setShareOpen] = useState(false);
+  // Séance déjà lancée (on revient en arrière, ou on arrive en retard) : on
+  // propose d'y retourner au lieu d'y être renvoyé d'office.
+  const [enLecture, setEnLecture] = useState(null);
 
   useEffect(() => {
     if (!cur || cur.sessionId !== id) { navigate(`/watch/${id}`, { replace: true }); return; }
     connectSession(cur); // idempotent — re-announces presence if needed.
     const offP = on('participants', setSession);
-    const offL = on('launch', ({ mediaId }) => navigate(`/play/${mediaId}`));
+    const offL = on('launch', ({ mediaId, replay }) => {
+      if (replay) setEnLecture(mediaId);
+      else navigate(`/play/${mediaId}`);
+    });
     const offE = on('ended', () => { handleEnded(); });
     const offErr = on('error', (e) => { setErr(e?.error || tr('Erreur de séance')); });
     return () => { offP(); offL(); offE(); offErr(); };
@@ -129,6 +136,20 @@ export default function WatchRoom() {
           </div>
         )}
 
+        {/* Série : l'hôte choisit saison + épisode, les autres voient son choix. */}
+        {media?.showId && !session?.started && (
+          cur?.isHost
+            ? <ChoixEpisode media={media} />
+            : (
+              <div className="mb-6 glass-panel rounded-2xl px-4 py-3.5 text-center">
+                <p className="text-[13px] text-white/55 flex items-center justify-center gap-2">
+                  <span className="w-1.5 h-1.5 rounded-full bg-white/70 animate-pulse" />
+                  {tr("En attente du choix de l'hôte…")}
+                </p>
+              </div>
+            )
+        )}
+
         {/* Share link */}
         <div className="mb-6 space-y-2.5">
           <button onClick={copyLink}
@@ -170,14 +191,21 @@ export default function WatchRoom() {
 
         {/* Actions */}
         <div className="flex flex-col gap-3">
-          {!cur?.isHost && (
+          {!cur?.isHost && !(enLecture || session?.started) && (
             <button onClick={toggleReady}
               className={`w-full h-[50px] rounded-full text-[15px] font-semibold transition-all ${ready ? 'bg-white/[0.18] text-white' : 'bg-white/[0.07] text-white/60'}`}>
               {ready ? tr('Je suis prêt·e') : tr('Je ne suis pas prêt·e')}
             </button>
           )}
 
-          {cur?.isHost && (
+          {(enLecture || session?.started) && (
+            <button onClick={() => navigate(`/play/${enLecture || media?.id}`)}
+              className="w-full flex items-center justify-center gap-2 h-[54px] rounded-full bg-white text-black text-[16px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all">
+              <Play size={20} fill="currentColor" /> {tr('Rejoindre la lecture')}
+            </button>
+          )}
+
+          {cur?.isHost && !(enLecture || session?.started) && (
             <button onClick={launch}
               className="w-full flex items-center justify-center gap-2 h-[54px] rounded-full bg-white text-black text-[16px] font-semibold hover:opacity-90 active:scale-[0.98] transition-all">
               <Play size={20} fill="currentColor" /> {tr('Lancer')} {readyCount}/{total}
@@ -223,6 +251,81 @@ export default function WatchRoom() {
           </>
         )}
       </AnimatePresence>
+    </div>
+  );
+}
+
+/* Choix de la saison et de l'épisode par l'hôte, avant le lancement. */
+function ChoixEpisode({ media }) {
+  const [saisons, setSaisons] = useState([]);
+  const [saison, setSaison] = useState(null);
+  const [episodes, setEpisodes] = useState([]);
+  const [charge, setCharge] = useState(true);
+
+  // Saisons de la série, et celle de l'épisode choisi au départ.
+  useEffect(() => {
+    let ok = true;
+    (async () => {
+      try {
+        const [kids, ep] = await Promise.all([
+          plexService.getChildren(media.showId),
+          plexService.getMetadata(media.id).catch(() => null),
+        ]);
+        if (!ok) return;
+        const sns = (kids || []).filter((k) => k.type === 'season' || k.index != null);
+        setSaisons(sns);
+        const depart = sns.find((x) => String(x.id) === String(ep?.parentRatingKey)) || sns[0] || null;
+        setSaison(depart);
+        if (!depart) setCharge(false);
+      } catch { if (ok) setCharge(false); }
+    })();
+    return () => { ok = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [media.showId]);
+
+  useEffect(() => {
+    if (!saison) return;
+    let ok = true;
+    setCharge(true);
+    plexService.getChildren(saison.id)
+      .then((eps) => { if (ok) setEpisodes(eps || []); })
+      .catch(() => { if (ok) setEpisodes([]); })
+      .finally(() => { if (ok) setCharge(false); });
+    return () => { ok = false; };
+  }, [saison]);
+
+  const choisir = (ep) => {
+    const serie = media.showTitle || '';
+    choisirEpisode(ep.id, `${serie ? serie + ' · ' : ''}S${saison?.index ?? '?'}E${ep.index ?? '?'}${ep.title ? ` · ${ep.title}` : ''}`);
+  };
+
+  return (
+    <div className="mb-6 glass-panel rounded-2xl p-3.5">
+      <p className="p-label mb-2.5 px-1">{tr("Choisis l'épisode")}</p>
+      {saisons.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-2.5 scrollbar-hide">
+          {saisons.map((sn) => (
+            <button key={sn.id} onClick={() => setSaison(sn)}
+              className={`shrink-0 h-9 px-4 rounded-full text-[13px] font-semibold transition-colors ${saison?.id === sn.id ? 'bg-white text-black' : 'bg-white/[0.08] text-white/75 hover:bg-white/[0.14]'}`}>
+              {sn.title || `${tr('Saison')} ${sn.index}`}
+            </button>
+          ))}
+        </div>
+      )}
+      <div className="max-h-[300px] overflow-y-auto -mx-1 px-1 space-y-1">
+        {charge && <div className="py-6 flex justify-center"><div className="w-6 h-6 border-2 border-white/15 border-t-white/70 rounded-full animate-spin" /></div>}
+        {!charge && episodes.map((ep) => {
+          const actif = String(ep.id) === String(media.id);
+          return (
+            <button key={ep.id} onClick={() => choisir(ep)}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left transition-colors ${actif ? 'bg-white/[0.16]' : 'hover:bg-white/[0.07]'}`}>
+              <span className="w-8 shrink-0 text-[13px] font-semibold text-white/45 tabular-nums">{ep.index}</span>
+              <span className="flex-1 min-w-0 truncate text-[14px] font-medium">{ep.title || `${tr('Épisode')} ${ep.index}`}</span>
+              {actif && <Check size={16} className="shrink-0" />}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

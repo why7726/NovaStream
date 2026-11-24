@@ -26,6 +26,8 @@ export default function WatchTogetherButton({ media, episode = null, className =
           : (media.title || media.grandparentTitle),
         mediaPoster: media.poster,
         mediaBackdrop: media.backdrop,
+        // Série : l'hôte pourra changer de saison / d'épisode dans la salle.
+        ...(episode ? { showId: media.id, showTitle: media.title } : {}),
       });
       const avatar = user?.avatar
         ? { type: 'photo', url: user.avatar }

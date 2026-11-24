@@ -92,6 +92,8 @@ export function on(ev, fn) {
 
 export const setReady = (ready) => socket?.emit('watch:ready', { ready });
 export const launch = () => socket?.emit('watch:launch');
+/** Hôte, dans la salle d'attente : choisir l'épisode qu'on va regarder. */
+export const choisirEpisode = (mediaId, title) => socket?.emit('watch:choisir', { mediaId: String(mediaId), title });
 export const sendControl = (state) => socket?.emit('watch:control', state);
 export const sendSync = (state) => socket?.emit('watch:sync', state);
 export const sendChat = (text) => socket?.emit('watch:chat', { text });

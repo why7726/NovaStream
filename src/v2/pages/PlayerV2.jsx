@@ -9,7 +9,7 @@ import authService from '../../services/authService';
 import { useFeatures } from '../lib/features';
 import Indisponible from '../pure/Indisponible';
 import useWatchSync from '../lib/useWatchSync';
-import { getCurrent as seanceEnCours } from '../lib/watchParty';
+import { getCurrent as seanceEnCours, quitterSeance } from '../lib/watchParty';
 import { getAudioPref, setAudioPref, classifyAudio, audioLabel, versionOptions, pickAudioStream } from '../lib/audioPref';
 import { castSupported, initCast, getCastState, onCastStateChange, castMedia, stopCast } from '../lib/castService';
 import WatchPartyOverlay from '../components/WatchPartyOverlay';
@@ -101,6 +101,13 @@ function PlayerV2() {
   const [autoNextArmed, setAutoNextArmed] = useState(false);
   const [seekFeedback, setSeekFeedback] = useState(null); // 'fwd' | 'back'
   const autoNextCancelledRef = useRef(false);
+  /* Moment où CE média a vraiment commencé à jouer. Juste après un changement
+     d'épisode, la vidéo garde un instant la position de l'épisode précédent
+     (presque à la fin) : sans ce garde-fou, l'épisode suivant se croyait déjà
+     au générique et enchaînait aussitôt — une saison entière défilait en
+     quelques secondes (constaté en « Regarder ensemble »). */
+  const lectureDepuisRef = useRef(0);
+  const lectureEtablie = () => lectureDepuisRef.current > 0 && Date.now() - lectureDepuisRef.current > 4000;
   const autoSkippedRef = useRef(new Set());
   const lastTapRef = useRef(0);
   const seekFeedbackTimerRef = useRef(null);
@@ -463,6 +470,7 @@ function PlayerV2() {
       setSiblings({ prev: null, next: null });
       // Reset auto-features for the new media.
       autoNextCancelledRef.current = false;
+      lectureDepuisRef.current = 0;
       autoSkippedRef.current = new Set();
       setAutoNextArmed(false);
       destroyHLS();
@@ -587,7 +595,7 @@ function PlayerV2() {
     const realDur = video.duration && isFinite(video.duration) ? video.duration : (exactDuration || 0);
     const credits = markers.find(m => m.type === 'credits');
     const inEndZone = credits ? (t >= credits.start) : (realDur > 0 && (realDur - t) <= 30 && (realDur - t) > 0);
-    if (siblings.next && inEndZone && !autoNextArmed && !autoNextCancelledRef.current && !isNavigating && !(seanceEnCours() && !seanceEnCours().isHost)) {
+    if (siblings.next && inEndZone && lectureEtablie() && !autoNextArmed && !autoNextCancelledRef.current && !isNavigating && !(seanceEnCours() && !seanceEnCours().isHost)) {
       setAutoNextArmed(true);
     }
   };
@@ -838,10 +846,16 @@ function PlayerV2() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [handleBeforeUnload]);
 
-  const handleBack = () => {
+  const handleBack = async () => {
     handleBeforeUnload();
     plexService.stopTranscodeSession();
     destroyHLS();
+    /* En séance, « retour » = sortir de la séance (l'hôte la termine pour tout
+       le monde). Avant, le retour ramenait à la salle d'attente, qui renvoyait
+       aussitôt dans le film : impossible d'en sortir. */
+    if (seanceEnCours()) {
+      if ((await quitterSeance()) === 'invite') return;   // invité : la page se recharge
+    }
     if (media && media.type === 'episode' && media.grandparentRatingKey) {
       navigate(`/title/${media.grandparentRatingKey}`);
     } else if (typeof window.history.state?.idx === 'number' && window.history.state.idx > 0) {
@@ -1630,10 +1644,11 @@ function PlayerV2() {
         onLoadedData={handleVideoLoaded}
         onTimeUpdate={handleTimeUpdate}
         onPlay={() => setIsPlaying(true)}
+        onPlaying={() => { if (!lectureDepuisRef.current && String(mediaRef.current?.id) === String(id)) lectureDepuisRef.current = Date.now(); }}
         onPause={() => setIsPlaying(false)}
         onWaiting={surAttenteDonnees}
         onSeeking={() => { dernierSautRef.current = Date.now(); }}
-        onEnded={() => { if (siblings.next && !autoNextCancelledRef.current && !isNavigating) handleNextEpisode(); }}
+        onEnded={() => { if (siblings.next && lectureEtablie() && !autoNextCancelledRef.current && !isNavigating) handleNextEpisode(); }}
         /* Un appui sur l'image ne met PLUS en pause : il fait apparaître ou
            disparaître les commandes. Mettre en pause d'un simple clic est trop
            facile à déclencher par erreur — la pause se fait au bouton central.

@@ -51,6 +51,12 @@ function sanitizeAvatar(a) {
   return null;
 }
 
+// Titre d'un média (jusqu'à 120 caractères — sanitizeName coupe à 32).
+function sanitizeTitle(v) {
+  if (typeof v !== 'string') return '';
+  return v.replace(CTRL_CHARS, '').trim().slice(0, 120);
+}
+
 // tiny sliding-window rate limiter
 function makeLimiter(max, windowMs) {
   const hits = new Map();
@@ -96,7 +102,7 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
     const active = [...sessions.values()].filter((s) => s.host.userId === req.user.id).length;
     if (active >= MAX_PER_HOST) return res.status(429).json({ error: 'Tu as déjà trop de séances ouvertes' });
 
-    const { mediaId, mediaType, mediaTitle, mediaPoster, mediaBackdrop } = req.body || {};
+    const { mediaId, mediaType, mediaTitle, mediaPoster, mediaBackdrop, showId, showTitle } = req.body || {};
     if (!mediaId || !/^[\w:-]{1,64}$/.test(String(mediaId))) return res.status(400).json({ error: 'mediaId invalide' });
     const id = genId();
     const hostPid = genPid();
@@ -106,9 +112,12 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
       media: {
         id: String(mediaId),
         type: ['movie', 'show', 'episode'].includes(mediaType) ? mediaType : 'movie',
-        title: sanitizeName(mediaTitle || 'un film').slice(0, 120) || 'un film',
+        title: sanitizeTitle(mediaTitle) || 'un film',
         poster: typeof mediaPoster === 'string' ? mediaPoster.slice(0, 1000) : null,
         backdrop: typeof mediaBackdrop === 'string' ? mediaBackdrop.slice(0, 1000) : null,
+        // Séance sur une série : l'hôte choisit saison et épisode dans la salle.
+        showId: showId != null && /^[\w:-]{1,64}$/.test(String(showId)) ? String(showId) : null,
+        showTitle: sanitizeTitle(showTitle) || null,
       },
       participants: new Map(),
       state: { playing: false, position: 0, at: Date.now() },
@@ -210,7 +219,7 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
       if (host && s.started && enCours && /^[\w:-]{1,64}$/.test(enCours) && enCours !== s.media.id) {
         s.media.id = enCours;
         s.media.type = 'episode';
-        const titre = sanitizeName(titreEnCours || '').slice(0, 120);
+        const titre = sanitizeTitle(titreEnCours || '');
         if (titre) s.media.title = titre;
         s.state = { playing: true, position: 0, at: Date.now() };
         socket.to(sid).emit('watch:launch', { mediaId: s.media.id, state: s.state });
@@ -218,7 +227,21 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
       }
 
       emitState(s);
-      if (s.started) socket.emit('watch:launch', { mediaId: s.media.id, state: s.state });
+      /* Séance déjà lancée : on le signale (« replay »). La salle d'attente ne
+         renvoie plus d'office dans le film — sinon, revenir en arrière depuis le
+         lecteur y ramenait aussitôt. Le lecteur, lui, s'en sert pour suivre. */
+      if (s.started) socket.emit('watch:launch', { mediaId: s.media.id, state: s.state, replay: true });
+    });
+
+    /* L'hôte choisit l'épisode dans la salle d'attente (avant le lancement). */
+    socket.on('watch:choisir', ({ mediaId, title } = {}) => {
+      const s = sessions.get(sid); if (!s || !isHostConn || s.started) return;
+      if (typeof mediaId !== 'string' || !/^[\w:-]{1,64}$/.test(mediaId)) return;
+      s.media.id = mediaId;
+      s.media.type = 'episode';
+      const t = sanitizeTitle(title || '');
+      if (t) s.media.title = t;
+      emitState(s);
     });
 
     socket.on('watch:ready', ({ ready } = {}) => {
