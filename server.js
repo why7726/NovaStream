@@ -2419,10 +2419,11 @@ setInterval(pollImports, 5 * 60 * 1000);
    référence, puis on marque ce qui est déjà dans la bibliothèque. */
 
 // Index TMDB → Plex, pour savoir instantanément ce qui est déjà sur Nova.
-let tmdbIndexCache = { at: 0, map: new Map() };
+let tmdbIndexCache = { at: 0, map: new Map(), source: null };
 async function getTmdbIndex() {
-  if (Date.now() - tmdbIndexCache.at < 600000 && tmdbIndexCache.map.size) return tmdbIndexCache.map;
   const items = await loadAllLibraryItems();
+  // Reconstruit seulement quand le catalogue a changé (même tableau = même index).
+  if (tmdbIndexCache.source === items && tmdbIndexCache.map.size) return tmdbIndexCache.map;
   const map = new Map();
   for (const x of items) {
     map.set(`${x.type}:${x.tmdbId}`, {
@@ -2431,7 +2432,7 @@ async function getTmdbIndex() {
       year: x.item.year || null,
     });
   }
-  tmdbIndexCache = { at: Date.now(), map };
+  tmdbIndexCache = { at: Date.now(), map, source: items };
   return map;
 }
 
@@ -3786,22 +3787,41 @@ async function mapLimit(items, limit, fn) {
 }
 
 // Cache of the Plex library (raw items + their TMDB ids), refreshed every 10 min.
+/* Tout le catalogue (avec les identifiants TMDB) — pour Explorer, « Pour toi »,
+   les plateformes, les pourcentages, « Dis-moi ta soirée »…
+   Plusieurs personnes en même temps ne doivent pas déclencher chacune une
+   relecture complète : avant, 6 visiteurs sur un cache expiré = 6 lectures de
+   tout Plex en parallèle, et le site ramait pour tout le monde.
+     · une seule relecture à la fois (les autres attendent la même) ;
+     · cache un peu vieux → on sert l'ancien tout de suite et on relit derrière ;
+     · on ne demande à Plex que ce qui sert (Guid, Genre, 3 acteurs, note…),
+       pas les fichiers, résumés, réalisateurs, pays… */
 let libraryCache = { at: 0, items: [] };
-async function loadAllLibraryItems() {
-  if (Date.now() - libraryCache.at < 600000 && libraryCache.items.length) return libraryCache.items;
-  const secData = await plexJson('/library/sections');
-  const sections = (secData.MediaContainer?.Directory || []).filter((d) => ['movie', 'show'].includes(d.type));
-  let all = [];
-  for (const s of sections) {
-    const d = await plexJson(`/library/sections/${s.key}/all?includeGuids=1`);
-    all = all.concat(d.MediaContainer?.Metadata || []);
+let libraryLecture = null;
+const CATALOGUE_LEGER = 'includeGuids=1&excludeElements=Media,Country,Director,Writer,Producer,Collection,Similar,Image,Chapter,Marker,Extras&excludeFields=summary,tagline';
+function relireCatalogue() {
+  if (!libraryLecture) {
+    libraryLecture = (async () => {
+      const secData = await plexJson('/library/sections');
+      const sections = (secData.MediaContainer?.Directory || []).filter((d) => ['movie', 'show'].includes(d.type));
+      const listes = await Promise.all(sections.map((s) => plexJson(`/library/sections/${s.key}/all?${CATALOGUE_LEGER}`)
+        .then((d) => d.MediaContainer?.Metadata || []).catch(() => [])));
+      const withTmdb = listes.flat().map((item) => {
+        const g = (item.Guid || []).find((x) => x.id?.startsWith('tmdb://'));
+        return { item, tmdbId: g ? g.id.replace('tmdb://', '') : null, type: item.type === 'movie' ? 'movie' : 'tv' };
+      }).filter((x) => x.tmdbId);
+      libraryCache = { at: Date.now(), items: withTmdb };
+      return withTmdb;
+    })().finally(() => { libraryLecture = null; });
   }
-  const withTmdb = all.map((item) => {
-    const g = (item.Guid || []).find((x) => x.id?.startsWith('tmdb://'));
-    return { item, tmdbId: g ? g.id.replace('tmdb://', '') : null, type: item.type === 'movie' ? 'movie' : 'tv' };
-  }).filter((x) => x.tmdbId);
-  libraryCache = { at: Date.now(), items: withTmdb };
-  return withTmdb;
+  return libraryLecture;
+}
+async function loadAllLibraryItems() {
+  if (libraryCache.items.length) {
+    if (Date.now() - libraryCache.at >= 600000) relireCatalogue().catch((e) => console.warn('[Catalogue]', e.message));
+    return libraryCache.items;
+  }
+  return relireCatalogue();
 }
 
 // Background warmer: resolve providers for the whole library once, with progress.

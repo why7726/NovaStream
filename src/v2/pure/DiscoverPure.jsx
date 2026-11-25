@@ -198,6 +198,8 @@ export default function DiscoverPure() {
         ) : results.length === 0 ? (
           <p className="text-[14px] p-faint py-16 text-center">{tr('Rien trouvé avec ces critères.')}</p>
         ) : (
+          /* Pas de flou (backdrop-blur) sur les pastilles des cartes : 60 cartes ×
+             3 flous, c'était ce qui faisait ramer l'iPhone à l'ouverture. */
           <div data-row className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-7 gap-3 md:gap-4">
             {results.map((r) => (
               <button key={`${r.type}-${r.tmdbId}`}
@@ -207,19 +209,19 @@ export default function DiscoverPure() {
                   <img src={r.poster} alt="" loading="lazy" decoding="async" />
                   {r.inNova ? (
                     <span className="absolute inset-0 flex items-center justify-center opacity-0 group-hover/d:opacity-100 transition-opacity">
-                      <span className="w-10 h-10 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center">
+                      <span className="w-10 h-10 rounded-full bg-black/70 flex items-center justify-center">
                         <Play size={15} fill="white" className="ml-0.5" />
                       </span>
                     </span>
                   ) : (
                     <span className="absolute inset-0 flex items-end justify-center pb-2">
-                      <span className="px-2 py-[3px] rounded-md bg-black/70 backdrop-blur-md text-[9.5px] font-semibold text-white/85">
+                      <span className="px-2 py-[3px] rounded-md bg-black/80 text-[9.5px] font-semibold text-white/85">
                         {tr('À demander')}
                       </span>
                     </span>
                   )}
                   {r.matches > 1 && (
-                    <span className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-[3px] rounded-md bg-black/60 backdrop-blur-md text-[9px] font-semibold text-white/90">
+                    <span className="absolute top-2 left-2 flex items-center gap-1 px-1.5 py-[3px] rounded-md bg-black/75 text-[9px] font-semibold text-white/90">
                       <Check size={9} strokeWidth={3} /> {r.matches}
                     </span>
                   )}

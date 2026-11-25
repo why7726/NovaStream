@@ -48,17 +48,17 @@ export default function CardPure({
         {(isCam || lang || item.adulte) ? (
           <span className="absolute top-2 left-2 flex flex-col items-start gap-1">
             {item.adulte && (
-              <span className="px-1.5 py-[3px] rounded-md bg-red-600/85 backdrop-blur-md text-[9px] font-bold tracking-[0.06em] text-white">
+              <span className="px-1.5 py-[3px] rounded-md bg-red-600/90 text-[9px] font-bold tracking-[0.06em] text-white">
                 18+
               </span>
             )}
             {isCam && (
-              <span className="px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">
+              <span className="px-1.5 py-[3px] rounded-md bg-black/70 text-[9px] font-semibold tracking-[0.08em] text-white/85">
                 {tr('CAM')}
               </span>
             )}
             {lang && (
-              <span className="px-1.5 py-[3px] rounded-md bg-black/55 backdrop-blur-md text-[9px] font-semibold tracking-[0.08em] text-white/85">
+              <span className="px-1.5 py-[3px] rounded-md bg-black/70 text-[9px] font-semibold tracking-[0.08em] text-white/85">
                 {lang}
               </span>
             )}
@@ -82,7 +82,7 @@ export default function CardPure({
         )}
         {variant === 'wide' && (
           <span className="absolute inset-0 flex items-center justify-center opacity-0 hover:opacity-100 transition-opacity">
-            <span className="w-11 h-11 rounded-full bg-black/45 backdrop-blur-md flex items-center justify-center">
+            <span className="w-11 h-11 rounded-full bg-black/65 flex items-center justify-center">
               <Play size={15} fill="white" className="ml-0.5" />
             </span>
           </span>
