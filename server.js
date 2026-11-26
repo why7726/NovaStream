@@ -169,13 +169,15 @@ app.use(compression({ threshold: 1024 }));
      la page d'un autre site (piège à clics) ;
    · Referrer-Policy : les adresses de Nova ne partent pas vers les sites tiers ;
    · HSTS : derrière HTTPS uniquement — le navigateur n'essaiera plus le HTTP ;
-   · CSP en mode OBSERVATION (Report-Only) : elle signale sans rien bloquer,
-     le temps de vérifier qu'aucune fonction (bandes-annonces, Chromecast,
-     images TMDB) n'en pâtit. À passer en Content-Security-Policy ensuite. */
+   · CSP BLOQUANTE (depuis le 2026-11-26, après vérification des pages
+     principales) : un script glissé dans un pseudo, un titre ou un message
+     ne peut ni s'exécuter ni charger de code d'ailleurs. Ce qu'elle bloque
+     est noté dans les journaux ([CSP], voir /api/csp-report). */
 app.disable('x-powered-by');
 const CSP = [
   "default-src 'self'",
-  "script-src 'self' https://www.gstatic.com https://www.youtube.com",
+  // http://www.gstatic.com : Chromecast quand Nova est ouvert en HTTP sur le réseau local.
+  "script-src 'self' https://www.gstatic.com http://www.gstatic.com https://www.youtube.com",
   "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   "font-src 'self' data: https://fonts.gstatic.com",
   "img-src 'self' data: blob: https:",
@@ -186,13 +188,29 @@ const CSP = [
   "object-src 'none'",
   "base-uri 'self'",
   "frame-ancestors 'self'",
+  "report-uri /api/csp-report",
 ].join('; ');
+// Rapports de la CSP : chaque blocage distinct noté une fois par heure.
+const cspVus = new Map();
+app.post('/api/csp-report', express.json({ type: ['application/csp-report', 'application/json', 'application/reports+json'], limit: '16kb' }), (req, res) => {
+  try {
+    const r = req.body?.['csp-report'] || req.body?.[0]?.body || req.body || {};
+    const cle = `${r['violated-directive'] || r.effectiveDirective || '?'} ← ${String(r['blocked-uri'] || r.blockedURL || '?').slice(0, 120)}`;
+    const now = Date.now();
+    if (cspVus.size > 500) cspVus.clear();
+    if (!cspVus.has(cle) || now - cspVus.get(cle) > 3600000) {
+      cspVus.set(cle, now);
+      console.warn(`[CSP] bloqué : ${cle} (page ${String(r['document-uri'] || r.documentURL || '').replace(/^https?:\/\/[^/]+/, '').slice(0, 80)})`);
+    }
+  } catch { /* rapport illisible */ }
+  res.status(204).end();
+});
 app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'SAMEORIGIN');
   res.setHeader('Referrer-Policy', 'same-origin');
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
-  res.setHeader('Content-Security-Policy-Report-Only', CSP);
+  res.setHeader('Content-Security-Policy', CSP);
   const https = req.secure || String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim() === 'https';
   if (https) res.setHeader('Strict-Transport-Security', 'max-age=15552000');
   next();

@@ -37,7 +37,7 @@ function sanitizeName(v) {
 function sanitizeAvatar(a) {
   if (!a || typeof a !== 'object') return null;
   if (a.type === 'photo') {
-    if (typeof a.url !== 'string' || a.url.length > AVATAR_URL_MAX || !/^data:image\//.test(a.url)) return null;
+    if (typeof a.url !== 'string' || a.url.length > AVATAR_URL_MAX || !/^data:image\/(png|jpe?g|webp|gif|avif);base64,/.test(a.url)) return null;
     return { type: 'photo', url: a.url };
   }
   if (a.type === 'emoji') {

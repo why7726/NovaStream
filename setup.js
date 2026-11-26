@@ -28,7 +28,11 @@ const sansPrefixe = (ip) => String(ip || '').replace(/^::ffff:/, '');
 export function ipReelle(req) {
   const socket = sansPrefixe(req.socket?.remoteAddress);
   const xff = String(req.headers['x-forwarded-for'] || '').split(',').map((s) => sansPrefixe(s.trim())).filter(Boolean);
-  if (xff.length && PRIVEE.test(socket)) return xff[xff.length - 1];
+  /* On ne croit X-Forwarded-For que venant de Caddy, qui tourne sur cette
+     machine (connexion depuis 127.0.0.1 / ::1). Avant, tout le réseau local
+     était cru : un appareil du réseau pouvait s'inventer une adresse à chaque
+     essai et contourner la limite de tentatives de connexion. */
+  if (xff.length && /^(127\.|::1$)/.test(socket)) return xff[xff.length - 1];
   return socket || 'inconnue';
 }
 export const estLocale = (req) => PRIVEE.test(ipReelle(req));
