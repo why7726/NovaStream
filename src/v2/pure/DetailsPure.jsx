@@ -541,6 +541,10 @@ export default function DetailsPure() {
             </button>
             <div className="w-full max-w-5xl rounded-xl overflow-hidden" style={{ aspectRatio: '16 / 9' }}>
               <iframe src={`https://www.youtube.com/embed/${movie.trailer}?autoplay=1&rel=0`} title={tr('Bande-annonce')}
+                /* YouTube exige de savoir QUEL site intègre la vidéo (sinon « Erreur 153 ») :
+                   on lui donne l'origine seule (https://domaine), jamais l'adresse de la page —
+                   le reste du site garde Referrer-Policy: same-origin. */
+                referrerPolicy="strict-origin-when-cross-origin"
                 className="w-full h-full" allow="autoplay; encrypted-media; fullscreen" allowFullScreen />
             </div>
           </motion.div>
