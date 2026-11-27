@@ -81,6 +81,8 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
   // Expose session liveness to the Plex proxy so ending a séance instantly
   // revokes its guest tokens' streaming access.
   if (watchApi) watchApi.isSessionActive = (id) => sessions.has(id);
+  // Le titre en cours d'une séance : sert à limiter les invités à ce titre-là.
+  if (watchApi) watchApi.mediaDe = (id) => sessions.get(id)?.media?.id || null;
 
   const publicSession = (s) => ({
     id: s.id,

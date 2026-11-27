@@ -191,16 +191,23 @@ const CSP = [
   "report-uri /api/csp-report",
 ].join('; ');
 // Rapports de la CSP : chaque blocage distinct noté une fois par heure.
+// L'adresse est publique (le navigateur y écrit sans jeton) : on retire les
+// caractères de contrôle (pas de fausses lignes dans les journaux) et on ne
+// note pas plus de 30 blocages par heure, quoi qu'il arrive.
 const cspVus = new Map();
+let cspFenetre = { debut: 0, n: 0 };
+const cspPropre = (v, max) => String(v ?? '?').replace(/[\u0000-\u001F\u007F]/g, ' ').slice(0, max);
 app.post('/api/csp-report', express.json({ type: ['application/csp-report', 'application/json', 'application/reports+json'], limit: '16kb' }), (req, res) => {
   try {
     const r = req.body?.['csp-report'] || req.body?.[0]?.body || req.body || {};
-    const cle = `${r['violated-directive'] || r.effectiveDirective || '?'} ← ${String(r['blocked-uri'] || r.blockedURL || '?').slice(0, 120)}`;
+    const cle = `${cspPropre(r['violated-directive'] || r.effectiveDirective, 60)} ← ${cspPropre(r['blocked-uri'] || r.blockedURL, 120)}`;
     const now = Date.now();
+    if (now - cspFenetre.debut > 3600000) cspFenetre = { debut: now, n: 0 };
     if (cspVus.size > 500) cspVus.clear();
-    if (!cspVus.has(cle) || now - cspVus.get(cle) > 3600000) {
+    if (cspFenetre.n < 30 && (!cspVus.has(cle) || now - cspVus.get(cle) > 3600000)) {
       cspVus.set(cle, now);
-      console.warn(`[CSP] bloqué : ${cle} (page ${String(r['document-uri'] || r.documentURL || '').replace(/^https?:\/\/[^/]+/, '').slice(0, 80)})`);
+      cspFenetre.n++;
+      console.warn(`[CSP] bloqué : ${cle} (page ${cspPropre(String(r['document-uri'] || r.documentURL || '').replace(/^https?:\/\/[^/]+/, ''), 80)})`);
     }
   } catch { /* rapport illisible */ }
   res.status(204).end();
@@ -267,6 +274,11 @@ app.use((req, res, next) => {
   if (d.guest) {
     const allowed = GUEST_API_ALLOW.some((r) => r.m.includes(req.method) && r.re.test(req.path));
     if (!allowed) return res.status(403).json({ error: 'Accès invité restreint à la séance' });
+    // Sous-titres : seulement ceux du titre de la séance.
+    const rk = req.path.match(/^\/api\/subtitles\/(?:search|embedded)\/(\d+)/)?.[1];
+    if (rk) {
+      return perimetreInvite(d.sessionId).then((p) => (p?.ids.has(rk) ? next() : res.status(404).json({ error: 'Introuvable' })));
+    }
   } else if (d.mediaScope) {
     // Media tokens live only in ?nova= URLs — allow only live HLS segments here;
     // everything else on /api (and all writes) is off-limits if such a token leaks.
@@ -675,7 +687,65 @@ function proxyAuth(req, res, next) {
     if (!readOk && !partSelect && !transcodeStop) {
       return res.status(403).json({ error: 'Action non autorisée' });
     }
+    if (req.user.guest) return verifierPorteeInvite(req, res, next);
   }
+  next();
+}
+
+/* ─── Invités d'une séance : le titre de la séance, et rien d'autre ──────
+   Un invité sans compte n'a qu'un jeton lié à sa séance. Avant, ce jeton
+   ouvrait TOUT le catalogue (listes, recherche, n'importe quel film) tant que
+   la séance durait : un lien d'invitation transféré suffisait. Désormais il
+   n'atteint que le titre de la séance — le film, ou la série entière (saisons,
+   épisodes : l'hôte peut passer au suivant), leurs images et leurs fichiers. */
+const perimetresInvites = new Map();   // sessionId → { mediaId, promesse }
+function perimetreInvite(sessionId) {
+  const mediaId = watchApi.mediaDe?.(sessionId);
+  if (!mediaId) return Promise.resolve(null);
+  const deja = perimetresInvites.get(sessionId);
+  if (deja && deja.mediaId === mediaId) return deja.promesse;
+  if (perimetresInvites.size > 200) perimetresInvites.clear();
+  const promesse = (async () => {
+    const ids = new Set([String(mediaId)]);
+    const parts = new Set();
+    const noter = (m) => {
+      for (const k of [m.ratingKey, m.parentRatingKey, m.grandparentRatingKey]) if (k) ids.add(String(k));
+      for (const me of m.Media || []) for (const pa of me.Part || []) if (pa.id) parts.add(String(pa.id));
+    };
+    const lire = async (chemin) => (await plexJsonBrut(chemin).catch(() => null))?.MediaContainer?.Metadata || [];
+    const [m] = await lire(`/library/metadata/${mediaId}`);
+    if (m) {
+      noter(m);
+      const serie = m.type === 'show' ? m.ratingKey : (m.grandparentRatingKey || (m.type === 'season' ? m.parentRatingKey : null));
+      if (serie) {
+        for (const x of await lire(`/library/metadata/${serie}`)) noter(x);
+        for (const x of await lire(`/library/metadata/${serie}/children`)) noter(x);
+        for (const x of await lire(`/library/metadata/${serie}/allLeaves`)) noter(x);
+      }
+    }
+    return { ids, parts };
+  })().catch(() => null);
+  perimetresInvites.set(sessionId, { mediaId, promesse });
+  return promesse;
+}
+function idsDuChemin(url) {
+  let u = String(url || '');
+  for (let i = 0; i < 2; i++) { try { u = decodeURIComponent(u); } catch { break; } }
+  return {
+    meta: [...u.matchAll(/\/library\/metadata\/(\d+)/g)].map((x) => x[1]).concat([...u.matchAll(/[?&]ratingKey=(\d+)/g)].map((x) => x[1])),
+    parts: [...u.matchAll(/\/library\/parts\/(\d+)/g)].map((x) => x[1]),
+  };
+}
+async function verifierPorteeInvite(req, res, next) {
+  const url = req.originalUrl || req.url || '';
+  // Morceaux d'une vidéo déjà lancée : leurs adresses portent un identifiant aléatoire.
+  if (/^\/(remux|localhls|jfhls)\//.test(url) || /^\/plex\/video\/:\/transcode\/universal\/(session\/|ping|stop)/.test(url)) return next();
+  // Marquer vu / non vu sur le compte Plex : jamais pour un invité.
+  if (/^\/plex\/:\/(scrobble|unscrobble)/.test(url) || /^\/api\/live\//.test(url)) return res.status(403).json({ error: 'Accès invité restreint à la séance' });
+  const { meta, parts } = idsDuChemin(url);
+  if (!meta.length && !parts.length) return res.status(403).json({ error: 'Accès invité restreint à la séance' });
+  const p = await perimetreInvite(req.user.sessionId);
+  if (!p || !meta.every((x) => p.ids.has(x)) || !parts.every((x) => p.parts.has(x))) return res.status(404).json({ error: 'Introuvable' });
   next();
 }
 
@@ -806,7 +876,7 @@ app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
     res.json(data);
   } catch (error) {
     // Jellyfin (traduit) : un identifiant inconnu remonte en « 404 » dans le message.
-    if (/404/.test(String(error?.message))) return res.status(404).json({ error: 'Introuvable' });
+    if (/\b404\b/.test(String(error?.message))) return res.status(404).json({ error: 'Introuvable' });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
