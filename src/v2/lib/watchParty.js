@@ -21,7 +21,22 @@ const listeners = {
   chat: new Set(),
   reaction: new Set(),
   error: new Set(),
+  statut: new Set(),   // connexion à la séance : true (connecté) / false (coupée)
 };
+const annoncerStatut = (ok) => listeners.statut.forEach((fn) => fn(ok));
+export const estEnLigne = () => !!socket?.connected;
+
+/* Retour au premier plan (téléphone qui sort de veille, appli rouverte) :
+   on relance la connexion tout de suite au lieu d'attendre le prochain essai
+   automatique, qui peut tarder plusieurs secondes. */
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && socket && !socket.connected) {
+      try { socket.connect(); } catch { /* le prochain essai automatique s'en charge */ }
+    }
+  });
+  window.addEventListener('online', () => { if (socket && !socket.connected) { try { socket.connect(); } catch { /* idem */ } } });
+}
 
 const CUR_KEY = 'nova_watch_current';
 function persist() {
@@ -71,8 +86,9 @@ export function connectSession(identity) {
     socket = io(base(), { transports: ['websocket', 'polling'], auth: { token: authService.getToken() } });
   }
 
-  const hello = () => socket.emit('watch:hello', identity);
+  const hello = () => { socket.emit('watch:hello', identity); annoncerStatut(true); };
   socket.off('connect').on('connect', hello);
+  socket.off('disconnect').on('disconnect', () => annoncerStatut(false));
   if (socket.connected) hello();
 
   socket.off('connect_error').on('connect_error', (e) =>

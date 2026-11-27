@@ -121,8 +121,17 @@ export default function useWatchSync(videoRef) {
           return;
         }
         suppress = true;
-        if (Math.abs(v.currentTime - st.position) > seuil) {
+        const ecart = st.position - v.currentTime;   // > 0 : on est en retard
+        if (Math.abs(ecart) > seuil) {
           try { v.currentTime = st.position; } catch {}
+          v.playbackRate = 1;
+        } else if (st.playing && !v.paused && Math.abs(ecart) > 0.35) {
+          /* Petit écart (moins que le seuil) : on ne saute pas — un saut relance
+             le chargement. On accélère ou ralentit à peine (±8 %, le son garde
+             sa hauteur) jusqu'à rejoindre l'hôte, en quelques secondes. */
+          v.playbackRate = ecart > 0 ? 1.08 : 0.92;
+        } else {
+          v.playbackRate = 1;
         }
         if (st.playing && v.paused) v.play().catch(() => {});
         if (!st.playing && !v.paused) v.pause();
@@ -132,6 +141,6 @@ export default function useWatchSync(videoRef) {
       offs.push(on('sync', (st) => apply(st, 2.5)));
     }
 
-    return () => offs.forEach((fn) => fn && fn());
+    return () => { offs.forEach((fn) => fn && fn()); const v = video(); if (v) v.playbackRate = 1; };
   }, [videoRef, navigate, id]);
 }

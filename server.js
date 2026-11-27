@@ -107,7 +107,7 @@ setTimeout(() => prive.rafraichir(), 5000);
 setInterval(() => prive.rafraichir(), 10 * 60 * 1000);
 config.onChange(() => {
   prive.rafraichir();
-  try { apiCache.clear(); } catch { /* pas encore initialisé au démarrage */ }
+  try { apiCache.clear(); apiCacheOctets = 0; } catch { /* pas encore initialisé au démarrage */ }
   libraryCache = { at: 0, items: [] };
 });
 if (!config.serveurType()) {
@@ -788,7 +788,10 @@ app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
     else {
       // Avec le jeton du compte relié, la fiche porte SA progression (viewOffset).
       const url = `${PLEX_URL}/library/metadata/${req.params.id}?includeMarkers=1&includeChapters=1&X-Plex-Token=${tokenPour(req)}`;
-      brut = await (await fetch(url, { headers: { 'Accept': 'application/json' } })).json();
+      const r = await fetch(url, { headers: { 'Accept': 'application/json' } });
+      // Identifiant inexistant : Plex répond 404 (sans JSON) → « introuvable », pas une erreur serveur.
+      if (!r.ok) return res.status(r.status === 404 || r.status === 400 ? 404 : 502).json({ error: r.status === 404 || r.status === 400 ? 'Introuvable' : 'Serveur multimédia injoignable' });
+      brut = await r.json();
     }
     const data = prive.filtrerJson(brut, `/library/metadata/${req.params.id}`);
     if (data?.MediaContainer?.Metadata?.[0]) {
@@ -802,6 +805,8 @@ app.get('/plex/library/metadata/:id', proxyAuth, async (req, res) => {
     }
     res.json(data);
   } catch (error) {
+    // Jellyfin (traduit) : un identifiant inconnu remonte en « 404 » dans le message.
+    if (/404/.test(String(error?.message))) return res.status(404).json({ error: 'Introuvable' });
     res.status(500).json({ error: 'Erreur serveur' });
   }
 });
@@ -833,6 +838,7 @@ app.post('/api/auth/register', (req, res) => {
     if (!username || !email || !password || !inviteCode) {
       return res.status(400).json({ error: 'Tous les champs sont requis' });
     }
+    if (typeof inviteCode !== 'string' || inviteCode.length > 40) return res.status(400).json({ error: "Code d'invitation invalide ou déjà utilisé" });
     if (typeof username !== 'string' || username.length < 2 || username.length > 32) return res.status(400).json({ error: 'Pseudo invalide (2 à 32 caractères)' });
     if (typeof password !== 'string' || password.length < 6 || password.length > 200) return res.status(400).json({ error: 'Mot de passe trop court (min 6)' });
     if (typeof email !== 'string' || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return res.status(400).json({ error: 'Email invalide' });
@@ -898,8 +904,13 @@ function noteLoginFailure(req) {
 // Login
 app.post('/api/auth/login', loginRateLimit, (req, res) => {
   try {
-    const { email, password } = req.body;
+    const { email, password } = req.body || {};
     if (!email || !password) return res.status(400).json({ error: 'Email et mot de passe requis' });
+    // Un objet ou un tableau à la place du texte : refus net (avant : erreur serveur).
+    if (typeof email !== 'string' || typeof password !== 'string' || email.length > 200 || password.length > 200) {
+      noteLoginFailure(req);
+      return res.status(400).json({ error: 'Email et mot de passe requis' });
+    }
 
     const user = db.prepare('SELECT * FROM users WHERE email = ?').get(email);
     if (!user) { noteLoginFailure(req); return res.status(401).json({ error: 'Email ou mot de passe incorrect' }); }
@@ -3485,26 +3496,49 @@ const apiCache = new Map();
 const CACHE_TTL = 5 * 60 * 1000;
 const CACHE_MAX_ENTRIES = 500; // hard cap to prevent unbounded memory growth
 
-// Clé de cache : le chemin + le compte Plex utilisé (jamais le jeton lui-même).
+// Clé de cache : le chemin + le compte Plex utilisé (jamais le jeton lui-même)
+// + le FORMAT demandé. Plex répond en XML ou en JSON selon l'en-tête Accept :
+// sans ce dernier élément, une seule requête « XML » (n'importe quel client,
+// même sans le vouloir) mettait la liste en XML dans le cache commun, et le
+// site — qui attend du JSON — cassait pour tout le monde pendant 5 minutes.
 function cleCache(plexPath, req) {
-  return `${plexPath}|${crypto.createHash('sha1').update(String(tokenPour(req))).digest('hex').slice(0, 12)}`;
+  const format = /json/i.test(String(req.headers.accept || '')) ? 'json' : 'autre';
+  return `${plexPath}|${format}|${crypto.createHash('sha1').update(String(tokenPour(req))).digest('hex').slice(0, 12)}`;
 }
 
+/* Plafond en MÉGAOCTETS, pas seulement en nombre : 500 entrées d'images de
+   300 Ko et de listes de 2 Mo dépassaient 400 Mo (vu au « monkey test »).
+   Les entrées expirées sont aussi retirées chaque minute — avant, elles
+   restaient en mémoire tant que personne ne les redemandait. */
+const CACHE_MAX_OCTETS = 120 * 1024 * 1024;
+let apiCacheOctets = 0;
+const tailleEntree = (e) => (e?.body?.length || 0) + 200;
+function retirerCache(key) {
+  const e = apiCache.get(key);
+  if (e) { apiCacheOctets -= tailleEntree(e); apiCache.delete(key); }
+}
 function getCached(key) {
   const entry = apiCache.get(key);
   if (!entry) return null;
-  if (Date.now() - entry.time > CACHE_TTL) { apiCache.delete(key); return null; }
+  if (Date.now() - entry.time > CACHE_TTL) { retirerCache(key); return null; }
   return entry;
 }
 
 function setCached(key, value) {
-  // Simple FIFO eviction once the cap is reached.
-  if (apiCache.size >= CACHE_MAX_ENTRIES) {
-    const oldest = apiCache.keys().next().value;
-    if (oldest !== undefined) apiCache.delete(oldest);
+  retirerCache(key);
+  const taille = tailleEntree(value);
+  if (taille > CACHE_MAX_OCTETS / 8) return;   // une réponse énorme ne chasse pas tout le reste
+  // Les plus anciennes partent d'abord (une Map garde l'ordre d'insertion).
+  while (apiCache.size && (apiCache.size >= CACHE_MAX_ENTRIES || apiCacheOctets + taille > CACHE_MAX_OCTETS)) {
+    retirerCache(apiCache.keys().next().value);
   }
   apiCache.set(key, value);
+  apiCacheOctets += taille;
 }
+setInterval(() => {
+  const limite = Date.now() - CACHE_TTL;
+  for (const [k, e] of apiCache) if (e.time < limite) retirerCache(k);
+}, 60 * 1000).unref?.();
 
 // Rewrite URLs inside HLS playlists so they route through our proxy.
 // Use a ROOT-RELATIVE URL (no scheme/host): an absolute http:// URL breaks when
@@ -4718,6 +4752,18 @@ app.use('/plex', proxyAuth, async (req, res) => {
     }
     // Strip our own `nova` auth param so it is never forwarded to Plex.
     let plexPath = req.url.replace(/([?&])nova=[^&]*(&|$)/, (m, p1, p2) => (p1 === '?' && p2 === '&') ? '?' : (p2 === '&' ? p1 : ''));
+    /* Recherche : Plex plante (erreur 500) sur un guillemet collé à un mot
+       (« "Le Parrain », « a" »). Les guillemets ne servent à rien à sa
+       recherche : on les retire avant de transmettre. */
+    if (/^\/hubs\/search\?/.test(plexPath)) {
+      const [ch, qs] = plexPath.split('?');
+      const q = new URLSearchParams(qs);
+      if (q.has('query')) {
+        const propre = q.get('query').replace(/["“”«»]/g, ' ').replace(/\s+/g, ' ').trim();
+        if (!propre) return res.json({ MediaContainer: { size: 0, Hub: [] } });   // rien à chercher
+        q.set('query', propre); plexPath = `${ch}?${q}`;
+      }
+    }
 
     // Method/path allowlist. The app only ever READS from Plex (+ selects an
     // audio/subtitle track via PUT /library/parts). Block everything else so a

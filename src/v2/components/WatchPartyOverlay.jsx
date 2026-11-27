@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, Send, Smile, X, Users, Hourglass, Timer, LogOut } from 'lucide-react';
+import { MessageCircle, Send, Smile, X, Users, Hourglass, Timer, LogOut, WifiOff } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import WatchAvatar from './WatchAvatar';
-import { getCurrent, on, connectSession, isConnected, sendChat, sendReaction, quitterSeance } from '../lib/watchParty';
+import { getCurrent, on, connectSession, isConnected, sendChat, sendReaction, quitterSeance, estEnLigne } from '../lib/watchParty';
 
 import { tr } from '../../i18n';
 const EMOJIS = ['😂', '❤️', '🔥', '😮', '😢', '👏', '🎉', '💀'];
@@ -24,6 +24,8 @@ export default function WatchPartyOverlay({ videoRef }) {
   const [draft, setDraft] = useState('');
   const [unread, setUnread] = useState(0);
   const [autoWait, setAutoWait] = useState(true);
+  const [enLigne, setEnLigne] = useState(true);
+  useEffect(() => { setEnLigne(estEnLigne() || !isConnected()); return on('statut', setEnLigne); }, []);
   const wePausedRef = useRef(false);
   const listRef = useRef(null);
   const rid = useRef(0);
@@ -66,8 +68,25 @@ export default function WatchPartyOverlay({ videoRef }) {
 
   useEffect(() => { if (listRef.current) listRef.current.scrollTop = listRef.current.scrollHeight; }, [messages, chatOpen]);
 
-  // Host "attendre tout le monde": pause the film while any guest buffers.
-  const bufferers = participants.filter((p) => p.buffering && p.pid !== selfPid);
+  /* Host "attendre tout le monde": pause the film while any guest buffers.
+     Mais pas indéfiniment : quelqu'un dont le chargement reste bloqué plus de
+     25 s (réseau mort, téléphone en veille) ne fige plus la séance des autres —
+     il rattrapera en revenant (resynchronisation à la reconnexion). */
+  const depuisRef = useRef({});
+  const [, setTic] = useState(0);
+  const now = Date.now();
+  for (const p of participants) {
+    if (p.buffering && !depuisRef.current[p.pid]) depuisRef.current[p.pid] = now;
+    if (!p.buffering) delete depuisRef.current[p.pid];
+  }
+  const bufferers = participants.filter((p) => p.buffering && p.pid !== selfPid && now - (depuisRef.current[p.pid] || now) < 25000);
+  // Re-calcul régulier tant que quelqu'un charge (pour lâcher au bout de 25 s).
+  const quelquUnCharge = participants.some((p) => p.buffering);
+  useEffect(() => {
+    if (!quelquUnCharge) return undefined;
+    const t = setInterval(() => setTic((x) => x + 1), 2000);
+    return () => clearInterval(t);
+  }, [quelquUnCharge]);
   useEffect(() => {
     if (!isHost || !autoWait) return;
     const v = videoRef?.current; if (!v) return;
@@ -97,6 +116,16 @@ export default function WatchPartyOverlay({ videoRef }) {
         ))}
         {participants.length > 6 && <span className="text-[11px] text-white/60 font-bold ml-0.5">+{participants.length - 6}</span>}
       </div>
+
+      {/* ── Connexion à la séance coupée : on le dit, la reconnexion est automatique ── */}
+      <AnimatePresence>
+        {!enLigne && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+            className="absolute top-14 left-1/2 -translate-x-1/2 z-[56] flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-black/70 border border-white/15 text-white/90 text-[12px] font-medium pointer-events-none">
+            <WifiOff size={13} className="animate-pulse" /> {tr('Reconnexion à la séance…')}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ── Buffering banner ── */}
       <AnimatePresence>

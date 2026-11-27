@@ -839,4 +839,5 @@ export default {
   "Classés +18": "Marked 18+",
   "Aucun titre du serveur classé +18 pour le moment.": "No server title marked 18+ yet.",
   "Retirer du +18": "Remove from 18+",
+  "Reconnexion à la séance…": "Reconnecting to the watch party…",
 };

@@ -93,6 +93,12 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
     })),
   });
   const emitState = (s) => io.to(s.id).emit('watch:participants', publicSession(s));
+  // Position « maintenant » : celle du dernier état, avancée du temps écoulé si ça joue.
+  const etatActuel = (s) => ({
+    playing: !!s.state.playing,
+    position: s.state.playing ? s.state.position + (Date.now() - s.state.at) / 1000 : s.state.position,
+    at: Date.now(),
+  });
 
   // ─── REST ──────────────────────────────────────────────────
   app.post('/api/watch/create', authMiddleware, (req, res) => {
@@ -230,7 +236,12 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
       /* Séance déjà lancée : on le signale (« replay »). La salle d'attente ne
          renvoie plus d'office dans le film — sinon, revenir en arrière depuis le
          lecteur y ramenait aussitôt. Le lecteur, lui, s'en sert pour suivre. */
-      if (s.started) socket.emit('watch:launch', { mediaId: s.media.id, state: s.state, replay: true });
+      if (s.started) {
+        socket.emit('watch:launch', { mediaId: s.media.id, state: s.state, replay: true });
+        // Retour après une coupure (veille, changement de réseau) : la position
+        // actuelle tout de suite, sans attendre le prochain battement de l'hôte.
+        socket.emit('watch:sync', etatActuel(s));
+      }
     });
 
     /* L'hôte choisit l'épisode dans la salle d'attente (avant le lancement). */
@@ -298,6 +309,13 @@ export function setupWatchParty({ app, io, JWT_SECRET, authMiddleware, watchApi 
     socket.on('disconnect', () => {
       const s = sessions.get(sid); if (!s) return;
       const p = s.participants.get(pid);
+      /* ⚠️ Seulement si c'est bien CETTE connexion qui le représente encore.
+         Un téléphone qui sort de veille se reconnecte avec une NOUVELLE
+         connexion avant que le serveur n'ait constaté la mort de l'ancienne
+         (jusqu'à ~45 s). Quand l'ancienne « mourait » enfin, elle retirait la
+         personne… qui était revenue. Pour l'hôte, c'était pire : la séance le
+         croyait parti et se terminait pour tout le monde 10 min plus tard. */
+      if (!p || p.socketId !== socket.id) return;
       s.participants.delete(pid);
       // Host leaving does NOT end the séance immediately — they may just be
       // switching apps to share the link. Start a grace timer instead; the
