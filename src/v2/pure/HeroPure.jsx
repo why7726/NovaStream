@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play } from 'lucide-react';
 
-import { tr } from '../../i18n';
+import { tr, langueActuelle } from '../../i18n';
 import plexService from '../../services/plexService';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
@@ -50,7 +50,7 @@ export default function HeroPure({ movies = [] }) {
       try {
         const type = m.type === 'movie' ? 'movie' : 'tv';
         const title = m.grandparentTitle || m.parentTitle || m.title;
-        const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${type}/${encodeURIComponent(title)}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
+        const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${type}/${encodeURIComponent(title)}?l=${langueActuelle()}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
         if (!r.ok) return;
         const a = await r.json();
         if (a.logo && on) setLogos((p) => ({ ...p, [m.id]: a.logo }));

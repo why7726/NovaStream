@@ -804,8 +804,10 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', authMiddleware, async (req, res)
     });
     const imagesData = await imagesRes.json();
     const logos = imagesData.logos || [];
-    const bestLogo = logos.find(l => l.iso_639_1 === 'fr') ||
-                     logos.find(l => l.iso_639_1 === 'en') ||
+    // Le logo dans la langue du site d'abord (le titre écrit dedans).
+    const premiere = langue() === 'en' ? 'en' : 'fr';
+    const bestLogo = logos.find(l => l.iso_639_1 === premiere) ||
+                     logos.find(l => l.iso_639_1 === (premiere === 'en' ? 'fr' : 'en')) ||
                      logos.find(l => l.iso_639_1 === null) ||
                      logos[0];
 
@@ -835,12 +837,38 @@ app.get('/api/tmdb-v2/assets/:type/:idOrTitle', authMiddleware, async (req, res)
       backdrop: detailsData.backdrop_path ? `https://image.tmdb.org/t/p/original${detailsData.backdrop_path}` : null,
       logo: bestLogo ? `https://image.tmdb.org/t/p/original${bestLogo.file_path}` : null,
       trailer: trailerKey,
-      tmdbId: tmdbId
+      tmdbId: tmdbId,
+      /* Site en anglais : les fiches Plex sont souvent en français (agent
+         français). On fournit le titre et le résumé anglais de TMDB, que la
+         fiche affiche à la place. En français, rien ne change. */
+      textes: langue() === 'en' ? {
+        titre: detailsData.title || detailsData.name || null,
+        resume: detailsData.overview || null,
+      } : null,
     });
   } catch (error) {
     console.error('[TMDB-V2 ERROR]', error.message);
     res.status(500).json({ error: 'Erreur serveur' });
   }
+});
+
+/* Épisodes d'une saison dans la langue du site (titres + résumés TMDB) :
+   la liste des épisodes d'une fiche en anglais ne reste plus en français. */
+const saisonsTmdbCache = new Map();   // "tvId:n:langue" → { at, episodes }
+app.get('/api/tmdb-v2/saison/:tvId/:n', authMiddleware, async (req, res) => {
+  const tvId = String(req.params.tvId).replace(/\D/g, '');
+  const n = String(req.params.n).replace(/\D/g, '');
+  if (!tvId || !n || !TMDB_TOKEN) return res.json({ episodes: [] });
+  const cle = `${tvId}:${n}:${langueTmdb()}`;
+  const hit = saisonsTmdbCache.get(cle);
+  if (hit && Date.now() - hit.at < 24 * 3600 * 1000) return res.json({ episodes: hit.episodes });
+  try {
+    const d = await tmdbGet(`/tv/${tvId}/season/${n}`);
+    const episodes = (d.episodes || []).map((e) => ({ n: e.episode_number, titre: e.name || null, resume: e.overview || null }));
+    if (saisonsTmdbCache.size > 500) saisonsTmdbCache.clear();
+    saisonsTmdbCache.set(cle, { at: Date.now(), episodes });
+    res.json({ episodes });
+  } catch { res.json({ episodes: [] }); }
 });
 
 // Get metadata with external ID extraction

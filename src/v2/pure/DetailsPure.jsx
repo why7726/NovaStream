@@ -16,7 +16,7 @@ import { useLangBadges } from './langBadges';
 import WatchTogetherButton from '../components/WatchTogetherButton';
 import BoutonTelecharger, { useTelechargements } from './Telecharger';
 
-import { tr } from '../../i18n';
+import { tr, langueActuelle } from '../../i18n';
 const apiBase = () => (import.meta.env.DEV ? 'http://localhost:5174' : '');
 
 /* Bascule VF / VO — n'apparaît que si le fichier propose vraiment les deux.
@@ -51,6 +51,23 @@ function seasonLabel(s) {
 /* Fiche "Pure" — l'affiche, le titre, une ligne d'infos, un bouton.
    Les épisodes deviennent une liste verticale sobre (façon iOS),
    les métadonnées une seule ligne séparée par des points. */
+/* Site en anglais : titres et résumés des épisodes depuis TMDB (Plex les a
+   souvent en français). En français, ou sans identifiant TMDB : rien ne change. */
+async function traduireEpisodes(eps, tvId, n) {
+  if (langueActuelle() !== 'en' || !tvId || n == null || !eps?.length) return eps;
+  try {
+    const t = authService.getToken();
+    const r = await fetch(`${apiBase()}/api/tmdb-v2/saison/${encodeURIComponent(tvId)}/${encodeURIComponent(n)}`, { headers: t ? { Authorization: `Bearer ${t}` } : {} });
+    const d = await r.json();
+    const parNum = new Map((d.episodes || []).map((e) => [Number(e.n), e]));
+    return eps.map((e) => {
+      const x = parNum.get(Number(e.index));
+      if (!x) return e;
+      return { ...e, title: x.titre || e.title, ...(x.resume ? { summary: x.resume, description: x.resume } : {}) };
+    });
+  } catch { return eps; }
+}
+
 export default function DetailsPure() {
   const { id } = useParams();
   const telecharges = useTelechargements();   // application Android : ce qui est déjà sur le téléphone
@@ -126,13 +143,18 @@ export default function DetailsPure() {
         // Contenu d'un dossier local (+18…) : pas de TMDB — chercher par le seul titre
         // ramènerait les images d'une autre œuvre du même nom.
         if (!data.adulte) try {
-          const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${data.type === 'movie' ? 'movie' : 'tv'}/${encodeURIComponent(data.tmdbId || data.title)}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
+          // ?l= : la réponse dépend de la langue (le navigateur la garde un jour).
+          const r = await fetch(`${apiBase()}/api/tmdb-v2/assets/${data.type === 'movie' ? 'movie' : 'tv'}/${encodeURIComponent(data.tmdbId || data.title)}?l=${langueActuelle()}`, { headers: { Authorization: `Bearer ${authService.getToken()}` } });
           if (r.ok) {
             const a = await r.json();
             if (a.poster) data.poster = a.poster;
             if (a.backdrop) data.backdrop = a.backdrop;
             if (a.logo) data.logo = a.logo;
             if (a.trailer) data.trailer = a.trailer;
+            if (!data.tmdbId && a.tmdbId) data.tmdbId = a.tmdbId;
+            // Site en anglais : titre et résumé anglais de TMDB (Plex est souvent en français).
+            if (a.textes?.titre) data.title = a.textes.titre;
+            if (a.textes?.resume) { data.summary = a.textes.resume; data.description = a.textes.resume; }
           }
         } catch { /* l'art Plex suffit */ }
         if (!on) return;
@@ -154,7 +176,7 @@ export default function DetailsPure() {
           setSeasons(sns);
           if (sns[0]) {
             setSeason(sns[0].id);
-            const eps = await plexService.getChildren(sns[0].id);
+            const eps = await traduireEpisodes(await plexService.getChildren(sns[0].id), data.tmdbId, sns[0].index);
             if (on) setEpisodes(eps);
           }
         }
@@ -199,7 +221,8 @@ export default function DetailsPure() {
   const pickSeason = async (sid) => {
     setSeason(sid);
     setEpisodes([]);
-    setEpisodes(await plexService.getChildren(sid));
+    const n = (seasons.find((x) => x.id === sid) || {}).index;
+    setEpisodes(await traduireEpisodes(await plexService.getChildren(sid), movie?.tmdbId, n));
   };
 
   const toggleFav = async () => {

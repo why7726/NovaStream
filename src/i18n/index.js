@@ -46,6 +46,23 @@ export const langueActuelle = () => langue;
 /** Locale pour Intl / toLocaleDateString. */
 export const locale = () => (langue === 'en' ? 'en-US' : 'fr-FR');
 
+/* Noms de bibliothèques : ce sont ceux du serveur (souvent en français).
+   En anglais, les noms courants sont traduits À L'AFFICHAGE seulement — la
+   logique (animés, CAM…) continue de lire le nom d'origine. Un nom inconnu
+   reste tel quel. */
+const BIBLIOTHEQUES_EN = {
+  'films': 'Movies', 'film': 'Movies', 'series': 'TV Shows', 'series tv': 'TV Shows', 'serie': 'TV Shows',
+  'animes': 'Anime', 'anime': 'Anime', 'films cam': 'Cam Movies', 'documentaires': 'Documentaries',
+  'documentaire': 'Documentaries', 'dessins animes': 'Cartoons', "films d'animation": 'Animated Movies',
+  'musique': 'Music', 'concerts': 'Concerts', 'spectacles': 'Stand-up', 'emissions': 'Shows',
+  'enfants': 'Kids', 'jeunesse': 'Kids', 'favoris': 'Favorites', 'videos perso': 'Home Videos',
+};
+const sansAccents = (t) => String(t || '').normalize('NFD').replace(/\p{Diacritic}/gu, '').toLowerCase().trim();
+export function nomBibliotheque(titre) {
+  if (langue !== 'en' || !titre) return titre;
+  return BIBLIOTHEQUES_EN[sansAccents(titre)] || titre;
+}
+
 /** Change la langue de l'interface (sans l'enregistrer sur le compte). */
 export function setLangue(l) {
   if (!LANGUES.includes(l) || l === langue) return;

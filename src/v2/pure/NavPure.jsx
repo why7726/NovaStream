@@ -9,7 +9,7 @@ import { useFeatures } from '../lib/features';
 
 import { pushStatus, subscribePush, unsubscribePush } from '../lib/pushService';
 
-import { tr } from '../../i18n';
+import { tr, nomBibliotheque } from '../../i18n';
 /* Navigation "Pure" — une ligne de texte, rien d'autre.
    Desktop : liens texte centrés, fond qui se voile au scroll.
    Mobile  : barre d'onglets translucide en bas (icône + micro-label). */
@@ -77,7 +77,7 @@ export default function NavPure() {
   const features = useFeatures();
   const connecteurs = features?.serveurType !== 'jellyfin';
   const libItems = libraries.map((l) => ({
-    id: `lib-${l.key}`, label: l.title, path: `/bibliotheque/${l.key}`, icon: ICONES[libraryKind(l)] || Film,
+    id: `lib-${l.key}`, label: nomBibliotheque(l.title), path: `/bibliotheque/${l.key}`, icon: ICONES[libraryKind(l)] || Film,
   }));
   const items = [HOME, ...libItems, FAVS];
   const mobileItems = [HOME, ...libItems.slice(0, MAX_MOBILE), ...(libItems.length < MAX_MOBILE ? [FAVS] : [])];
